@@ -1,13 +1,6 @@
-import { users } from "../data/db.js";
+import pool from "../config/db.js";
 
-export const getUserProfile = (req, res) => {
-  const { id } = req.params;
-
-  const user = users.find((u) => u.id === id);
-
-  if (!user) {
-    return res.status(404).json({ message: "User not found" });
-  }
-
-  res.json(user);
+export const getUsers = async (req, res) => {
+  const result = await pool.query("SELECT * FROM users");
+  res.json(result.rows);
 };

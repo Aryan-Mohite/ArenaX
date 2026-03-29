@@ -1,3 +1,6 @@
+import pkg from "pg";
+const { Pool } = pkg;
+
 const { Pool } = require("pg");
 
 const pool = new Pool({

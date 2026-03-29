@@ -1,14 +1,15 @@
+import { verifyToken } from "../utils/jwt.js";
+
 export const protect = (req, res, next) => {
   const token = req.headers.authorization;
 
-  if (!token) {
-    return res.status(401).json({ message: "Not authorized" });
-  }
+  if (!token) return res.status(401).json({ msg: "No token" });
 
-  // For now simple check (later JWT)
-  if (token !== "mysecrettoken") {
-    return res.status(403).json({ message: "Invalid token" });
+  try {
+    const decoded = verifyToken(token);
+    req.user = decoded;
+    next();
+  } catch {
+    res.status(401).json({ msg: "Invalid token" });
   }
-
-  next(); // move to controller
 };

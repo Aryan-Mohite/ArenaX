@@ -1,35 +1,37 @@
-import { users } from "../data/db.js";
-import { v4 as uuidv4 } from "uuid";
+import pool from "../config/db.js";
+import bcrypt from "bcryptjs";
+import { generateToken } from "../utils/jwt.js";
 
-export const registerUser = (req, res) => {
+export const register = async (req, res) => {
   const { username, email, password } = req.body;
 
-  if (!username || !email || !password) {
-    return res.status(400).json({ message: "All fields required" });
-  }
+  const hashed = await bcrypt.hash(password, 10);
 
-  const user = {
-    id: uuidv4(),
-    username,
-    email,
-    password,
-  };
-
-  users.push(user);
-
-  res.status(201).json({ message: "User registered", user });
-};
-
-export const loginUser = (req, res) => {
-  const { email, password } = req.body;
-
-  const user = users.find(
-    (u) => u.email === email && u.password === password
+  const result = await pool.query(
+    "INSERT INTO users(username,email,password_hash) VALUES($1,$2,$3) RETURNING *",
+    [username, email, hashed]
   );
 
-  if (!user) {
-    return res.status(401).json({ message: "Invalid credentials" });
-  }
+  res.json(result.rows[0]);
+};
 
-  res.json({ message: "Login successful", user });
+export const login = async (req, res) => {
+  const { email, password } = req.body;
+
+  const result = await pool.query(
+    "SELECT * FROM users WHERE email=$1",
+    [email]
+  );
+
+  const user = result.rows[0];
+
+  if (!user) return res.status(400).json({ msg: "User not found" });
+
+  const valid = await bcrypt.compare(password, user.password_hash);
+
+  if (!valid) return res.status(400).json({ msg: "Wrong password" });
+
+  const token = generateToken(user);
+
+  res.json({ token, user });
 };

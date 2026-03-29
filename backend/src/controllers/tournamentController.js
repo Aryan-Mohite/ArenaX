@@ -1,21 +1,17 @@
-import { tournaments } from "../data/db.js";
-import { v4 as uuidv4 } from "uuid";
+import pool from "../config/db.js";
 
-export const getTournaments = (req, res) => {
-  res.json(tournaments);
+export const createTournament = async (req, res) => {
+  const { name, game_id } = req.body;
+
+  const result = await pool.query(
+    "INSERT INTO tournaments(name, game_id) VALUES($1,$2) RETURNING *",
+    [name, game_id]
+  );
+
+  res.json(result.rows[0]);
 };
 
-export const createTournament = (req, res) => {
-  const { name, region, prize } = req.body;
-
-  const newTournament = {
-    id: uuidv4(),
-    name,
-    region,
-    prize,
-  };
-
-  tournaments.push(newTournament);
-
-  res.status(201).json(newTournament);
+export const getTournaments = async (req, res) => {
+  const result = await pool.query("SELECT * FROM tournaments");
+  res.json(result.rows);
 };

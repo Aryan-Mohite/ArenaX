@@ -1,23 +1,17 @@
-import { teamPosts } from "../data/db.js";
-import { v4 as uuidv4 } from "uuid";
+import pool from "../config/db.js";
 
-export const createPost = (req, res) => {
-  const { game, rank, role, region, description } = req.body;
+export const createPost = async (req, res) => {
+  const { user_id, game_id, role_required } = req.body;
 
-  const post = {
-    id: uuidv4(),
-    game,
-    rank,
-    role,
-    region,
-    description,
-  };
+  const result = await pool.query(
+    "INSERT INTO team_finder_posts(user_id, game_id, role_required) VALUES($1,$2,$3) RETURNING *",
+    [user_id, game_id, role_required]
+  );
 
-  teamPosts.push(post);
-
-  res.status(201).json(post);
+  res.json(result.rows[0]);
 };
 
-export const getPosts = (req, res) => {
-  res.json(teamPosts);
+export const getPosts = async (req, res) => {
+  const result = await pool.query("SELECT * FROM team_finder_posts");
+  res.json(result.rows);
 };
