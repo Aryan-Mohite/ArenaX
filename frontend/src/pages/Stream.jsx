@@ -1,0 +1,1 @@
+export default function Stream(){ return <div style={{padding:'40px'}}><h1>Stream</h1></div> }

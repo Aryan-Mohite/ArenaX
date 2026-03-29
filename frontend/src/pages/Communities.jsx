@@ -1,0 +1,1 @@
+export default function Communities(){ return <div style={{padding:'40px'}}><h1>Communities</h1></div> }
