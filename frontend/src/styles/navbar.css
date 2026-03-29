@@ -1,0 +1,14 @@
+
+.navbar{
+display:flex;
+justify-content:space-between;
+padding:15px 40px;
+background:#020617;
+border-bottom:1px solid #1e293b;
+}
+.nav-links{ display:flex; gap:20px; }
+.nav-links a{
+color:white;
+text-decoration:none;
+font-weight:bold;
+}

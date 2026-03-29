@@ -1,0 +1,9 @@
+
+body{
+margin:0;
+font-family:Arial, Helvetica, sans-serif;
+background:linear-gradient(135deg,#020617,#0f172a);
+color:white;
+}
+.container{ padding:40px; }
+.grid{ display:flex; gap:30px; flex-wrap:wrap; }

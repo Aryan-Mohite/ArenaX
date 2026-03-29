@@ -1,1 +1,1 @@
-export default function Communities(){ return <div style={{padding:'40px'}}><h1>Communities</h1></div> }
+export default function Communities(){return <div className='container'><h1>Communities</h1></div>}
