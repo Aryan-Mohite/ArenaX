@@ -2,6 +2,12 @@ import { useState } from "react";
 import { registerUser } from "../services/authService";
 import { useNavigate } from "react-router-dom";
 
+axios.post("http://localhost:5000/api/auth/register", {
+  username,
+  email,
+  password,
+});
+
 export default function Register() {
   const navigate = useNavigate();
 
