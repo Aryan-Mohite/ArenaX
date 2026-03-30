@@ -1,26 +1,56 @@
 import { useState } from "react";
 import { loginUser } from "../services/authService";
+import { useNavigate } from "react-router-dom";
 
 export default function Login() {
-  const [form, setForm] = useState({ email: "", password: "" });
+  const navigate = useNavigate();
 
-  const handleLogin = async (e) => {
+  const [form, setForm] = useState({
+    email: "",
+    password: "",
+  });
+
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     try {
       const res = await loginUser(form);
+
       localStorage.setItem("token", res.data.token);
-      alert("Login success");
-    } catch {
-      alert("Login failed");
+
+      navigate("/profile");
+    } catch (err) {
+      alert("Invalid email or password");
     }
   };
 
   return (
-    <form onSubmit={handleLogin}>
-      <input onChange={(e) => setForm({ ...form, email: e.target.value })} />
-      <input type="password" onChange={(e) => setForm({ ...form, password: e.target.value })} />
-      <button>Login</button>
-    </form>
+    <div className="auth-container">
+      <h2>Login</h2>
+
+      <form onSubmit={handleSubmit}>
+        <input
+          name="email"
+          type="email"
+          placeholder="Email"
+          onChange={handleChange}
+          required
+        />
+
+        <input
+          name="password"
+          type="password"
+          placeholder="Password"
+          onChange={handleChange}
+          required
+        />
+
+        <button type="submit">Login</button>
+      </form>
+    </div>
   );
 }

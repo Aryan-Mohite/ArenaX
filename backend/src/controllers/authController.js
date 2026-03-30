@@ -1,37 +1,81 @@
-import pool from "../config/db.js";
-import bcrypt from "bcryptjs";
-import { generateToken } from "../utils/jwt.js";
+const pool = require("../config/db")
+const bcrypt = require("bcrypt")
 
-export const register = async (req, res) => {
-  const { username, email, password } = req.body;
+exports.registerUser = async (req,res) => {
 
-  const hashed = await bcrypt.hash(password, 10);
+try{
 
-  const result = await pool.query(
-    "INSERT INTO users(username,email,password_hash) VALUES($1,$2,$3) RETURNING *",
-    [username, email, hashed]
-  );
+const {username,email,password} = req.body
 
-  res.json(result.rows[0]);
-};
+const hashedPassword = await bcrypt.hash(password,10)
 
-export const login = async (req, res) => {
-  const { email, password } = req.body;
+const result = await pool.query(
+`INSERT INTO users (username,email,password_hash)
+VALUES ($1,$2,$3)
+RETURNING user_id,username,email`,
+[username,email,hashedPassword]
+)
 
-  const result = await pool.query(
-    "SELECT * FROM users WHERE email=$1",
-    [email]
-  );
+res.status(201).json({
+message:"User registered",
+user:result.rows[0]
+})
 
-  const user = result.rows[0];
+}catch(err){
 
-  if (!user) return res.status(400).json({ msg: "User not found" });
+if(err.code === "23505"){
+return res.status(400).json({error:"Username or Email already exists"})
+}
 
-  const valid = await bcrypt.compare(password, user.password_hash);
+res.status(500).json({error:"Server error"})
 
-  if (!valid) return res.status(400).json({ msg: "Wrong password" });
+}
 
-  const token = generateToken(user);
+}
 
-  res.json({ token, user });
-};
+
+
+const jwt = require("jsonwebtoken")
+
+exports.loginUser = async (req,res)=>{
+
+try{
+
+const {email,password} = req.body
+
+const result = await pool.query(
+"SELECT * FROM users WHERE email=$1",
+[email]
+)
+
+if(result.rows.length === 0){
+return res.status(401).json({error:"Invalid credentials"})
+}
+
+const user = result.rows[0]
+
+const validPassword = await bcrypt.compare(password,user.password_hash)
+
+if(!validPassword){
+return res.status(401).json({error:"Invalid credentials"})
+}
+
+const token = jwt.sign(
+{user_id:user.user_id},
+"secretkey",
+{expiresIn:"7d"}
+)
+
+res.json({
+token,
+user:{
+id:user.user_id,
+username:user.username
+}
+})
+
+}catch(err){
+res.status(500).json({error:"Server error"})
+}
+
+}
