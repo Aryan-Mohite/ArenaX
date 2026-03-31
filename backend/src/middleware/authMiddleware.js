@@ -1,29 +1,31 @@
-const jwt = require("jsonwebtoken");
+import { verifyToken } from "../utils/jwt.js";
 
-function authMiddleware(req, res, next) {
-
+/**
+ * Protects routes by verifying the Bearer JWT in Authorization header.
+ * On success, attaches decoded payload to req.user.
+ */
+const authMiddleware = (req, res, next) => {
   const authHeader = req.headers.authorization;
 
-  if (!authHeader) {
-    return res.status(401).json({ message: "No token provided" });
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({
+      success: false,
+      message: "No token provided. Authorization header must be: Bearer <token>",
+    });
   }
 
   const token = authHeader.split(" ")[1];
 
   try {
-
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET
-    );
-
+    const decoded = verifyToken(token);
     req.user = decoded;
-
     next();
-
-  } catch (error) {
-    res.status(401).json({ message: "Invalid token" });
+  } catch (err) {
+    if (err.name === "TokenExpiredError") {
+      return res.status(401).json({ success: false, message: "Token has expired" });
+    }
+    return res.status(401).json({ success: false, message: "Invalid token" });
   }
-}
+};
 
-module.exports = authMiddleware;
+export default authMiddleware;

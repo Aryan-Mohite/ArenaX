@@ -1,8 +1,26 @@
-const express = require("express");
-const router = express.Router();
-const { getProfile, updateProfile } = require("../controllers/userController");
+import { Router } from "express";
+import {
+  getUserProfile,
+  updateProfile,
+  upsertGameProfile,
+  searchUsers,
+} from "../controllers/userController.js";
+import authMiddleware from "../middleware/authMiddleware.js";
+import { validateIdParam } from "../utils/validators.js";
+import validate from "../middleware/validateMiddleware.js";
 
-router.get("/profile/:id", getProfile);
-router.put("/profile/:id", updateProfile);
+const router = Router();
 
-module.exports = router;
+// GET /api/users?q=username  — search users
+router.get("/", authMiddleware, searchUsers);
+
+// GET /api/users/:id  — public profile
+router.get("/:id", validateIdParam, validate, getUserProfile);
+
+// PUT /api/users/me  — update own profile
+router.put("/me", authMiddleware, updateProfile);
+
+// POST /api/users/me/game-profile  — add or update game rank/ELO
+router.post("/me/game-profile", authMiddleware, upsertGameProfile);
+
+export default router;

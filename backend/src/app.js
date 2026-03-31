@@ -1,21 +1,61 @@
 import express from "express";
 import cors from "cors";
-import { errorHandler } from "./middleware/errorMiddleware.js";
 
 import authRoutes from "./routes/authRoutes.js";
-import tournamentRoutes from "./routes/tournamentRoutes.js";
-import teamFinderRoutes from "./routes/teamFinderRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
+import gameRoutes from "./routes/gameRoutes.js";
+import tournamentRoutes from "./routes/tournamentRoutes.js";
+import teamRoutes from "./routes/teamRoutes.js";
+import teamFinderRoutes from "./routes/teamFinderRoutes.js";
+import communityRoutes from "./routes/communityRoutes.js";
+import messageRoutes from "./routes/messageRoutes.js";
+import streamRoutes from "./routes/streamRoutes.js";
+import matchRoutes from "./routes/matchRoutes.js";
+
+import { errorHandler, notFound } from "./middleware/errorMiddleware.js";
 
 const app = express();
 
-app.use(cors());
-app.use(express.json());
-app.use(errorHandler);
+// ─── CORS ─────────────────────────────────────────────────────────────────────
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || "http://localhost:5173")
+  .split(",")
+  .map((o) => o.trim());
 
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, curl, Postman)
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS: origin ${origin} not allowed`));
+      }
+    },
+    credentials: true,
+  })
+);
+
+// ─── BODY PARSING ─────────────────────────────────────────────────────────────
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// ─── HEALTH CHECK ─────────────────────────────────────────────────────────────
+app.get("/health", (_req, res) => res.json({ status: "ok" }));
+
+// ─── API ROUTES ───────────────────────────────────────────────────────────────
 app.use("/api/auth", authRoutes);
-app.use("/api/tournaments", tournamentRoutes);
-app.use("/api/teamfinder", teamFinderRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/games", gameRoutes);
+app.use("/api/tournaments", tournamentRoutes);
+app.use("/api/teams", teamRoutes);
+app.use("/api/teamfinder", teamFinderRoutes);
+app.use("/api/communities", communityRoutes);
+app.use("/api/messages", messageRoutes);
+app.use("/api/streams", streamRoutes);
+app.use("/api/matches", matchRoutes);
+
+// ─── ERROR HANDLING (must be last) ────────────────────────────────────────────
+app.use(notFound);
+app.use(errorHandler);
 
 export default app;
