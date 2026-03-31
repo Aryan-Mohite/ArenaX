@@ -1,56 +1,99 @@
-import { useState } from "react";
-import { loginUser } from "../services/authService";
-import { useNavigate } from "react-router-dom";
+import { useState } from 'react'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { loginUser } from '../services/authService'
+import { useAuth } from '../context/AuthContext'
+import { ErrorMessage } from '../components/UI'
 
 export default function Login() {
-  const navigate = useNavigate();
+  const { login } = useAuth()
+  const navigate  = useNavigate()
+  const location  = useLocation()
+  const from      = location.state?.from?.pathname || '/'
 
-  const [form, setForm] = useState({
-    email: "",
-    password: "",
-  });
+  const [form, setForm]       = useState({ email: '', password: '' })
+  const [error, setError]     = useState('')
+  const [loading, setLoading] = useState(false)
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
+    setForm(f => ({ ...f, [e.target.name]: e.target.value }))
+    setError('')
+  }
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-
+    e.preventDefault()
+    setLoading(true)
+    setError('')
     try {
-      const res = await loginUser(form);
-
-      localStorage.setItem("token", res.data.token);
-
-      navigate("/profile");
+      const res = await loginUser(form)
+      login(res.data.user, res.data.token)
+      navigate(from, { replace: true })
     } catch (err) {
-      alert("Invalid email or password");
+      setError(err.response?.data?.message || 'Login failed. Check your credentials.')
+    } finally {
+      setLoading(false)
     }
-  };
+  }
 
   return (
-    <div className="auth-container">
-      <h2>Login</h2>
+    <div className="min-h-[calc(100vh-64px)] flex items-center justify-center px-4">
+      <div className="w-full max-w-md animate-slide-up">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="font-display font-bold text-4xl text-white tracking-wide mb-2">
+            Welcome back
+          </h1>
+          <p className="text-gray-400">Sign in to your ArenaX account</p>
+        </div>
 
-      <form onSubmit={handleSubmit}>
-        <input
-          name="email"
-          type="email"
-          placeholder="Email"
-          onChange={handleChange}
-          required
-        />
+        <div className="card">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <ErrorMessage message={error} />
 
-        <input
-          name="password"
-          type="password"
-          placeholder="Password"
-          onChange={handleChange}
-          required
-        />
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1.5">Email</label>
+              <input
+                name="email"
+                type="email"
+                placeholder="you@example.com"
+                value={form.email}
+                onChange={handleChange}
+                required
+                autoComplete="email"
+                className="input"
+              />
+            </div>
 
-        <button type="submit">Login</button>
-      </form>
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1.5">Password</label>
+              <input
+                name="password"
+                type="password"
+                placeholder="••••••••"
+                value={form.password}
+                onChange={handleChange}
+                required
+                autoComplete="current-password"
+                className="input"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn-primary w-full mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Signing in...' : 'Sign in'}
+            </button>
+          </form>
+        </div>
+
+        <p className="text-center text-gray-500 text-sm mt-6">
+          Don't have an account?{' '}
+          <Link to="/register" className="text-red hover:text-red-light font-medium transition-colors">
+            Create one free
+          </Link>
+        </p>
+      </div>
     </div>
-  );
+  )
 }
