@@ -15,18 +15,9 @@ export const getTournaments = async (req, res, next) => {
     `;
     const params = [];
 
-    if (game_id) {
-      params.push(game_id);
-      query += ` AND t.game_id = $${params.length}`;
-    }
-    if (region) {
-      params.push(region);
-      query += ` AND t.region ILIKE $${params.length}`;
-    }
-    if (status) {
-      params.push(status);
-      query += ` AND t.status = $${params.length}`;
-    }
+    if (game_id) { params.push(game_id);  query += ` AND t.game_id = $${params.length}`; }
+    if (region)  { params.push(region);   query += ` AND t.region ILIKE $${params.length}`; }
+    if (status)  { params.push(status);   query += ` AND t.status = $${params.length}`; }
 
     params.push(Number(limit), Number(offset));
     query += `
@@ -37,9 +28,7 @@ export const getTournaments = async (req, res, next) => {
 
     const result = await pool.query(query, params);
     res.json({ success: true, tournaments: result.rows });
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 };
 
 // ─── GET SINGLE TOURNAMENT ────────────────────────────────────────────────────
@@ -59,7 +48,6 @@ export const getTournamentById = async (req, res, next) => {
       return res.status(404).json({ success: false, message: "Tournament not found" });
     }
 
-    // Get registered teams
     const teamsResult = await pool.query(
       `SELECT te.team_id, te.team_name, te.logo, tr.registered_at, tr.status
        FROM tournament_registrations tr
@@ -68,7 +56,6 @@ export const getTournamentById = async (req, res, next) => {
       [id]
     );
 
-    // Get matches
     const matchesResult = await pool.query(
       `SELECT m.*, t1.team_name AS team1_name, t2.team_name AS team2_name,
               w.team_name AS winner_name
@@ -89,9 +76,7 @@ export const getTournamentById = async (req, res, next) => {
         matches: matchesResult.rows,
       },
     });
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 };
 
 // ─── CREATE TOURNAMENT ────────────────────────────────────────────────────────
@@ -100,9 +85,12 @@ export const createTournament = async (req, res, next) => {
     const {
       name, game_id, prize_pool, entry_fee, region,
       format, start_date, end_date, registration_deadline,
+      // New organizer fields
+      image_url, description, organizer_name, location, join_link,
     } = req.body;
 
-    // Verify the game exists
+    const userId = req.user?.id || null;
+
     const game = await pool.query("SELECT game_id FROM games WHERE game_id = $1", [game_id]);
     if (game.rows.length === 0) {
       return res.status(404).json({ success: false, message: "Game not found" });
@@ -111,17 +99,21 @@ export const createTournament = async (req, res, next) => {
     const result = await pool.query(
       `INSERT INTO tournaments
          (name, game_id, prize_pool, entry_fee, region, format,
-          start_date, end_date, registration_deadline, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'upcoming')
+          start_date, end_date, registration_deadline, status,
+          image_url, description, organizer_name, location, join_link, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'upcoming',$10,$11,$12,$13,$14,$15)
        RETURNING *`,
-      [name, game_id, prize_pool, entry_fee, region, format,
-       start_date, end_date, registration_deadline]
+      [
+        name, game_id, prize_pool || 0, entry_fee || 0, region, format,
+        start_date, end_date, registration_deadline || null,
+        image_url || null, description || null,
+        organizer_name || null, location || null, join_link || null,
+        userId,
+      ]
     );
 
     res.status(201).json({ success: true, tournament: result.rows[0] });
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 };
 
 // ─── REGISTER TEAM FOR TOURNAMENT ─────────────────────────────────────────────
@@ -131,7 +123,6 @@ export const registerForTournament = async (req, res, next) => {
     const { team_id } = req.body;
     const userId = req.user.id;
 
-    // Check tournament exists and is open for registration
     const tournament = await pool.query(
       "SELECT * FROM tournaments WHERE tournament_id = $1",
       [tournament_id]
@@ -143,13 +134,11 @@ export const registerForTournament = async (req, res, next) => {
       return res.status(400).json({ success: false, message: "Tournament registration is closed" });
     }
 
-    // Check registration deadline
     const t = tournament.rows[0];
     if (t.registration_deadline && new Date() > new Date(t.registration_deadline)) {
       return res.status(400).json({ success: false, message: "Registration deadline has passed" });
     }
 
-    // Verify the requesting user is a member of this team
     const membership = await pool.query(
       "SELECT * FROM team_members WHERE team_id = $1 AND user_id = $2 AND status = 'active'",
       [team_id, userId]
@@ -158,7 +147,6 @@ export const registerForTournament = async (req, res, next) => {
       return res.status(403).json({ success: false, message: "You are not a member of this team" });
     }
 
-    // Check for duplicate registration
     const existing = await pool.query(
       "SELECT * FROM tournament_registrations WHERE tournament_id = $1 AND team_id = $2",
       [tournament_id, team_id]
@@ -169,15 +157,12 @@ export const registerForTournament = async (req, res, next) => {
 
     const result = await pool.query(
       `INSERT INTO tournament_registrations (tournament_id, team_id, status)
-       VALUES ($1, $2, 'pending')
-       RETURNING *`,
+       VALUES ($1, $2, 'pending') RETURNING *`,
       [tournament_id, team_id]
     );
 
     res.status(201).json({ success: true, registration: result.rows[0] });
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 };
 
 // ─── UPDATE TOURNAMENT STATUS ─────────────────────────────────────────────────
@@ -201,7 +186,5 @@ export const updateTournamentStatus = async (req, res, next) => {
     }
 
     res.json({ success: true, tournament: result.rows[0] });
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 };
