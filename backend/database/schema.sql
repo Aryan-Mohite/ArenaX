@@ -245,3 +245,49 @@ CREATE INDEX idx_matches_tournament ON matches(tournament_id);
 CREATE INDEX idx_messages_receiver ON messages(receiver_id);
 
 SELECT tablename FROM pg_tables WHERE schemaname = 'public';
+
+
+
+ALTER TABLE tournaments
+  ADD COLUMN IF NOT EXISTS image_url        TEXT,
+  ADD COLUMN IF NOT EXISTS description      TEXT,
+  ADD COLUMN IF NOT EXISTS organizer_name   VARCHAR(150),
+  ADD COLUMN IF NOT EXISTS location         VARCHAR(150),
+  ADD COLUMN IF NOT EXISTS join_link        TEXT,
+  ADD COLUMN IF NOT EXISTS created_by       INT REFERENCES users(user_id),
+  ADD COLUMN IF NOT EXISTS created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+
+
+  INSERT INTO games (game_name, genre, developer, release_year) VALUES
+  ('Valorant',          'Tactical FPS',      'Riot Games',            2020),
+  ('CS2',               'FPS',               'Valve',                 2023),
+  ('League of Legends', 'MOBA',              'Riot Games',            2009),
+  ('Dota 2',            'MOBA',              'Valve',                 2013),
+  ('Fortnite',          'Battle Royale',     'Epic Games',            2017),
+  ('PUBG',              'Battle Royale',     'Krafton',               2017),
+  ('Apex Legends',      'Battle Royale',     'Respawn Entertainment', 2019),
+  ('Overwatch 2',       'Hero Shooter',      'Blizzard Entertainment',2022),
+  ('Rocket League',     'Sports',            'Psyonix',               2015),
+  ('Call of Duty: Warzone', 'Battle Royale', 'Activision',            2020),
+  ('FIFA 24',           'Sports',            'EA Sports',             2023),
+  ('Street Fighter 6',  'Fighting',          'Capcom',                2023),
+  ('Hearthstone',       'Card Game',         'Blizzard Entertainment',2014),
+  ('StarCraft II',      'Real-Time Strategy','Blizzard Entertainment',2010);
+
+
+
+  INSERT INTO communities (game_id, name, description) VALUES
+  (1,  'Valorant Community',        'Tips, clips and ranked discussion'),
+  (2,  'CS2 Community',             'Strategy guides, highlights and pro scene talk'),
+  (4,  'League of Legends Hub',     'Champion discussion, patch notes and ranked grind'),
+  (5,  'Dota 2 Den',                'Hero builds, patch analysis and tournament coverage'),
+  (6,  'Fortnite Squad',            'Building tips, creative maps and battle royale drops'),
+  (7,  'PUBG Battlegrounds',        'Landing zones, loadouts and squad tactics'),
+  (8,  'Apex Legends Lounge',       'Legend metas, movement tech and ranked pushes'),
+  (9,  'Overwatch 2 Arena',         'Hero counters, team comps and competitive updates'),
+  (10, 'Rocket League Garage',      'Mechanical tips, car designs and tournament brackets'),
+  (11, 'Warzone Operations',        'Loadout builders, best drop spots and gulag tips'),
+  (12, 'FIFA 24 FC',                'Ultimate Team builds, career mode and Weekend League'),
+  (13, 'Street Fighter 6 Dojo',     'Frame data, combo guides and online match clips'),
+  (14, 'Hearthstone Tavern',        'Deck builds, meta reports and adventure guides'),
+  (15, 'StarCraft II Command',      'Build orders, race discussion and pro match VODs');
