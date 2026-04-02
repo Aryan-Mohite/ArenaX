@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { getMe } from '../services/authService'
 import { updateProfile, upsertGameProfile } from '../services/userService'
 import { getMyGames } from '../services/gameService'
@@ -312,15 +312,18 @@ function GameStatsFetcher({ game, onSave }) {
 export default function Profile() {
   const { user: authUser, login, token } = useAuth()
 
-  const [profile,   setProfile]   = useState(null)
-  const [games,     setGames]     = useState([])
-  const [loading,   setLoading]   = useState(true)
-  const [editMode,  setEditMode]  = useState(false)
-  const [form,      setForm]      = useState({})
-  const [error,     setError]     = useState('')
-  const [saving,    setSaving]    = useState(false)
-  const [toast,     setToast]     = useState('')
-  const [activeTab, setActiveTab] = useState('overview')
+  const [profile,      setProfile]      = useState(null)
+  const [games,        setGames]        = useState([])
+  const [loading,      setLoading]      = useState(true)
+  const [editMode,     setEditMode]     = useState(false)
+  const [form,         setForm]         = useState({})
+  const [error,        setError]        = useState('')
+  const [saving,       setSaving]       = useState(false)
+  const [toast,        setToast]        = useState('')
+  const [activeTab,    setActiveTab]    = useState('overview')
+  const [avatarPreview, setAvatarPreview] = useState(null)
+  const [avatarUrlMode, setAvatarUrlMode] = useState(false)
+  const avatarFileRef = useRef(null)
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2500) }
 
@@ -331,11 +334,13 @@ export default function Profile() {
         const p = meRes.data.user
         setProfile(p)
         setForm({
-          username: p.username || '',
-          bio:      p.bio      || '',
-          country:  p.country  || '',
-          region:   p.region   || '',
+          username:        p.username        || '',
+          bio:             p.bio             || '',
+          country:         p.country         || '',
+          region:          p.region          || '',
+          profile_picture: p.profile_picture || '',
         })
+        if (p.profile_picture) setAvatarPreview(p.profile_picture)
         setGames(gamesRes.data.games || [])
       } catch {
         setError('Failed to load profile')
@@ -345,6 +350,27 @@ export default function Profile() {
     }
     load()
   }, [])
+
+  const handleAvatarFile = (file) => {
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      setAvatarPreview(e.target.result)
+      setForm(f => ({ ...f, profile_picture: e.target.result }))
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleAvatarUrl = (url) => {
+    setAvatarPreview(url)
+    setForm(f => ({ ...f, profile_picture: url }))
+  }
+
+  const clearAvatar = () => {
+    setAvatarPreview(null)
+    setForm(f => ({ ...f, profile_picture: '' }))
+    if (avatarFileRef.current) avatarFileRef.current.value = ''
+  }
 
   const handleSave = async () => {
     setSaving(true)
@@ -399,8 +425,23 @@ export default function Profile() {
       <div className="card mb-6 relative overflow-hidden">
         <div className="absolute inset-0 bg-red-glow pointer-events-none opacity-50"/>
         <div className="relative flex flex-col sm:flex-row items-start sm:items-center gap-5">
-          <div className="w-20 h-20 rounded-full bg-red/20 border-2 border-red/40 flex items-center justify-center text-red font-display font-bold text-3xl shrink-0 glow-red">
-            {profile?.username?.[0]?.toUpperCase()}
+          {/* Avatar — shows image if set, else initial */}
+          <div className="relative w-20 h-20 shrink-0 group">
+            {profile?.profile_picture ? (
+              <img src={profile.profile_picture} alt={profile.username}
+                className="w-20 h-20 rounded-full object-cover border-2 border-red/40 glow-red"
+                onError={e => { e.target.style.display='none'; e.target.nextSibling.style.display='flex' }} />
+            ) : null}
+            <div className={'w-20 h-20 rounded-full bg-red/20 border-2 border-red/40 items-center justify-center text-red font-display font-bold text-3xl glow-red ' + (profile?.profile_picture ? 'hidden' : 'flex')}>
+              {profile?.username?.[0]?.toUpperCase()}
+            </div>
+            {/* Edit overlay — click opens edit mode */}
+            {!editMode && (
+              <button onClick={() => setEditMode(true)}
+                className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <span className="text-white text-xs font-medium">&#9998; Edit</span>
+              </button>
+            )}
           </div>
           <div className="flex-1 min-w-0">
             <h1 className="font-display font-bold text-3xl text-white">{profile?.username}</h1>
@@ -425,7 +466,67 @@ export default function Profile() {
         <div className="card mb-6 animate-slide-up">
           <h3 className="font-display font-bold text-lg text-white mb-4">Edit Profile</h3>
           <ErrorMessage message={error}/>
-          <div className="grid sm:grid-cols-2 gap-4 mt-3">
+
+          {/* ── Profile picture section ── */}
+          <div className="rounded-xl border border-surface-border bg-navy/40 p-4 mb-4">
+            <label className="block text-xs text-gray-500 uppercase tracking-wider mb-3">&#128247; Profile Picture</label>
+            <div className="flex items-start gap-4">
+              {/* Live preview */}
+              <div className="w-16 h-16 rounded-full border-2 border-surface-border overflow-hidden shrink-0 bg-red/10 flex items-center justify-center">
+                {avatarPreview ? (
+                  <img src={avatarPreview} alt="preview" className="w-full h-full object-cover"
+                    onError={e => { e.target.style.display='none' }} />
+                ) : (
+                  <span className="text-red font-bold text-2xl font-display">{profile?.username?.[0]?.toUpperCase()}</span>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                {/* Mode toggle */}
+                <div className="flex gap-1 mb-2">
+                  <button type="button"
+                    onClick={() => { setAvatarUrlMode(false); clearAvatar() }}
+                    className={'px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ' +
+                      (!avatarUrlMode ? 'bg-red/20 text-red border border-red/30' : 'text-gray-500 hover:text-white border border-surface-border')}>
+                    Upload file
+                  </button>
+                  <button type="button"
+                    onClick={() => { setAvatarUrlMode(true); clearAvatar() }}
+                    className={'px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ' +
+                      (avatarUrlMode ? 'bg-red/20 text-red border border-red/30' : 'text-gray-500 hover:text-white border border-surface-border')}>
+                    Paste URL
+                  </button>
+                  {avatarPreview && (
+                    <button type="button" onClick={clearAvatar}
+                      className="px-2.5 py-1 rounded-lg text-xs font-medium text-red border border-red/30 hover:bg-red/10 transition-colors ml-auto">
+                      &#10005; Remove
+                    </button>
+                  )}
+                </div>
+                {!avatarUrlMode ? (
+                  <div>
+                    <input ref={avatarFileRef} type="file" accept="image/*" className="hidden"
+                      onChange={e => handleAvatarFile(e.target.files?.[0])} />
+                    <button type="button"
+                      onClick={() => avatarFileRef.current?.click()}
+                      className="w-full border border-dashed border-surface-border rounded-lg py-3 text-xs text-gray-500 hover:border-red/40 hover:text-gray-300 transition-colors flex items-center justify-center gap-2">
+                      <span>&#128190;</span> Browse PNG, JPG, WEBP
+                    </button>
+                  </div>
+                ) : (
+                  <input className="input text-sm" placeholder="https://example.com/avatar.jpg"
+                    value={form.profile_picture || ''}
+                    onChange={e => handleAvatarUrl(e.target.value)} />
+                )}
+                {avatarPreview && (
+                  <p className="text-xs text-green-400 mt-1.5 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block" /> New picture ready to save
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm text-gray-400 mb-1.5">Username</label>
               <input className="input" value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))}/>

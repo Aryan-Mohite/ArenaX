@@ -274,7 +274,8 @@ ALTER TABLE tournaments
   ('Hearthstone',       'Card Game',         'Blizzard Entertainment',2014),
   ('StarCraft II',      'Real-Time Strategy','Blizzard Entertainment',2010);
 
-
+ALTER TABLE community_posts
+  ADD COLUMN IF NOT EXISTS image_url TEXT;
 
   INSERT INTO communities (game_id, name, description) VALUES
   (1,  'Valorant Community',        'Tips, clips and ranked discussion'),
