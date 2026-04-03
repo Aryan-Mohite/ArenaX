@@ -298,10 +298,10 @@ export default function Home() {
       <div ref={statsRef} className="border-b border-surface-border bg-surface-card/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-7 grid grid-cols-2 md:grid-cols-4 gap-6 divide-x divide-surface-border/40">
           {[
-            { label: 'Active Players',     value: '50K+',   icon: '🎮' },
-            { label: 'Tournaments Hosted', value: '1200+',  icon: '🏆' },
-            { label: 'Prize Money Paid',   value: '2M+',    icon: '💰' },
-            { label: 'Games Supported',    value: '25+',    icon: '🕹️' },
+            { label: 'Active Players',     value: '50K+'},
+            { label: 'Tournaments Hosted', value: '1200+'},
+            { label: 'Prize Money Paid',   value: '2M+' },
+            { label: 'Games Supported',    value: '25+'},
           ].map(s => (
             <AnimatedStat key={s.label} {...s} triggered={statsTriggered} />
           ))}
