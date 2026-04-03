@@ -260,7 +260,7 @@ export default function Navbar() {
                 "px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 border " +
                 (isActive
                   ? "text-white bg-surface-card border-red/30"
-                  : "text-gray-400 hover:text-white hover:bg-surface-card border-transparent hover:border-red/20")
+                  : "text-gray-400 hover:text-white hover:bg-surface-card border-transparent hover:border-red/50")
               }
             >
               {label}
