@@ -87,3 +87,48 @@
     box-shadow: 0 0 20px rgba(255, 70, 85, 0.25);
   }
 }
+
+/* ── Custom cursor ── */
+@keyframes cursorSpin {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    cursor: none !important;   /* 👈 add this */
+  }
+
+  body {
+    @apply bg-navy text-white font-sans antialiased;
+    background: linear-gradient(135deg, #020617 0%, #0f172a 60%, #0d1020 100%);
+    min-height: 100vh;
+  }
+
+  /* rest of your existing css unchanged... */
+}
+/* ── Loader animations ── */
+@keyframes shardSpin {
+  0%   { transform: rotate(0deg) scale(1); }
+  50%  { transform: rotate(180deg) scale(1.2); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+
+@keyframes bracketPulse {
+  from { transform: translate(-5px, -5px); opacity: 0.4; }
+  to   { transform: translate(2px, 2px); opacity: 1; }
+}
+
+@keyframes scanLine {
+  0%   { top: -20%; }
+  100% { top: 120%; }
+}
+
+/* ── Custom cursor ── */
+@keyframes cursorSpin {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+
+
+/* ... rest of your existing css unchanged */
