@@ -292,3 +292,23 @@ ALTER TABLE community_posts
   (13, 'Street Fighter 6 Dojo',     'Frame data, combo guides and online match clips'),
   (14, 'Hearthstone Tavern',        'Deck builds, meta reports and adventure guides'),
   (15, 'StarCraft II Command',      'Build orders, race discussion and pro match VODs');
+
+
+  ALTER TABLE games
+  ADD COLUMN IF NOT EXISTS rawg_id      INTEGER UNIQUE,
+  ADD COLUMN IF NOT EXISTS cover_image  TEXT,
+  ADD COLUMN IF NOT EXISTS rating       DECIMAL(3,2),
+  ADD COLUMN IF NOT EXISTS rating_count INTEGER DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS platforms    TEXT,
+  ADD COLUMN IF NOT EXISTS metacritic   INTEGER,
+  ADD COLUMN IF NOT EXISTS description  TEXT,
+  ADD COLUMN IF NOT EXISTS website      TEXT,
+  ADD COLUMN IF NOT EXISTS slug         VARCHAR(200),
+  ADD COLUMN IF NOT EXISTS screenshots  TEXT[];  -- array of image URLs
+
+-- Index for fast lookups by rawg_id
+CREATE INDEX IF NOT EXISTS idx_games_rawg_id ON games(rawg_id);
+CREATE INDEX IF NOT EXISTS idx_games_slug    ON games(slug);
+
+-- Backfill icon → cover_image for any rows that already have an icon set
+UPDATE games SET cover_image = icon WHERE cover_image IS NULL AND icon IS NOT NULL;

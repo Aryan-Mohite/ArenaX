@@ -1,4 +1,9 @@
 import pool from "../config/db.js";
+import {
+  fetchEsportsGames,
+  searchGames as rawgSearch,
+  getGameDetails as rawgDetails,
+} from "../services/rawgService.js";
 
 // ─── GET ALL GAMES ────────────────────────────────────────────────────────────
 export const getGames = async (req, res, next) => {
@@ -16,7 +21,7 @@ export const getGames = async (req, res, next) => {
       query += ` AND game_name ILIKE $${params.length}`;
     }
 
-    query += " ORDER BY game_name ASC";
+    query += " ORDER BY rating DESC NULLS LAST, game_name ASC";
 
     const result = await pool.query(query, params);
     res.json({ success: true, games: result.rows });
@@ -134,6 +139,116 @@ export const removeFavouriteGame = async (req, res, next) => {
     }
 
     res.json({ success: true, message: "Game removed from favourites" });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ─── SYNC GAMES FROM RAWG ─────────────────────────────────────────────────────
+// POST /api/games/sync
+// Fetches top esports titles from RAWG and upserts them into the DB.
+// Protect with a secret header in production (X-Sync-Secret).
+export const syncGamesFromRawg = async (req, res, next) => {
+  try {
+    // Optional: verify a sync secret in production
+    const syncSecret = process.env.RAWG_SYNC_SECRET;
+    if (syncSecret && req.headers["x-sync-secret"] !== syncSecret) {
+      return res.status(403).json({ success: false, message: "Forbidden" });
+    }
+
+    const games = await fetchEsportsGames();
+
+    let inserted = 0;
+    let updated = 0;
+    let skipped = 0;
+
+    for (const g of games) {
+      // Safety net: never attempt to insert a row with no game_name
+      if (!g.game_name || !g.game_name.trim()) {
+        console.warn("[sync] Skipping game with null/empty game_name", g);
+        skipped++;
+        continue;
+      }
+
+      const result = await pool.query(
+        `INSERT INTO games
+           (game_name, genre, developer, release_year, cover_image, icon, status,
+            rawg_id, rating, rating_count, platforms, metacritic, description, website, slug, screenshots)
+         VALUES ($1,$2,$3,$4,$5,$5,'active',$6,$7,$8,$9,$10,$11,$12,$13,$14)
+         ON CONFLICT (game_name) DO UPDATE SET
+           genre        = EXCLUDED.genre,
+           developer    = COALESCE(EXCLUDED.developer, games.developer),
+           release_year = COALESCE(EXCLUDED.release_year, games.release_year),
+           cover_image  = COALESCE(EXCLUDED.cover_image, games.cover_image),
+           icon         = COALESCE(EXCLUDED.icon, games.icon),
+           rawg_id      = EXCLUDED.rawg_id,
+           rating       = EXCLUDED.rating,
+           rating_count = EXCLUDED.rating_count,
+           platforms    = EXCLUDED.platforms,
+           metacritic   = EXCLUDED.metacritic,
+           description  = EXCLUDED.description,
+           website      = EXCLUDED.website,
+           slug         = EXCLUDED.slug,
+           screenshots  = EXCLUDED.screenshots
+         RETURNING (xmax = 0) AS is_insert`,
+        [
+          g.game_name,
+          g.genre,
+          g.developer,
+          g.release_year,
+          g.cover_image,
+          g.rawg_id,
+          g.rating,
+          g.rating_count,
+          g.platforms,
+          g.metacritic,
+          g.description,
+          g.website,
+          g.slug,
+          g.screenshots || [],
+        ]
+      );
+
+      if (result.rows[0]?.is_insert) inserted++;
+      else updated++;
+    }
+
+    res.json({
+      success: true,
+      message: `Sync complete: ${inserted} inserted, ${updated} updated, ${skipped} skipped`,
+      total: games.length,
+      inserted,
+      updated,
+      skipped,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ─── PROXY: SEARCH RAWG ───────────────────────────────────────────────────────
+// GET /api/games/rawg/search?q=valorant&page=1&page_size=20
+// The API key stays on the server — the frontend never sees it.
+export const rawgSearchProxy = async (req, res, next) => {
+  try {
+    const { q, page = 1, page_size = 20 } = req.query;
+    if (!q) {
+      return res.status(400).json({ success: false, message: "Query param 'q' is required" });
+    }
+    const results = await rawgSearch(q, Number(page), Number(page_size));
+    res.json({ success: true, results });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ─── PROXY: GET RAWG GAME DETAILS ─────────────────────────────────────────────
+// GET /api/games/rawg/:slug
+export const rawgDetailsProxy = async (req, res, next) => {
+  try {
+    const { slug } = req.params;
+    const details = await rawgDetails(slug);
+    res.json({ success: true, game: details });
   } catch (err) {
     next(err);
   }
