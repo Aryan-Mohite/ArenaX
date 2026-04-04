@@ -5,32 +5,19 @@ import {
   getMyGames,
   addFavouriteGame,
   removeFavouriteGame,
-  syncGamesFromRawg,
-  rawgSearchProxy,
-  rawgDetailsProxy,
+  syncGamesFromJson,
 } from "../controllers/gameController.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 import { validateIdParam } from "../utils/validators.js";
 import validate from "../middleware/validateMiddleware.js";
-import { body, param, query } from "express-validator";
+import { body, param } from "express-validator";
 
 const router = Router();
 
 // ─── Public routes ────────────────────────────────────────────────────────────
 
-// GET /api/games?genre=&q=
+// GET /api/games?genre=&q=&platform=
 router.get("/", getGames);
-
-// GET /api/games/rawg/search?q=valorant  — proxy to RAWG (API key stays server-side)
-router.get(
-  "/rawg/search",
-  [query("q").notEmpty().withMessage("Search query is required")],
-  validate,
-  rawgSearchProxy
-);
-
-// GET /api/games/rawg/:slug  — proxy RAWG game detail
-router.get("/rawg/:slug", rawgDetailsProxy);
 
 // ─── Auth-required routes ─────────────────────────────────────────────────────
 
@@ -55,11 +42,9 @@ router.delete(
   removeFavouriteGame
 );
 
-// ─── RAWG sync (admin / one-time setup) ───────────────────────────────────────
+// ─── Sync from local JSON (admin / first-time setup) ─────────────────────────
 // POST /api/games/sync
-// Fetches top 20 esports titles from RAWG and upserts into DB.
-// Protect with X-Sync-Secret header in production (set RAWG_SYNC_SECRET in .env).
-router.post("/sync", syncGamesFromRawg);
+router.post("/sync", syncGamesFromJson);
 
 // ─── Parameterised routes (must come after named sub-paths) ──────────────────
 

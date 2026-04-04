@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
-import { getGames, getMyGames, addFavouriteGame, removeFavGame } from '../services/gameService'
+import { getGames, getMyGames, addFavouriteGame, removeFavGame, syncGames } from '../services/gameService'
 import GameCard from '../components/GameCard'
-import { PageLoader, PageHeader, EmptyState, ErrorMessage } from '../components/UI'
+import { PageLoader, EmptyState, ErrorMessage } from '../components/UI'
 import { useAuth } from '../context/AuthContext'
 
 // ─── Genre accent colors ──────────────────────────────────────────────────────
@@ -19,22 +19,12 @@ const GENRE_COLORS = {
 }
 const genreColor = (g) => GENRE_COLORS[g] || GENRE_COLORS.default
 
-// ─── Fallback games (used only if the backend is completely unreachable) ──────
-const FALLBACK_GAMES = [
-  { game_id: 1,  game_name: 'Valorant',          genre: 'Tactical FPS',  developer: 'Riot Games',  cover_color: ['#ff4655','#1a0a0c'] },
-  { game_id: 2,  game_name: 'CS2',               genre: 'FPS',           developer: 'Valve',       cover_color: ['#f4a523','#1a1000'] },
-  { game_id: 3,  game_name: 'League of Legends', genre: 'MOBA',          developer: 'Riot Games',  cover_color: ['#c89b3c','#1a1500'] },
-  { game_id: 4,  game_name: 'Dota 2',            genre: 'MOBA',          developer: 'Valve',       cover_color: ['#c23c2a','#1a0800'] },
-  { game_id: 5,  game_name: 'PUBG',              genre: 'Battle Royale', developer: 'Krafton',     cover_color: ['#f4a523','#1a1200'] },
-  { game_id: 6,  game_name: 'Fortnite',          genre: 'Battle Royale', developer: 'Epic Games',  cover_color: ['#00d4ff','#001a20'] },
-  { game_id: 7,  game_name: 'Apex Legends',      genre: 'Battle Royale', developer: 'EA Respawn',  cover_color: ['#fc4b08','#1a0a00'] },
-  { game_id: 8,  game_name: 'Overwatch 2',       genre: 'FPS',           developer: 'Blizzard',    cover_color: ['#f99e1a','#1a1100'] },
-  { game_id: 9,  game_name: 'Rocket League',     genre: 'Sports',        developer: 'Psyonix',     cover_color: ['#0082ff','#000f1a'] },
-  { game_id: 10, game_name: 'Street Fighter 6',  genre: 'Fighting',      developer: 'Capcom',      cover_color: ['#fc4b08','#1a0500'] },
+// ─── Platform filter options ──────────────────────────────────────────────────
+const PLATFORM_FILTERS = [
+  { label: 'All', value: '' },
+  { label: 'PC / Console', value: 'PC' },
+  { label: 'Mobile', value: 'Mobile' },
 ]
-
-// ─── Popular spotlight (shown while DB may be empty, uses RAWG data if present) ──
-const POPULAR_IDS = [1, 2, 3, 6, 7] // game_ids that map to top esports titles
 
 // ─── Skeleton card ────────────────────────────────────────────────────────────
 function GameSkeleton() {
@@ -52,11 +42,10 @@ function GameSkeleton() {
   )
 }
 
-// ─── Cover art for spotlight (uses real image if available) ───────────────────
+// ─── Cover art for spotlight ──────────────────────────────────────────────────
 function SpotlightCover({ game }) {
   const [err, setErr] = useState(false)
   const color  = genreColor(game.genre)
-  const colors = game.cover_color || [color, '#0a0a0a']
   const abbr   = game.game_name.split(' ').map(w => w[0]).join('').slice(0,3).toUpperCase()
   const src    = !err && (game.cover_image || game.icon)
 
@@ -68,7 +57,7 @@ function SpotlightCover({ game }) {
           onError={() => setErr(true)} />
       ) : (
         <div className="w-full h-full flex items-center justify-center"
-          style={{ background: `linear-gradient(160deg, ${colors[0]}40 0%, ${colors[1]} 100%)` }}>
+          style={{ background: `linear-gradient(160deg, ${color}40 0%, #0a0a1a 100%)` }}>
           <div className="w-10 h-10 rounded-xl flex items-center justify-center font-display font-black text-sm"
             style={{ background: color+'25', border: `1.5px solid ${color}60`, color }}>
             {abbr}
@@ -81,35 +70,17 @@ function SpotlightCover({ game }) {
   )
 }
 
-// ─── Spotlight card (top 5 popular games) ────────────────────────────────────
+// ─── Spotlight card ───────────────────────────────────────────────────────────
 function SpotlightCard({ game, rank }) {
   const color = genreColor(game.genre)
   return (
     <div className="relative rounded-xl overflow-hidden flex-shrink-0 w-36 transition-transform duration-200 hover:-translate-y-1"
       style={{ border: `1px solid ${color}30`, background: '#1a2340' }}>
       <SpotlightCover game={game} />
-
-      {/* Rank badge */}
       <div className="absolute top-2 left-2 z-20 w-6 h-6 rounded-full flex items-center justify-center font-display font-black text-xs text-white"
         style={{ background: color }}>
         {rank}
       </div>
-
-      {/* Metacritic score */}
-      {game.metacritic && (
-        <div className="absolute top-2 right-2 z-20">
-          <span className="text-[9px] font-black px-1.5 py-0.5 rounded"
-            style={{
-              background: game.metacritic >= 75 ? '#1D9E7520' : '#f4a52320',
-              color: game.metacritic >= 75 ? '#1D9E75' : '#f4a523',
-              border: `1px solid ${game.metacritic >= 75 ? '#1D9E7540' : '#f4a52340'}`,
-            }}>
-            {game.metacritic}
-          </span>
-        </div>
-      )}
-
-      {/* Rating below image */}
       {game.rating && (
         <div className="absolute bottom-[44px] left-2 z-20">
           <span className="text-[9px] font-bold text-yellow-400">
@@ -117,7 +88,6 @@ function SpotlightCard({ game, rank }) {
           </span>
         </div>
       )}
-
       <div className="p-2">
         <p className="text-white text-[11px] font-semibold truncate">{game.game_name}</p>
         <p className="text-gray-500 text-[9px]">{game.genre}</p>
@@ -136,16 +106,19 @@ function FilterChip({ label, onRemove }) {
   )
 }
 
-// ─── Sync status banner ───────────────────────────────────────────────────────
-function SyncBanner({ gameCount, onSync, syncing }) {
-  if (gameCount > 5) return null // DB already has games — no banner needed
+// ─── Sync status banner (shows only when DB is empty) ─────────────────────────
+function SyncBanner({ gameCount, onSync, syncing, syncResult }) {
+  if (gameCount > 3) return null
   return (
     <div className="mx-4 sm:mx-6 mt-4 p-4 rounded-xl border border-yellow-500/30 bg-yellow-500/5 flex items-center justify-between gap-4 flex-wrap">
       <div>
         <p className="text-yellow-400 text-sm font-semibold">Games library is empty</p>
         <p className="text-gray-400 text-xs mt-0.5">
-          Run a one-time sync to populate your DB with real game data from RAWG.
+          Run a one-time sync to populate your library from the local games database.
         </p>
+        {syncResult && (
+          <p className="text-green-400 text-xs mt-1">{syncResult}</p>
+        )}
       </div>
       <button
         onClick={onSync}
@@ -153,7 +126,7 @@ function SyncBanner({ gameCount, onSync, syncing }) {
         className="shrink-0 text-xs px-4 py-2 rounded-lg font-bold transition-all"
         style={{ background: '#f4a52320', color: '#f4a523', border: '1px solid #f4a52340' }}
       >
-        {syncing ? '⏳ Syncing…' : '⚡ Sync from RAWG'}
+        {syncing ? '⏳ Syncing…' : '⚡ Sync Games'}
       </button>
     </div>
   )
@@ -168,12 +141,14 @@ export default function Games() {
   const [loading,    setLoading]    = useState(true)
   const [search,     setSearch]     = useState('')
   const [genre,      setGenre]      = useState('')
+  const [platform,   setPlatform]   = useState('')
   const [tab,        setTab]        = useState('all')
   const [error,      setError]      = useState('')
   const [toast,      setToast]      = useState('')
   const [sort,       setSort]       = useState('rating')
   const [page,       setPage]       = useState(1)
   const [syncing,    setSyncing]    = useState(false)
+  const [syncResult, setSyncResult] = useState('')
   const PAGE_SIZE = 16
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2500) }
@@ -184,8 +159,9 @@ export default function Games() {
     setError('')
     try {
       const params = {}
-      if (genre)  params.genre = genre
-      if (search) params.q     = search
+      if (genre)    params.genre    = genre
+      if (search)   params.q        = search
+      if (platform) params.platform = platform
 
       const [gRes, myRes] = await Promise.allSettled([
         getGames(params),
@@ -194,37 +170,39 @@ export default function Games() {
 
       const gameList = gRes.status === 'fulfilled'
         ? (gRes.value.data.games || [])
-        : FALLBACK_GAMES
+        : []
 
-      setGames(gameList.length ? gameList : FALLBACK_GAMES)
+      setGames(gameList)
 
       if (myRes.status === 'fulfilled' && myRes.value) {
         setMyGameIds(new Set((myRes.value.data.games || []).map(g => g.game_id)))
       }
     } catch {
-      setGames(FALLBACK_GAMES)
+      setGames([])
     } finally {
       setLoading(false)
     }
-  }, [genre, search, isAuthenticated])
+  }, [genre, search, platform, isAuthenticated])
 
   useEffect(() => {
     const t = setTimeout(load, 300)
     return () => clearTimeout(t)
   }, [load])
 
-  useEffect(() => { setPage(1) }, [genre, search, tab, sort])
+  useEffect(() => { setPage(1) }, [genre, search, platform, tab, sort])
 
-  // ── RAWG sync ────────────────────────────────────────────────────────────
+  // ── Sync from local JSON ─────────────────────────────────────────────────
   const handleSync = async () => {
     setSyncing(true)
+    setSyncResult('')
     try {
-      const { syncGamesFromRawg } = await import('../services/gameService')
-      await syncGamesFromRawg()
-      showToast('✅ Games synced from RAWG!')
+      const res = await syncGames()
+      const msg = res.data?.message || 'Sync complete!'
+      setSyncResult(msg)
+      showToast('✅ Games synced!')
       await load()
     } catch (err) {
-      setError(err.response?.data?.message || 'Sync failed — check RAWG_API_KEY in backend .env')
+      setError(err.response?.data?.message || 'Sync failed — check backend logs')
     } finally {
       setSyncing(false)
     }
@@ -261,7 +239,6 @@ export default function Games() {
     if (sort === 'az')     return a.game_name.localeCompare(b.game_name)
     if (sort === 'za')     return b.game_name.localeCompare(a.game_name)
     if (sort === 'rating') return (b.rating || 0) - (a.rating || 0)
-    if (sort === 'meta')   return (b.metacritic || 0) - (a.metacritic || 0)
     return 0
   })
 
@@ -269,7 +246,6 @@ export default function Games() {
   const displayGames = sortedGames.slice(0, page * PAGE_SIZE)
   const hasMore      = page < totalPages
 
-  // Top 5 rated games for the spotlight
   const spotlightGames = [...games]
     .sort((a, b) => (b.rating || 0) - (a.rating || 0))
     .slice(0, 5)
@@ -295,18 +271,10 @@ export default function Games() {
               <p className="text-gray-400 mt-2 text-sm">
                 Pick your games to get personalised tournament and team finder results
               </p>
-              {/* RAWG attribution */}
-              <p className="text-gray-600 text-[10px] mt-1 flex items-center gap-1">
-                <span>Game data powered by</span>
-                <a href="https://rawg.io" target="_blank" rel="noreferrer"
-                  className="text-gray-500 hover:text-white transition-colors underline underline-offset-2">
-                  RAWG
-                </a>
-              </p>
             </div>
             <div className="flex items-center gap-3">
               <div className="text-center px-4 py-2 rounded-xl border border-surface-border bg-surface-card/60">
-                <p className="font-display font-bold text-xl text-white">{games.length || '25'}+</p>
+                <p className="font-display font-bold text-xl text-white">{games.length || '—'}</p>
                 <p className="text-xs text-gray-500">Games</p>
               </div>
               <div className="text-center px-4 py-2 rounded-xl border border-surface-border bg-surface-card/60">
@@ -318,40 +286,47 @@ export default function Games() {
         </div>
       </div>
 
-      {/* ── Sync banner (only shows when DB has < 6 games) ── */}
+      {/* ── Sync banner ── */}
       {!loading && (
-        <SyncBanner gameCount={games.length} onSync={handleSync} syncing={syncing} />
+        <SyncBanner
+          gameCount={games.length}
+          onSync={handleSync}
+          syncing={syncing}
+          syncResult={syncResult}
+        />
       )}
 
       {/* ── Popular Games Spotlight ── */}
-      <div className="border-b border-surface-border bg-surface-card/20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2">
-              <span className="w-1 h-4 bg-red rounded-full inline-block" />
-              Top Rated Games
-            </h2>
-            <span className="text-xs text-gray-500">By RAWG community rating</span>
-          </div>
-          <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
-            {loading
-              ? [...Array(5)].map((_, i) => (
-                  <div key={i} className="w-36 flex-shrink-0 rounded-xl overflow-hidden animate-pulse"
-                    style={{ background: '#1a2340', border: '1px solid rgba(255,255,255,0.06)' }}>
-                    <div className="h-40 bg-surface-border/30" />
-                    <div className="p-2 space-y-1">
-                      <div className="h-2.5 w-3/4 rounded bg-surface-border/40" />
-                      <div className="h-2 w-1/2 rounded bg-surface-border/40" />
+      {spotlightGames.length > 0 && (
+        <div className="border-b border-surface-border bg-surface-card/20">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2">
+                <span className="w-1 h-4 bg-red rounded-full inline-block" />
+                Top Rated Games
+              </h2>
+              <span className="text-xs text-gray-500">By community rating</span>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
+              {loading
+                ? [...Array(5)].map((_, i) => (
+                    <div key={i} className="w-36 flex-shrink-0 rounded-xl overflow-hidden animate-pulse"
+                      style={{ background: '#1a2340', border: '1px solid rgba(255,255,255,0.06)' }}>
+                      <div className="h-40 bg-surface-border/30" />
+                      <div className="p-2 space-y-1">
+                        <div className="h-2.5 w-3/4 rounded bg-surface-border/40" />
+                        <div className="h-2 w-1/2 rounded bg-surface-border/40" />
+                      </div>
                     </div>
-                  </div>
-                ))
-              : spotlightGames.map((game, i) => (
-                  <SpotlightCard key={game.game_id} game={game} rank={i + 1} />
-                ))
-            }
+                  ))
+                : spotlightGames.map((game, i) => (
+                    <SpotlightCard key={game.game_id} game={game} rank={i + 1} />
+                  ))
+              }
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* ── Toast ── */}
       {toast && (
@@ -362,7 +337,7 @@ export default function Games() {
 
       <ErrorMessage message={error} />
 
-      {/* ── Main layout: grid + sidebar ── */}
+      {/* ── Main layout ── */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         <div className="flex gap-8 items-start">
 
@@ -390,12 +365,24 @@ export default function Games() {
                 value={search} onChange={e => setSearch(e.target.value)} />
             </div>
 
+            {/* Platform filter pills */}
+            <div className="flex gap-2 flex-wrap mb-3">
+              {PLATFORM_FILTERS.map(p => (
+                <button key={p.value} onClick={() => setPlatform(p.value)}
+                  className={`text-xs px-3 py-1.5 rounded-full font-semibold border transition-all ${
+                    platform === p.value
+                      ? 'bg-red text-white border-red'
+                      : 'border-surface-border text-gray-400 hover:text-white hover:border-gray-500'
+                  }`}>{p.label}</button>
+              ))}
+            </div>
+
             {/* Genre pills */}
             <div className="flex gap-2 flex-wrap mb-4">
               <button onClick={() => setGenre('')}
                 className={`text-xs px-3 py-1.5 rounded-full font-semibold border transition-all ${
                   genre === '' ? 'bg-red text-white border-red' : 'border-surface-border text-gray-400 hover:text-white hover:border-gray-500'
-                }`}>All</button>
+                }`}>All Genres</button>
               {genres.map(g => (
                 <button key={g} onClick={() => setGenre(genre === g ? '' : g)}
                   className="text-xs px-3 py-1.5 rounded-full font-semibold border transition-all"
@@ -414,13 +401,13 @@ export default function Games() {
                     Showing <span className="text-white font-semibold">{displayGames.length}</span> of <span className="text-white font-semibold">{sortedGames.length}</span> games
                   </span>
                 )}
-                {genre  && <FilterChip label={genre} onRemove={() => setGenre('')} />}
-                {search && <FilterChip label={`"${search}"`} onRemove={() => setSearch('')} />}
+                {genre    && <FilterChip label={genre} onRemove={() => setGenre('')} />}
+                {platform && <FilterChip label={platform} onRemove={() => setPlatform('')} />}
+                {search   && <FilterChip label={`"${search}"`} onRemove={() => setSearch('')} />}
               </div>
               <select className="input text-xs py-1.5 h-auto w-auto pr-8"
                 value={sort} onChange={e => setSort(e.target.value)}>
                 <option value="rating">Top Rated</option>
-                <option value="meta">Metacritic</option>
                 <option value="az">A → Z</option>
                 <option value="za">Z → A</option>
               </select>
@@ -435,10 +422,10 @@ export default function Games() {
               <EmptyState
                 icon="🎮"
                 title={tab === 'my' ? 'Your library is empty' : 'No games found'}
-                subtitle={tab === 'my' ? 'Add games from the All Games tab' : 'Try a different search or genre'}
+                subtitle={tab === 'my' ? 'Add games from the All Games tab' : 'Try syncing your game library or changing the filters'}
                 action={tab === 'my'
                   ? <button onClick={() => setTab('all')} className="btn-primary">Browse Games</button>
-                  : <button onClick={() => { setSearch(''); setGenre('') }} className="btn-secondary">Clear filters</button>
+                  : <button onClick={() => { setSearch(''); setGenre(''); setPlatform('') }} className="btn-secondary">Clear filters</button>
                 }
               />
             ) : (
@@ -494,6 +481,21 @@ export default function Games() {
               </div>
             </div>
 
+            {/* Platform filter */}
+            <div className="card py-4 px-4">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Platform</p>
+              <div className="space-y-1">
+                {PLATFORM_FILTERS.map(p => (
+                  <button key={p.value} onClick={() => setPlatform(p.value)}
+                    className={`w-full text-left text-sm px-3 py-2 rounded-lg transition-all ${
+                      platform === p.value ? 'bg-red/15 text-red font-semibold' : 'text-gray-400 hover:text-white hover:bg-surface-border/30'
+                    }`}>
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Library summary */}
             {isAuthenticated && myGameIds.size > 0 && (
               <div className="card py-4 px-4">
@@ -515,14 +517,14 @@ export default function Games() {
               </div>
             )}
 
-            {/* Platform stats */}
+            {/* Stats */}
             <div className="card py-4 px-4">
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Platform</p>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Stats</p>
               <div className="space-y-2">
                 {[
-                  { label: 'Total games', value: games.length || '25+' },
-                  { label: 'Genres',      value: genres.length || '8'  },
-                  { label: 'Tournaments', value: '1,200+'              },
+                  { label: 'Total games', value: games.length || '—' },
+                  { label: 'Genres',      value: genres.length || '—' },
+                  { label: 'Communities', value: games.length || '—' },
                 ].map(s => (
                   <div key={s.label} className="flex justify-between text-xs">
                     <span className="text-gray-500">{s.label}</span>
@@ -530,18 +532,6 @@ export default function Games() {
                   </div>
                 ))}
               </div>
-            </div>
-
-            {/* RAWG attribution card */}
-            <div className="card py-3 px-4">
-              <p className="text-[10px] text-gray-600 leading-relaxed">
-                Game data & ratings provided by{' '}
-                <a href="https://rawg.io" target="_blank" rel="noreferrer"
-                  className="text-gray-500 hover:text-white transition-colors underline">
-                  RAWG.io
-                </a>
-                {' '}— the largest video game database.
-              </p>
             </div>
 
           </div>
@@ -573,8 +563,8 @@ export default function Games() {
             Copyright © {new Date().getFullYear()} ArenaX. All Rights Reserved.
           </p>
           <p className="text-xs text-gray-600 text-center max-w-xl leading-relaxed">
-            ArenaX is an independent eSports platform. All trademarks, game names, and logos
-            are the property of their respective owners. Prize pools are subject to tournament rules.
+            ArenaX is an independent eSports platform. All game data is curated in-house.
+            All trademarks and game names are the property of their respective owners.
           </p>
         </div>
       </footer>

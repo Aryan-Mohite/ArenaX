@@ -33,26 +33,11 @@ function StarRating({ rating, max = 5, size = 10 }) {
   )
 }
 
-// ─── Metacritic badge ─────────────────────────────────────────────────────────
-function MetacriticBadge({ score }) {
-  if (!score) return null
-  const color = score >= 75 ? '#1D9E75' : score >= 50 ? '#f4a523' : '#ff4655'
-  return (
-    <div className="flex flex-col items-center justify-center w-9 h-9 rounded-lg font-display font-black text-sm leading-none"
-      style={{ background: color + '20', border: `1.5px solid ${color}60`, color }}>
-      {score}
-    </div>
-  )
-}
-
-// ─── Cover image with fallback gradient ───────────────────────────────────────
-function GameCover({ game, height = 'h-44', showScreenshot = false }) {
+// ─── Cover image with gradient fallback ──────────────────────────────────────
+function GameCover({ game, height = 'h-44' }) {
   const [imgErr, setImgErr] = useState(false)
-  const [ssErr,  setSsErr]  = useState(false)
-
   const coverUrl = game.cover_image || game.icon || null
-  const ssUrl    = showScreenshot && Array.isArray(game.screenshots) && game.screenshots[0]
-  const src      = showScreenshot && ssUrl && !ssErr ? ssUrl : (!imgErr && coverUrl ? coverUrl : null)
+  const src      = !imgErr && coverUrl ? coverUrl : null
   const color    = genreColor(game.genre)
   const abbr     = game.game_name.split(' ').map(w => w[0]).join('').slice(0, 3).toUpperCase()
 
@@ -63,10 +48,9 @@ function GameCover({ game, height = 'h-44', showScreenshot = false }) {
           src={src}
           alt={game.game_name}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-          onError={() => showScreenshot ? setSsErr(true) : setImgErr(true)}
+          onError={() => setImgErr(true)}
         />
       ) : (
-        // Gradient fallback when no image is available
         <div
           className="w-full h-full flex items-center justify-center"
           style={{ background: `linear-gradient(160deg, ${color}40 0%, #0a0a1a 100%)` }}
@@ -114,20 +98,27 @@ export default function GameCard({ game, onAdd, onRemove, isFav = false }) {
           </span>
         </div>
 
+        {/* Platform badge */}
+        {game.platforms && (
+          <div className="absolute top-2 right-2 z-10">
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded"
+              style={{ background: 'rgba(0,0,0,0.6)', color: '#9ca3af', border: '1px solid rgba(255,255,255,0.1)' }}>
+              {game.platforms.includes('Mobile') && !game.platforms.includes('PC')
+                ? '📱'
+                : game.platforms.includes('PC') && game.platforms.includes('Mobile')
+                  ? '📱+🖥️'
+                  : '🖥️'}
+            </span>
+          </div>
+        )}
+
         {/* Fav star */}
         {isFav && (
-          <div className="absolute top-2 right-2 z-10 w-6 h-6 rounded-full flex items-center justify-center"
+          <div className="absolute bottom-2 right-2 z-10 w-6 h-6 rounded-full flex items-center justify-center"
             style={{ background: '#f4a52320', border: '1px solid #f4a52360' }}>
             <svg width="11" height="11" viewBox="0 0 24 24" fill="#f4a523">
               <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
             </svg>
-          </div>
-        )}
-
-        {/* Metacritic — bottom right of image */}
-        {game.metacritic && (
-          <div className="absolute bottom-2 right-2 z-10">
-            <MetacriticBadge score={game.metacritic} />
           </div>
         )}
       </div>
@@ -143,23 +134,18 @@ export default function GameCard({ game, onAdd, onRemove, isFav = false }) {
         </div>
 
         {/* Rating row */}
-        {(game.rating || game.rating_count) && (
+        {game.rating && (
           <div className="flex items-center gap-2">
             <StarRating rating={game.rating} />
-            {game.rating && (
-              <span className="text-[10px] text-gray-400 font-medium">
-                {Number(game.rating).toFixed(1)}
-                {game.rating_count > 0 && (
-                  <span className="text-gray-600"> · {game.rating_count.toLocaleString()}</span>
-                )}
-              </span>
-            )}
+            <span className="text-[10px] text-gray-400 font-medium">
+              {Number(game.rating).toFixed(1)}
+            </span>
           </div>
         )}
 
-        {/* Platforms */}
-        {game.platforms && (
-          <p className="text-[9px] text-gray-600 truncate">{game.platforms}</p>
+        {/* Release year */}
+        {game.release_year && (
+          <p className="text-[9px] text-gray-600">{game.release_year}</p>
         )}
 
         {/* Action button */}

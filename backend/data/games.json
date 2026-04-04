@@ -1,0 +1,302 @@
+[
+  {
+    "slug": "counter-strike",
+    "game_name": "Counter-Strike",
+    "genre": "Tactical FPS",
+    "developer": "Valve",
+    "release_year": 2000,
+    "rating": 4.8,
+    "platforms": "PC / Console",
+    "description": "The world's most iconic tactical first-person shooter. Two teams — Terrorists and Counter-Terrorists — battle across iconic maps in search and destroy scenarios. Known for its precise gunplay, deep competitive meta, and massive esports scene.",
+    "cover_image": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/730/header.jpg",
+    "screenshots": [
+      "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/730/ss_34090f24290a2f6b5b16cf2b4d9a1b6c67bbb66e.jpg",
+      "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/730/ss_b601b58a6bf29ca97bded48d74d0e8eb1d5c2d0c.jpg"
+    ]
+  },
+  {
+    "slug": "dota-2",
+    "game_name": "Dota 2",
+    "genre": "MOBA",
+    "developer": "Valve",
+    "release_year": 2013,
+    "rating": 4.6,
+    "platforms": "PC / Console",
+    "description": "Dota 2 is a deep, complex multiplayer online battle arena where two teams of five heroes clash to destroy the enemy Ancient. With over 120 heroes, a rich item system, and The International — one of the world's biggest esports events — Dota 2 rewards thousands of hours of mastery.",
+    "cover_image": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/570/header.jpg",
+    "screenshots": [
+      "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/570/ss_86d675fdc73ba10462abb8f5eca2b5e90bcf0b47.jpg",
+      "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/570/ss_b1e2a21de6fec5a6e6d82be93a23a90c7e3c3a6b.jpg"
+    ]
+  },
+  {
+    "slug": "rainbow-six-siege",
+    "game_name": "Tom Clancy's Rainbow Six Siege",
+    "genre": "Tactical FPS",
+    "developer": "Ubisoft",
+    "release_year": 2015,
+    "rating": 4.5,
+    "platforms": "PC / Console",
+    "description": "Rainbow Six Siege is a tactical shooter built around destructible environments, intel-gathering, and team communication. Operators with unique gadgets let you breach, fortify, and outsmart opponents in close-quarters combat. One of the most strategic esports titles on the market.",
+    "cover_image": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/359550/header.jpg",
+    "screenshots": [
+      "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/359550/ss_ae0c18c6e8c0e25fb7c63e76f27c4d2d49e36c0e.jpg",
+      "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/359550/ss_3f8ffee9a59afcb51c45ccd8f5571c14f1f7f2d8.jpg"
+    ]
+  },
+  {
+    "slug": "apex-legends",
+    "game_name": "Apex Legends",
+    "genre": "Battle Royale",
+    "developer": "Respawn Entertainment",
+    "release_year": 2019,
+    "rating": 4.5,
+    "platforms": "PC / Console",
+    "description": "Apex Legends is a free-to-play battle royale where squads of three choose from a roster of Legends with unique abilities. Fast movement, ping communication, and hero synergy set it apart. The ALGS (Apex Legends Global Series) hosts millions in prize money annually.",
+    "cover_image": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1172470/header.jpg",
+    "screenshots": [
+      "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1172470/ss_3b5082d0b5f3d7f5e8c6b9e9bcdde5ac2fc31ef0.jpg",
+      "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1172470/ss_45fbde7d0d21b4e4e8b2f5a0c2e0f3a7e42d3c8e.jpg"
+    ]
+  },
+  {
+    "slug": "valorant",
+    "game_name": "Valorant",
+    "genre": "Tactical FPS",
+    "developer": "Riot Games",
+    "release_year": 2020,
+    "rating": 4.7,
+    "platforms": "PC / Console",
+    "description": "Valorant is Riot Games' tactical FPS blending precise gunplay with hero abilities. Two teams of five agents battle over a spike plant/defuse objective across multiple maps. The VCT (Valorant Champions Tour) is one of the fastest growing esports ecosystems globally.",
+    "cover_image": "https://cdn.akamai.steamstatic.com/steam/apps/2357570/header.jpg",
+    "screenshots": [
+      "https://images.contentstack.io/v3/assets/bltb6530b271fddd0b1/blt97bc0e77bbdfc64e/62e0cac5cdc67a44b7474a30/Valorant_2022_E5A1_PlayVALORANT_ContentStackThumbnail_1200x625_MB01.jpg",
+      "https://images.contentstack.io/v3/assets/bltb6530b271fddd0b1/blt7fdf52e65ec52a62/5eb75e5f4f08d54fd18d3374/122220_VALORANT_AgentPage_Jett_Banner.jpg"
+    ]
+  },
+  {
+    "slug": "street-fighter",
+    "game_name": "Street Fighter",
+    "genre": "Fighting",
+    "developer": "Capcom",
+    "release_year": 1987,
+    "rating": 4.5,
+    "platforms": "PC / Console",
+    "description": "Street Fighter is the iconic fighting game franchise that defined the genre. From the legendary Street Fighter II to Street Fighter 6, players command a diverse roster of fighters with unique move sets and combo systems. The Capcom Pro Tour brings elite competition worldwide.",
+    "cover_image": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1364780/header.jpg",
+    "screenshots": [
+      "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1364780/ss_a55dc34e1e8e58a12e6124dd0f1b0a1e2e7f4d97.jpg",
+      "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1364780/ss_8c54d38a3b6c81f83cbbc9b21a2ef8c241f46b2f.jpg"
+    ]
+  },
+  {
+    "slug": "rocket-league",
+    "game_name": "Rocket League",
+    "genre": "Sports",
+    "developer": "Psyonix",
+    "release_year": 2015,
+    "rating": 4.6,
+    "platforms": "PC / Console",
+    "description": "Rocket League is a high-powered hybrid of soccer and rocket-powered cars. Teams of 1–4 boost, flip, and aerial-hit a giant ball into the enemy net. Its skill ceiling is legendary — from beginners to RLCS World Championship contenders, there is always more to master.",
+    "cover_image": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/252950/header.jpg",
+    "screenshots": [
+      "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/252950/ss_d0bc0c4c01c7a25b4fd9fe4b02b97c04b9e7c63d.jpg",
+      "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/252950/ss_34d8bf4e8c2c4d49f4d1a8c2bf4bc0e8fa33d94e.jpg"
+    ]
+  },
+  {
+    "slug": "league-of-legends",
+    "game_name": "League of Legends",
+    "genre": "MOBA",
+    "developer": "Riot Games",
+    "release_year": 2009,
+    "rating": 4.5,
+    "platforms": "PC / Console",
+    "description": "League of Legends is the most played PC game in the world. Two teams of five champions battle to destroy the enemy Nexus across Summoner's Rift. With hundreds of champions, deep strategic depth, and the Worlds Championship drawing tens of millions of viewers, LoL is the defining esport.",
+    "cover_image": "https://ddragon.leagueoflegends.com/cdn/img/champion/splash/Jinx_0.jpg",
+    "screenshots": [
+      "https://cdn1.epicgames.com/offer/24b9b5e323bc40eea252a10cdd3b2f10/EGS_LeagueofLegends_RiotGames_S1_2560x1440-80471984a05c2c6b3ba2d3986f8c92a8",
+      "https://cdn1.epicgames.com/offer/24b9b5e323bc40eea252a10cdd3b2f10/EGS_LeagueofLegends_RiotGames_S1_2560x1440-80471984a05c2c6b3ba2d3986f8c92a8"
+    ]
+  },
+  {
+    "slug": "call-of-duty",
+    "game_name": "Call of Duty",
+    "genre": "FPS",
+    "developer": "Activision",
+    "release_year": 2003,
+    "rating": 4.4,
+    "platforms": "PC / Console",
+    "description": "Call of Duty is the best-selling FPS franchise in history. From the WWII roots to Modern Warfare, Black Ops, and beyond, COD delivers cinematic campaigns and addictive multiplayer. The CDL (Call of Duty League) is the professional esports circuit with franchised city-based teams.",
+    "cover_image": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1938090/header.jpg",
+    "screenshots": [
+      "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1938090/ss_ba0d3c28b6d3e4d97d58a71d0e44eb7c9d68e6fc.jpg",
+      "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1938090/ss_3b2e9b9a7e7e3c1e5a6a2e8b3f1e6d3c4b5f9a7e.jpg"
+    ]
+  },
+  {
+    "slug": "mobile-legends",
+    "game_name": "Mobile Legends: Bang Bang",
+    "genre": "MOBA",
+    "developer": "Moonton",
+    "release_year": 2016,
+    "rating": 4.3,
+    "platforms": "Mobile",
+    "description": "Mobile Legends: Bang Bang is the most popular mobile MOBA in Southeast Asia. Two teams of five heroes clash in fast-paced 10–15 minute matches designed perfectly for mobile play. The M-Series World Championship attracts massive viewership across Indonesia, Philippines, and beyond.",
+    "cover_image": "https://play-lh.googleusercontent.com/BmWzMc-vBFRB7LBFLFHtS4k8LRp0pJJiX7dJX5t8DH0GnW5zEMzS5fAfKkXPqx-GDHE",
+    "screenshots": [
+      "https://play-lh.googleusercontent.com/eMqJnvnPyAtAT4VXxLLWJfh3d6J2nMGKk9dJeAGPpg50dJRSXCwqHnmzE44FcD_xRw",
+      "https://play-lh.googleusercontent.com/5mxNNq4VFJEuZHPrHLl8QCUNJiR8J3XM6wEkb5xNlA4E-jL0HS2WpD6cpJV3QZX_8A"
+    ]
+  },
+  {
+    "slug": "madden-nfl",
+    "game_name": "Madden NFL",
+    "genre": "Sports",
+    "developer": "EA Sports",
+    "release_year": 1988,
+    "rating": 4.1,
+    "platforms": "PC / Console",
+    "description": "Madden NFL is the definitive American football simulation franchise. With real NFL teams, players, and the official playbook, Madden lets fans build dynasties, manage rosters, and compete online. The Madden Championship Series brings competitive esports to gridiron fans worldwide.",
+    "cover_image": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/2073780/header.jpg",
+    "screenshots": [
+      "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/2073780/ss_1234567890abcdef1234567890abcdef12345678.jpg",
+      "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/2073780/ss_abcdef1234567890abcdef1234567890abcdef12.jpg"
+    ]
+  },
+  {
+    "slug": "ea-sports-fc",
+    "game_name": "EA Sports FC",
+    "genre": "Sports",
+    "developer": "EA Sports",
+    "release_year": 2023,
+    "rating": 4.2,
+    "platforms": "PC / Console",
+    "description": "EA Sports FC (formerly FIFA) is the world's leading football simulation franchise. Featuring real clubs, players, and tournaments, FC brings the beautiful game to life. Ultimate Team lets players build dream squads and compete online — the eFC competitive scene draws millions globally.",
+    "cover_image": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/2195250/header.jpg",
+    "screenshots": [
+      "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/2195250/ss_6bab63d0b5bcf93e5f3a22a4f2e8b1c9d7f0e4a3.jpg",
+      "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/2195250/ss_9c3f7e1d4b6a2e8c0f5d3b7a9e1c4f6d8b2a0e7c.jpg"
+    ]
+  },
+  {
+    "slug": "warzone",
+    "game_name": "Call of Duty: Warzone",
+    "genre": "Battle Royale",
+    "developer": "Activision",
+    "release_year": 2020,
+    "rating": 4.3,
+    "platforms": "PC / Console",
+    "description": "Call of Duty: Warzone is a free-to-play battle royale dropping up to 150 players into Verdansk, Al Mazrah, and Urzikstan. With COD gunplay at its core, the Gulag resurrection system, and cross-play across all platforms, Warzone became one of the most-played games ever released.",
+    "cover_image": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1962663/header.jpg",
+    "screenshots": [
+      "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1962663/ss_1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b.jpg",
+      "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1962663/ss_0b9a8f7e6d5c4b3a2f1e0d9c8b7a6f5e4d3c2b1a.jpg"
+    ]
+  },
+  {
+    "slug": "battlegrounds-mobile-india",
+    "game_name": "Battlegrounds Mobile India",
+    "genre": "Battle Royale",
+    "developer": "Krafton",
+    "release_year": 2021,
+    "rating": 4.3,
+    "platforms": "Mobile",
+    "description": "BGMI is the India-exclusive version of PUBG Mobile, built specifically for the Indian gaming audience. Teams of 4 compete across Erangel, Miramar, and Sanhok maps to be the last squad standing. BGMI Esports has exploded with massive prize pools and dedicated regional circuits.",
+    "cover_image": "https://play-lh.googleusercontent.com/JRd05pyBH41qjgsR_CDje2bF6EMk2WPFUdG5sNYjQOZ12M9hulZ_5a6CeYGXTxM4_Pg",
+    "screenshots": [
+      "https://play-lh.googleusercontent.com/L8nRV7h0g6fO-WRQsNH0BKD1YQb5Z5KX9cC-ZEkb5cY0j0dCRXnwYq7dX3O53kXXzQ",
+      "https://play-lh.googleusercontent.com/1HW3zxNVjxpn3C16V62J3EjbU3-mFk1LQj68fPJLG5VnExq7p7FaR9SWY4oKy3-5UA"
+    ]
+  },
+  {
+    "slug": "pubg-battlegrounds",
+    "game_name": "PUBG: Battlegrounds",
+    "genre": "Battle Royale",
+    "developer": "Krafton",
+    "release_year": 2017,
+    "rating": 4.2,
+    "platforms": "PC / Console",
+    "description": "PUBG: Battlegrounds is the original battle royale that launched a genre. Up to 100 players parachute onto an island, scavenge for weapons and gear, and fight to be the last one standing inside a shrinking playzone. PUBG Global Championship is one of the most prestigious BR esports events.",
+    "cover_image": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/578080/header.jpg",
+    "screenshots": [
+      "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/578080/ss_2f6e8a2b9e45d6f0c1b9a0d8a5e44c6b8f4d5c3e.jpg",
+      "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/578080/ss_7b3e5c1f0d9a4e2b8f6c0a3d7e1b5f9c2a4e6d8b.jpg"
+    ]
+  },
+  {
+    "slug": "free-fire",
+    "game_name": "Free Fire",
+    "genre": "Battle Royale",
+    "developer": "Garena",
+    "release_year": 2017,
+    "rating": 4.2,
+    "platforms": "Mobile",
+    "description": "Garena Free Fire is the most downloaded mobile game in the world. 50 players drop onto a remote island, scavenge for weapons, and battle to be the last one alive in matches under 10 minutes. Designed for low-end devices, Free Fire has built a massive esports ecosystem across South and Southeast Asia.",
+    "cover_image": "https://play-lh.googleusercontent.com/WWcMGBjDMXpHyBFfxDhVuGpVZYyBECjTMj-hHX6BSipJoMv-Z_iMU6dFM3f2hE5RXQE",
+    "screenshots": [
+      "https://play-lh.googleusercontent.com/z_r3sL0yc4Y5WfN1s5K5q4kNcDiDdkJJvGXjQRlpNfFn-8dXAfJsJLBE3g3WQz63Hg",
+      "https://play-lh.googleusercontent.com/3Kc3K_fFNr0c2q5XQsXZ8qR_6J0j2VxV8m5-tRZ9sxJP6N9Lv3mZ6iKmZ7F9XqXxWA"
+    ]
+  },
+  {
+    "slug": "fortnite",
+    "game_name": "Fortnite",
+    "genre": "Battle Royale",
+    "developer": "Epic Games",
+    "release_year": 2017,
+    "rating": 4.4,
+    "platforms": "PC / Console",
+    "description": "Fortnite is the world's biggest battle royale phenomenon. 100 players drop into a colorful island, build structures, and fight to be the last one standing. Epic's Fortnite Champion Series and mega-events like Fortnite World Cup offer millions in prize money and millions more viewers worldwide.",
+    "cover_image": "https://cdn2.unrealengine.com/fortnite-chapter5-season4-key-art-1920x1080-dc5ac6ce6a4b.jpg",
+    "screenshots": [
+      "https://cdn2.unrealengine.com/14br-ch4s4-kv-landscape-1920x1080-3d0c1e2f.jpg",
+      "https://cdn2.unrealengine.com/fortnite-og-1920x1080-1920x1080-6dbaa65d1c3a.jpg"
+    ]
+  },
+  {
+    "slug": "cod-mobile",
+    "game_name": "Call of Duty: Mobile",
+    "genre": "FPS",
+    "developer": "Activision / TiMi Studio",
+    "release_year": 2019,
+    "rating": 4.4,
+    "platforms": "Mobile",
+    "description": "Call of Duty: Mobile brings the signature COD multiplayer experience — classic maps, ranked play, and a full battle royale mode — to mobile devices. With iconic maps like Nuketown and Shipment, intuitive touch controls, and the COD Mobile World Championship, it is the #1 mobile FPS globally.",
+    "cover_image": "https://play-lh.googleusercontent.com/3rQX4_9s3f8hLO_4Z5Kf8FYz1-HI6LqDMlGF7P_M6G2lhSGXiMw7G4RBvMwGr_mvJE",
+    "screenshots": [
+      "https://play-lh.googleusercontent.com/gEqI8Fba0cR5OPLOAfGwjF1P_0aMXzjUzj_gzM_zjrqJP-NaYOjH3l-3zZcNbzGhWQ",
+      "https://play-lh.googleusercontent.com/hNz5fB1H3G5tV3T8R1X2Kw4ZX5L7M9P1Q3S5U7W9Y1A3C5E7G9I1K3M5O7Q9S1U3W5Y"
+    ]
+  },
+  {
+    "slug": "brawl-stars",
+    "game_name": "Brawl Stars",
+    "genre": "Battle Royale",
+    "developer": "Supercell",
+    "release_year": 2018,
+    "rating": 4.4,
+    "platforms": "Mobile",
+    "description": "Brawl Stars is Supercell's fast-paced mobile multiplayer shooter where teams of 3 brawlers compete in a variety of game modes — from Gem Grab to Showdown and Brawl Ball. With a colourful roster of unique brawlers and the Brawl Stars World Finals, it has become a top-tier mobile esports title.",
+    "cover_image": "https://play-lh.googleusercontent.com/sKmd7DmOHnF5kGM7sECjNfxO6OGmCe5n9-VGezAHkKWGZ4NNK8MmzZJhgHCF4GNRTQ",
+    "screenshots": [
+      "https://play-lh.googleusercontent.com/B4Ew4KbkCFI8P4G3QF8B4Q3W7L9N1P3R5T7V9X1Z3B5D7F9H1J3L5N7P9R1T3V5X7Z",
+      "https://play-lh.googleusercontent.com/Wm5X1Y9K8G7F6E5D4C3B2A1Z0Y9X8W7V6U5T4S3R2Q1P0O9N8M7L6K5J4I3H2G1F0E"
+    ]
+  },
+  {
+    "slug": "mech-arena",
+    "game_name": "Mech Arena",
+    "genre": "FPS",
+    "developer": "Plarium",
+    "release_year": 2021,
+    "rating": 4.1,
+    "platforms": "Mobile / PC",
+    "description": "Mech Arena is a fast-paced sci-fi shooter where players pilot customizable mechs in 5v5 team battles and battle royale arenas. With dozens of mechs and weapons to unlock, strategic squad compositions, and cross-platform play between mobile and PC, Mech Arena brings competitive robot combat to everyone.",
+    "cover_image": "https://play-lh.googleusercontent.com/tZ1Q3k5Y8X9W2V7U6T5S4R3Q2P1O0N9M8L7K6J5I4H3G2F1E0D9C8B7A6Z5Y4X3W2V",
+    "screenshots": [
+      "https://play-lh.googleusercontent.com/A1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q7R8S9T0U1V2W3X4Y5Z6A7B8C9D0E1F2G3",
+      "https://play-lh.googleusercontent.com/Z9Y8X7W6V5U4T3S2R1Q0P9O8N7M6L5K4J3I2H1G0F9E8D7C6B5A4Z3Y2X1W0V9U8T"
+    ]
+  }
+]

@@ -1,314 +1,292 @@
-CREATE TABLE users (
-    user_id SERIAL PRIMARY KEY,
-    username VARCHAR(50) UNIQUE NOT NULL,
-    email VARCHAR(100) UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
+-- =============================================================================
+-- ArenaX Esports Platform — Clean Schema
+-- Self-hosted game data (no external API dependencies)
+-- =============================================================================
+
+-- ─── Core tables ─────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS users (
+    user_id        SERIAL PRIMARY KEY,
+    username       VARCHAR(50) UNIQUE NOT NULL,
+    email          VARCHAR(100) UNIQUE NOT NULL,
+    password_hash  TEXT NOT NULL,
     profile_picture TEXT,
-    country VARCHAR(50),
-    region VARCHAR(50),
-    bio TEXT,
-    status VARCHAR(20) DEFAULT 'active',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    last_login TIMESTAMP
+    country        VARCHAR(50),
+    region         VARCHAR(50),
+    bio            TEXT,
+    status         VARCHAR(20) DEFAULT 'active',
+    created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_login     TIMESTAMP
 );
 
-CREATE TABLE games (
-    game_id SERIAL PRIMARY KEY,
-    game_name VARCHAR(100) UNIQUE NOT NULL,
-    genre VARCHAR(50),
-    developer VARCHAR(100),
+-- Games table — driven entirely by data/games.json (no RAWG)
+CREATE TABLE IF NOT EXISTS games (
+    game_id      SERIAL PRIMARY KEY,
+    game_name    VARCHAR(100) UNIQUE NOT NULL,
+    genre        VARCHAR(50),
+    developer    VARCHAR(100),
     release_year INT,
-    icon TEXT,
-    status VARCHAR(20) DEFAULT 'active'
+    cover_image  TEXT,
+    icon         TEXT,
+    rating       DECIMAL(3,2),
+    platforms    TEXT,          -- e.g. "PC / Console" or "Mobile"
+    description  TEXT,
+    slug         VARCHAR(200),
+    screenshots  TEXT[],
+    status       VARCHAR(20) DEFAULT 'active'
 );
 
-CREATE TABLE user_game_profile (
-    profile_id SERIAL PRIMARY KEY,
-    user_id INT REFERENCES users(user_id) ON DELETE CASCADE,
-    game_id INT REFERENCES games(game_id) ON DELETE CASCADE,
-    rank VARCHAR(50),
-    role VARCHAR(50),
-    win_rate DECIMAL(5,2),
+CREATE UNIQUE INDEX IF NOT EXISTS idx_games_name ON games(game_name);
+CREATE INDEX        IF NOT EXISTS idx_games_slug ON games(slug);
+
+CREATE TABLE IF NOT EXISTS user_game_profile (
+    profile_id     SERIAL PRIMARY KEY,
+    user_id        INT REFERENCES users(user_id) ON DELETE CASCADE,
+    game_id        INT REFERENCES games(game_id) ON DELETE CASCADE,
+    rank           VARCHAR(50),
+    role           VARCHAR(50),
+    win_rate       DECIMAL(5,2),
     matches_played INT DEFAULT 0,
-    elo_rating INT,
+    elo_rating     INT,
     UNIQUE(user_id, game_id)
 );
 
-CREATE TABLE teams (
-    team_id SERIAL PRIMARY KEY,
-    team_name VARCHAR(100) UNIQUE NOT NULL,
-    logo TEXT,
-    region VARCHAR(50),
-    created_by INT REFERENCES users(user_id),
+CREATE TABLE IF NOT EXISTS teams (
+    team_id     SERIAL PRIMARY KEY,
+    team_name   VARCHAR(100) UNIQUE NOT NULL,
+    logo        TEXT,
+    region      VARCHAR(50),
+    created_by  INT REFERENCES users(user_id),
     description TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE team_members (
+CREATE TABLE IF NOT EXISTS team_members (
     team_member_id SERIAL PRIMARY KEY,
-    team_id INT REFERENCES teams(team_id) ON DELETE CASCADE,
-    user_id INT REFERENCES users(user_id) ON DELETE CASCADE,
-    role VARCHAR(50),
-    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    status VARCHAR(20) DEFAULT 'active',
+    team_id        INT REFERENCES teams(team_id) ON DELETE CASCADE,
+    user_id        INT REFERENCES users(user_id) ON DELETE CASCADE,
+    role           VARCHAR(50),
+    joined_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status         VARCHAR(20) DEFAULT 'active',
     UNIQUE(team_id, user_id)
 );
 
-CREATE TABLE team_invitations (
-    invite_id SERIAL PRIMARY KEY,
-    team_id INT REFERENCES teams(team_id) ON DELETE CASCADE,
-    user_id INT REFERENCES users(user_id) ON DELETE CASCADE,
+CREATE TABLE IF NOT EXISTS team_invitations (
+    invite_id  SERIAL PRIMARY KEY,
+    team_id    INT REFERENCES teams(team_id) ON DELETE CASCADE,
+    user_id    INT REFERENCES users(user_id) ON DELETE CASCADE,
     invited_by INT REFERENCES users(user_id),
-    status VARCHAR(20) DEFAULT 'pending',
-    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    status     VARCHAR(20) DEFAULT 'pending',
+    sent_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE tournament_organizers (
-    organizer_id SERIAL PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS tournament_organizers (
+    organizer_id      SERIAL PRIMARY KEY,
     organization_name VARCHAR(150) NOT NULL,
-    website TEXT,
-    contact_email VARCHAR(100),
-    verified BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    website           TEXT,
+    contact_email     VARCHAR(100),
+    verified          BOOLEAN DEFAULT FALSE,
+    created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE tournaments (
-    tournament_id SERIAL PRIMARY KEY,
-    name VARCHAR(150) NOT NULL,
-    game_id INT REFERENCES games(game_id),
-    organizer_id INT REFERENCES tournament_organizers(organizer_id),
-    prize_pool DECIMAL(12,2),
-    entry_fee DECIMAL(10,2),
-    region VARCHAR(50),
-    format VARCHAR(50),
-    start_date DATE,
-    end_date DATE,
+CREATE TABLE IF NOT EXISTS tournaments (
+    tournament_id         SERIAL PRIMARY KEY,
+    name                  VARCHAR(150) NOT NULL,
+    game_id               INT REFERENCES games(game_id),
+    organizer_id          INT REFERENCES tournament_organizers(organizer_id),
+    prize_pool            DECIMAL(12,2),
+    entry_fee             DECIMAL(10,2),
+    region                VARCHAR(50),
+    format                VARCHAR(50),
+    start_date            DATE,
+    end_date              DATE,
     registration_deadline DATE,
-    status VARCHAR(20) DEFAULT 'upcoming'
+    status                VARCHAR(20) DEFAULT 'upcoming',
+    image_url             TEXT,
+    description           TEXT,
+    organizer_name        VARCHAR(150),
+    location              VARCHAR(150),
+    join_link             TEXT,
+    created_by            INT REFERENCES users(user_id),
+    created_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE tournament_registrations (
+CREATE TABLE IF NOT EXISTS tournament_registrations (
     registration_id SERIAL PRIMARY KEY,
-    tournament_id INT REFERENCES tournaments(tournament_id) ON DELETE CASCADE,
-    team_id INT REFERENCES teams(team_id) ON DELETE CASCADE,
-    registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    status VARCHAR(20) DEFAULT 'pending',
+    tournament_id   INT REFERENCES tournaments(tournament_id) ON DELETE CASCADE,
+    team_id         INT REFERENCES teams(team_id) ON DELETE CASCADE,
+    registered_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status          VARCHAR(20) DEFAULT 'pending',
     UNIQUE(tournament_id, team_id)
 );
 
-CREATE TABLE matches (
-    match_id SERIAL PRIMARY KEY,
-    tournament_id INT REFERENCES tournaments(tournament_id),
-    team1_id INT REFERENCES teams(team_id),
-    team2_id INT REFERENCES teams(team_id),
-    match_date TIMESTAMP,
-    status VARCHAR(20) DEFAULT 'scheduled',
-    winner_team_id INT REFERENCES teams(team_id),
-    score VARCHAR(20)
+CREATE TABLE IF NOT EXISTS matches (
+    match_id        SERIAL PRIMARY KEY,
+    tournament_id   INT REFERENCES tournaments(tournament_id),
+    team1_id        INT REFERENCES teams(team_id),
+    team2_id        INT REFERENCES teams(team_id),
+    match_date      TIMESTAMP,
+    status          VARCHAR(20) DEFAULT 'scheduled',
+    winner_team_id  INT REFERENCES teams(team_id),
+    score           VARCHAR(20)
 );
 
-CREATE TABLE match_player_stats (
-    stat_id SERIAL PRIMARY KEY,
-    match_id INT REFERENCES matches(match_id) ON DELETE CASCADE,
-    user_id INT REFERENCES users(user_id),
-    kills INT DEFAULT 0,
-    deaths INT DEFAULT 0,
-    assists INT DEFAULT 0,
-    damage INT DEFAULT 0,
-    mvp BOOLEAN DEFAULT FALSE
+CREATE TABLE IF NOT EXISTS match_player_stats (
+    stat_id    SERIAL PRIMARY KEY,
+    match_id   INT REFERENCES matches(match_id) ON DELETE CASCADE,
+    user_id    INT REFERENCES users(user_id),
+    kills      INT DEFAULT 0,
+    deaths     INT DEFAULT 0,
+    assists    INT DEFAULT 0,
+    damage     INT DEFAULT 0,
+    mvp        BOOLEAN DEFAULT FALSE
 );
 
-CREATE TABLE communities (
+CREATE TABLE IF NOT EXISTS communities (
     community_id SERIAL PRIMARY KEY,
-    game_id INT REFERENCES games(game_id),
-    name VARCHAR(100),
-    description TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    game_id      INT REFERENCES games(game_id),
+    name         VARCHAR(100),
+    description  TEXT,
+    created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE community_posts (
-    post_id SERIAL PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS community_posts (
+    post_id      SERIAL PRIMARY KEY,
     community_id INT REFERENCES communities(community_id) ON DELETE CASCADE,
-    user_id INT REFERENCES users(user_id),
-    title VARCHAR(200),
-    content TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    upvotes INT DEFAULT 0,
-    downvotes INT DEFAULT 0
+    user_id      INT REFERENCES users(user_id),
+    title        VARCHAR(200),
+    content      TEXT,
+    image_url    TEXT,
+    created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    upvotes      INT DEFAULT 0,
+    downvotes    INT DEFAULT 0
 );
 
-CREATE TABLE post_comments (
+CREATE TABLE IF NOT EXISTS post_comments (
     comment_id SERIAL PRIMARY KEY,
-    post_id INT REFERENCES community_posts(post_id) ON DELETE CASCADE,
-    user_id INT REFERENCES users(user_id),
-    content TEXT,
+    post_id    INT REFERENCES community_posts(post_id) ON DELETE CASCADE,
+    user_id    INT REFERENCES users(user_id),
+    content    TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE friendships (
+CREATE TABLE IF NOT EXISTS friendships (
     friendship_id SERIAL PRIMARY KEY,
-    user_id INT REFERENCES users(user_id) ON DELETE CASCADE,
-    friend_id INT REFERENCES users(user_id) ON DELETE CASCADE,
-    status VARCHAR(20) DEFAULT 'pending',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    user_id       INT REFERENCES users(user_id) ON DELETE CASCADE,
+    friend_id     INT REFERENCES users(user_id) ON DELETE CASCADE,
+    status        VARCHAR(20) DEFAULT 'pending',
+    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE messages (
-    message_id SERIAL PRIMARY KEY,
-    sender_id INT REFERENCES users(user_id),
+CREATE TABLE IF NOT EXISTS messages (
+    message_id  SERIAL PRIMARY KEY,
+    sender_id   INT REFERENCES users(user_id),
     receiver_id INT REFERENCES users(user_id),
-    content TEXT,
-    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    content     TEXT,
+    sent_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     read_status BOOLEAN DEFAULT FALSE
 );
 
-CREATE TABLE team_finder_posts (
-    post_id SERIAL PRIMARY KEY,
-    user_id INT REFERENCES users(user_id),
-    game_id INT REFERENCES games(game_id),
-    rank_required VARCHAR(50),
-    role_required VARCHAR(50),
-    region VARCHAR(50),
-    description TEXT,
-    status VARCHAR(20) DEFAULT 'open',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE IF NOT EXISTS team_finder_posts (
+    post_id        SERIAL PRIMARY KEY,
+    user_id        INT REFERENCES users(user_id),
+    game_id        INT REFERENCES games(game_id),
+    rank_required  VARCHAR(50),
+    role_required  VARCHAR(50),
+    region         VARCHAR(50),
+    description    TEXT,
+    status         VARCHAR(20) DEFAULT 'open',
+    created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE team_finder_applications (
+CREATE TABLE IF NOT EXISTS team_finder_applications (
     application_id SERIAL PRIMARY KEY,
-    post_id INT REFERENCES team_finder_posts(post_id) ON DELETE CASCADE,
-    user_id INT REFERENCES users(user_id),
-    message TEXT,
-    status VARCHAR(20) DEFAULT 'pending',
-    applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    post_id        INT REFERENCES team_finder_posts(post_id) ON DELETE CASCADE,
+    user_id        INT REFERENCES users(user_id),
+    message        TEXT,
+    status         VARCHAR(20) DEFAULT 'pending',
+    applied_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE streams (
-    stream_id SERIAL PRIMARY KEY,
-    user_id INT REFERENCES users(user_id),
-    platform VARCHAR(50),
-    stream_url TEXT,
-    game_id INT REFERENCES games(game_id),
-    title VARCHAR(200),
-    started_at TIMESTAMP,
-    status VARCHAR(20),
+CREATE TABLE IF NOT EXISTS streams (
+    stream_id    SERIAL PRIMARY KEY,
+    user_id      INT REFERENCES users(user_id),
+    platform     VARCHAR(50),
+    stream_url   TEXT,
+    game_id      INT REFERENCES games(game_id),
+    title        VARCHAR(200),
+    started_at   TIMESTAMP,
+    status       VARCHAR(20),
     viewer_count INT DEFAULT 0
 );
 
-CREATE TABLE notifications (
+CREATE TABLE IF NOT EXISTS notifications (
     notification_id SERIAL PRIMARY KEY,
-    user_id INT REFERENCES users(user_id) ON DELETE CASCADE,
-    type VARCHAR(50),
-    message TEXT,
-    related_id INT,
-    is_read BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    user_id         INT REFERENCES users(user_id) ON DELETE CASCADE,
+    type            VARCHAR(50),
+    message         TEXT,
+    related_id      INT,
+    is_read         BOOLEAN DEFAULT FALSE,
+    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE achievements (
+CREATE TABLE IF NOT EXISTS achievements (
     achievement_id SERIAL PRIMARY KEY,
-    name VARCHAR(100),
-    description TEXT,
-    icon TEXT
+    name           VARCHAR(100),
+    description    TEXT,
+    icon           TEXT
 );
 
-CREATE TABLE user_achievements (
+CREATE TABLE IF NOT EXISTS user_achievements (
     user_achievement_id SERIAL PRIMARY KEY,
-    user_id INT REFERENCES users(user_id) ON DELETE CASCADE,
-    achievement_id INT REFERENCES achievements(achievement_id) ON DELETE CASCADE,
-    earned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    user_id             INT REFERENCES users(user_id) ON DELETE CASCADE,
+    achievement_id      INT REFERENCES achievements(achievement_id) ON DELETE CASCADE,
+    earned_at           TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE reports (
-    report_id SERIAL PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS reports (
+    report_id     SERIAL PRIMARY KEY,
     reported_user INT REFERENCES users(user_id),
-    reported_by INT REFERENCES users(user_id),
-    reason TEXT,
-    status VARCHAR(20) DEFAULT 'pending',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    reported_by   INT REFERENCES users(user_id),
+    reason        TEXT,
+    status        VARCHAR(20) DEFAULT 'pending',
+    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE ai_recommendations (
+CREATE TABLE IF NOT EXISTS ai_recommendations (
     recommendation_id SERIAL PRIMARY KEY,
-    user_id INT REFERENCES users(user_id),
-    type VARCHAR(50),
-    data JSONB,
-    generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    user_id           INT REFERENCES users(user_id),
+    type              VARCHAR(50),
+    data              JSONB,
+    generated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- ─── Indexes ──────────────────────────────────────────────────────────────────
+CREATE INDEX IF NOT EXISTS idx_users_email        ON users(email);
+CREATE INDEX IF NOT EXISTS idx_tournaments_game   ON tournaments(game_id);
+CREATE INDEX IF NOT EXISTS idx_team_members_team  ON team_members(team_id);
+CREATE INDEX IF NOT EXISTS idx_matches_tournament ON matches(tournament_id);
+CREATE INDEX IF NOT EXISTS idx_messages_receiver  ON messages(receiver_id);
 
+-- =============================================================================
+-- MIGRATION: Clean up old RAWG-era data and columns
+-- Run this section ONCE on an existing database.
+-- =============================================================================
 
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_tournaments_game ON tournaments(game_id);
-CREATE INDEX idx_team_members_team ON team_members(team_id);
-CREATE INDEX idx_matches_tournament ON matches(tournament_id);
-CREATE INDEX idx_messages_receiver ON messages(receiver_id);
+-- 1. Remove all old seeded games and their communities (they'll be re-added via /api/games/sync)
+DELETE FROM communities
+WHERE game_id IN (SELECT game_id FROM games);
 
-SELECT tablename FROM pg_tables WHERE schemaname = 'public';
+DELETE FROM games;
 
+-- 2. Drop RAWG-specific columns that are no longer needed
+ALTER TABLE games
+  DROP COLUMN IF EXISTS rawg_id,
+  DROP COLUMN IF EXISTS rating_count,
+  DROP COLUMN IF EXISTS metacritic,
+  DROP COLUMN IF EXISTS website;
 
-
-ALTER TABLE tournaments
-  ADD COLUMN IF NOT EXISTS image_url        TEXT,
-  ADD COLUMN IF NOT EXISTS description      TEXT,
-  ADD COLUMN IF NOT EXISTS organizer_name   VARCHAR(150),
-  ADD COLUMN IF NOT EXISTS location         VARCHAR(150),
-  ADD COLUMN IF NOT EXISTS join_link        TEXT,
-  ADD COLUMN IF NOT EXISTS created_by       INT REFERENCES users(user_id),
-  ADD COLUMN IF NOT EXISTS created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
-
-
-  INSERT INTO games (game_name, genre, developer, release_year) VALUES
-  ('Valorant',          'Tactical FPS',      'Riot Games',            2020),
-  ('CS2',               'FPS',               'Valve',                 2023),
-  ('League of Legends', 'MOBA',              'Riot Games',            2009),
-  ('Dota 2',            'MOBA',              'Valve',                 2013),
-  ('Fortnite',          'Battle Royale',     'Epic Games',            2017),
-  ('PUBG',              'Battle Royale',     'Krafton',               2017),
-  ('Apex Legends',      'Battle Royale',     'Respawn Entertainment', 2019),
-  ('Overwatch 2',       'Hero Shooter',      'Blizzard Entertainment',2022),
-  ('Rocket League',     'Sports',            'Psyonix',               2015),
-  ('Call of Duty: Warzone', 'Battle Royale', 'Activision',            2020),
-  ('FIFA 24',           'Sports',            'EA Sports',             2023),
-  ('Street Fighter 6',  'Fighting',          'Capcom',                2023),
-  ('Hearthstone',       'Card Game',         'Blizzard Entertainment',2014),
-  ('StarCraft II',      'Real-Time Strategy','Blizzard Entertainment',2010);
-
-ALTER TABLE community_posts
-  ADD COLUMN IF NOT EXISTS image_url TEXT;
-
-  INSERT INTO communities (game_id, name, description) VALUES
-  (1,  'Valorant Community',        'Tips, clips and ranked discussion'),
-  (2,  'CS2 Community',             'Strategy guides, highlights and pro scene talk'),
-  (4,  'League of Legends Hub',     'Champion discussion, patch notes and ranked grind'),
-  (5,  'Dota 2 Den',                'Hero builds, patch analysis and tournament coverage'),
-  (6,  'Fortnite Squad',            'Building tips, creative maps and battle royale drops'),
-  (7,  'PUBG Battlegrounds',        'Landing zones, loadouts and squad tactics'),
-  (8,  'Apex Legends Lounge',       'Legend metas, movement tech and ranked pushes'),
-  (9,  'Overwatch 2 Arena',         'Hero counters, team comps and competitive updates'),
-  (10, 'Rocket League Garage',      'Mechanical tips, car designs and tournament brackets'),
-  (11, 'Warzone Operations',        'Loadout builders, best drop spots and gulag tips'),
-  (12, 'FIFA 24 FC',                'Ultimate Team builds, career mode and Weekend League'),
-  (13, 'Street Fighter 6 Dojo',     'Frame data, combo guides and online match clips'),
-  (14, 'Hearthstone Tavern',        'Deck builds, meta reports and adventure guides'),
-  (15, 'StarCraft II Command',      'Build orders, race discussion and pro match VODs');
-
-
-  ALTER TABLE games
-  ADD COLUMN IF NOT EXISTS rawg_id      INTEGER UNIQUE,
-  ADD COLUMN IF NOT EXISTS cover_image  TEXT,
-  ADD COLUMN IF NOT EXISTS rating       DECIMAL(3,2),
-  ADD COLUMN IF NOT EXISTS rating_count INTEGER DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS platforms    TEXT,
-  ADD COLUMN IF NOT EXISTS metacritic   INTEGER,
-  ADD COLUMN IF NOT EXISTS description  TEXT,
-  ADD COLUMN IF NOT EXISTS website      TEXT,
-  ADD COLUMN IF NOT EXISTS slug         VARCHAR(200),
-  ADD COLUMN IF NOT EXISTS screenshots  TEXT[];  -- array of image URLs
-
--- Index for fast lookups by rawg_id
-CREATE INDEX IF NOT EXISTS idx_games_rawg_id ON games(rawg_id);
-CREATE INDEX IF NOT EXISTS idx_games_slug    ON games(slug);
-
--- Backfill icon → cover_image for any rows that already have an icon set
-UPDATE games SET cover_image = icon WHERE cover_image IS NULL AND icon IS NOT NULL;
+-- After running this file:
+-- → Start your backend server
+-- → POST /api/games/sync   (or click "Sync Games" in the admin panel)
+-- → All 20 games from data/games.json will be inserted + communities auto-created
