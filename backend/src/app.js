@@ -11,6 +11,7 @@ import communityRoutes from "./routes/communityRoutes.js";
 import messageRoutes from "./routes/messageRoutes.js";
 import streamRoutes from "./routes/streamRoutes.js";
 import matchRoutes from "./routes/matchRoutes.js";
+import statsRoutes from "./routes/statsRoutes.js";
 
 import { errorHandler, notFound } from "./middleware/errorMiddleware.js";
 
@@ -53,6 +54,7 @@ app.use("/api/communities", communityRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/streams", streamRoutes);
 app.use("/api/matches", matchRoutes);
+app.use("/api/stats",   statsRoutes);
 
 // ─── ERROR HANDLING (must be last) ────────────────────────────────────────────
 app.use(notFound);

@@ -6,6 +6,8 @@ import {
   getPost,
   addComment,
   votePost,
+  getFollowingPosts,
+  getAllFavGamesPosts,
 } from "../controllers/communityController.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 import { validateCommunityPost, validateIdParam } from "../utils/validators.js";
@@ -17,8 +19,17 @@ const router = Router();
 // GET /api/communities?game_id=
 router.get("/", getCommunities);
 
+// GET /api/communities/all-posts?game_ids=1,2,3&following=true
+router.get("/all-posts", (req, res, next) => {
+  req.optionalAuth = true;
+  next();
+}, getAllFavGamesPosts);
+
 // GET /api/communities/:id/posts
 router.get("/:id/posts", validateIdParam, validate, getCommunityPosts);
+
+// GET /api/communities/:id/following-posts
+router.get("/:id/following-posts", authMiddleware, validateIdParam, validate, getFollowingPosts);
 
 // POST /api/communities/:id/posts
 router.post("/:id/posts", authMiddleware, validateIdParam, validateCommunityPost, validate, createPost);

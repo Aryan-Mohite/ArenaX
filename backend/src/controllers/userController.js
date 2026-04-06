@@ -128,3 +128,88 @@ export const searchUsers = async (req, res, next) => {
     next(err);
   }
 };
+
+// ─── FOLLOW USER ──────────────────────────────────────────────────────────────
+export const followUser = async (req, res, next) => {
+  try {
+    const followerId = req.user.id;
+    const { id: followingId } = req.params;
+
+    if (String(followerId) === String(followingId)) {
+      return res.status(400).json({ success: false, message: "Cannot follow yourself" });
+    }
+
+    // Upsert to avoid duplicate errors
+    await pool.query(
+      `INSERT INTO user_follows (follower_id, following_id)
+       VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+      [followerId, followingId]
+    );
+
+    res.json({ success: true, following: true });
+  } catch (err) { next(err); }
+};
+
+// ─── UNFOLLOW USER ────────────────────────────────────────────────────────────
+export const unfollowUser = async (req, res, next) => {
+  try {
+    const followerId = req.user.id;
+    const { id: followingId } = req.params;
+
+    await pool.query(
+      `DELETE FROM user_follows WHERE follower_id = $1 AND following_id = $2`,
+      [followerId, followingId]
+    );
+
+    res.json({ success: true, following: false });
+  } catch (err) { next(err); }
+};
+
+// ─── GET FOLLOW STATS + community post count for current user ─────────────────
+export const getMyFollowStats = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+
+    const [followers, following, posts] = await Promise.all([
+      pool.query(`SELECT COUNT(*) FROM user_follows WHERE following_id = $1`, [userId]),
+      pool.query(`SELECT COUNT(*) FROM user_follows WHERE follower_id = $1`, [userId]),
+      pool.query(`SELECT COUNT(*) FROM community_posts WHERE user_id = $1`, [userId]),
+    ]);
+
+    res.json({
+      success: true,
+      stats: {
+        followers: Number(followers.rows[0].count),
+        following: Number(following.rows[0].count),
+        community_posts: Number(posts.rows[0].count),
+      },
+    });
+  } catch (err) { next(err); }
+};
+
+// ─── CHECK IF CURRENT USER FOLLOWS target ─────────────────────────────────────
+export const getFollowStatus = async (req, res, next) => {
+  try {
+    const followerId = req.user.id;
+    const { id: followingId } = req.params;
+
+    const result = await pool.query(
+      `SELECT 1 FROM user_follows WHERE follower_id = $1 AND following_id = $2`,
+      [followerId, followingId]
+    );
+
+    const targetStats = await pool.query(
+      `SELECT
+         (SELECT COUNT(*) FROM user_follows WHERE following_id = $1) AS followers,
+         (SELECT COUNT(*) FROM user_follows WHERE follower_id = $1) AS following,
+         (SELECT COUNT(*) FROM community_posts WHERE user_id = $1) AS community_posts`,
+      [followingId]
+    );
+
+    res.json({
+      success: true,
+      following: result.rows.length > 0,
+      ...targetStats.rows[0],
+    });
+  } catch (err) { next(err); }
+};

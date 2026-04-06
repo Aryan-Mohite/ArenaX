@@ -143,3 +143,69 @@ export const votePost = async (req, res, next) => {
     res.json({ success: true, votes: result.rows[0] });
   } catch (err) { next(err); }
 };
+
+// ─── GET POSTS FROM FOLLOWED USERS (for a community) ─────────────────────────
+export const getFollowingPosts = async (req, res, next) => {
+  try {
+    const { id: community_id } = req.params;
+    const { limit = 20, offset = 0 } = req.query;
+    const userId = req.user.id;
+
+    const result = await pool.query(
+      `SELECT cp.*, u.username, u.profile_picture,
+              COUNT(pc.comment_id) AS comment_count
+       FROM community_posts cp
+       JOIN users u ON u.user_id = cp.user_id
+       LEFT JOIN post_comments pc ON pc.post_id = cp.post_id
+       WHERE cp.community_id = $1
+         AND cp.user_id IN (
+           SELECT following_id FROM user_follows WHERE follower_id = $2
+         )
+       GROUP BY cp.post_id, u.username, u.profile_picture
+       ORDER BY cp.created_at DESC
+       LIMIT $3 OFFSET $4`,
+      [community_id, userId, Number(limit), Number(offset)]
+    );
+    res.json({ success: true, posts: result.rows });
+  } catch (err) { next(err); }
+};
+
+// ─── GET ALL COMMUNITY POSTS ACROSS FAV GAMES ─────────────────────────────────
+export const getAllFavGamesPosts = async (req, res, next) => {
+  try {
+    const { game_ids, limit = 30, offset = 0, following } = req.query;
+    const userId = req.user?.id;
+
+    if (!game_ids) return res.json({ success: true, posts: [] });
+
+    const ids = game_ids.split(',').map(Number).filter(Boolean);
+    if (ids.length === 0) return res.json({ success: true, posts: [] });
+
+    let query = `
+      SELECT cp.*, u.username, u.profile_picture,
+             c.name AS community_name, g.game_name,
+             COUNT(pc.comment_id) AS comment_count
+      FROM community_posts cp
+      JOIN users u ON u.user_id = cp.user_id
+      JOIN communities c ON c.community_id = cp.community_id
+      JOIN games g ON g.game_id = c.game_id
+      LEFT JOIN post_comments pc ON pc.post_id = cp.post_id
+      WHERE c.game_id = ANY($1::int[])
+    `;
+
+    const params = [ids];
+
+    if (following === 'true' && userId) {
+      params.push(userId);
+      query += ` AND cp.user_id IN (SELECT following_id FROM user_follows WHERE follower_id = $${params.length})`;
+    }
+
+    query += ` GROUP BY cp.post_id, u.username, u.profile_picture, c.name, g.game_name
+               ORDER BY cp.created_at DESC
+               LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+    params.push(Number(limit), Number(offset));
+
+    const result = await pool.query(query, params);
+    res.json({ success: true, posts: result.rows });
+  } catch (err) { next(err); }
+};
