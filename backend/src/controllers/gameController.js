@@ -215,13 +215,36 @@ export const syncGamesFromJson = async (req, res, next) => {
       }
     }
 
+    // ── Hard-delete games no longer in JSON ───────────────────────────────────
+    // Deletes the game row and cascades to: communities, community_posts,
+    // post_comments, user_game_profile, tournaments — anything with
+    // ON DELETE CASCADE on their game_id FK.
+    const activeNames = games
+      .filter((g) => g.game_name && g.game_name.trim())
+      .map((g) => g.game_name.trim());
+
+    const deleteResult = await pool.query(
+      `DELETE FROM games
+       WHERE game_name != ALL($1::text[])
+       RETURNING game_name`,
+      [activeNames]
+    );
+    const deleted = deleteResult.rows.length;
+    if (deleted > 0) {
+      console.log(
+        `[sync] Hard-deleted ${deleted} game(s):`,
+        deleteResult.rows.map((r) => r.game_name).join(", ")
+      );
+    }
+
     res.json({
       success: true,
-      message: `Sync complete: ${inserted} inserted, ${updated} updated, ${skipped} skipped. ${communitiesCreated} communities auto-created.`,
+      message: `Sync complete: ${inserted} inserted, ${updated} updated, ${skipped} skipped, ${deleted} deleted. ${communitiesCreated} communities auto-created.`,
       total: games.length,
       inserted,
       updated,
       skipped,
+      deleted,
       communitiesCreated,
     });
   } catch (err) {

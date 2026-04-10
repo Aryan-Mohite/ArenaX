@@ -29,21 +29,7 @@
       "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/570/ss_b1e2a21de6fec5a6e6d82be93a23a90c7e3c3a6b.jpg"
     ]
   },
-  {
-    "slug": "rainbow-six-siege",
-    "game_name": "Tom Clancy's Rainbow Six Siege",
-    "genre": "Tactical FPS",
-    "developer": "Ubisoft",
-    "release_year": 2015,
-    "rating": 4.5,
-    "platforms": "PC / Console",
-    "description": "Rainbow Six Siege is a tactical shooter built around destructible environments, intel-gathering, and team communication. Operators with unique gadgets let you breach, fortify, and outsmart opponents in close-quarters combat. One of the most strategic esports titles on the market.",
-    "cover_image": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/359550/header.jpg",
-    "screenshots": [
-      "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/359550/ss_ae0c18c6e8c0e25fb7c63e76f27c4d2d49e36c0e.jpg",
-      "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/359550/ss_3f8ffee9a59afcb51c45ccd8f5571c14f1f7f2d8.jpg"
-    ]
-  },
+  
   {
     "slug": "apex-legends",
     "game_name": "Apex Legends",
@@ -74,21 +60,7 @@
       "https://images.contentstack.io/v3/assets/bltb6530b271fddd0b1/blt7fdf52e65ec52a62/5eb75e5f4f08d54fd18d3374/122220_VALORANT_AgentPage_Jett_Banner.jpg"
     ]
   },
-  {
-    "slug": "street-fighter",
-    "game_name": "Street Fighter",
-    "genre": "Fighting",
-    "developer": "Capcom",
-    "release_year": 1987,
-    "rating": 4.5,
-    "platforms": "PC / Console",
-    "description": "Street Fighter is the iconic fighting game franchise that defined the genre. From the legendary Street Fighter II to Street Fighter 6, players command a diverse roster of fighters with unique move sets and combo systems. The Capcom Pro Tour brings elite competition worldwide.",
-    "cover_image": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1364780/header.jpg",
-    "screenshots": [
-      "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1364780/ss_a55dc34e1e8e58a12e6124dd0f1b0a1e2e7f4d97.jpg",
-      "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1364780/ss_8c54d38a3b6c81f83cbbc9b21a2ef8c241f46b2f.jpg"
-    ]
-  },
+ 
   {
     "slug": "rocket-league",
     "game_name": "Rocket League",
@@ -119,21 +91,7 @@
       "https://cdn1.epicgames.com/offer/24b9b5e323bc40eea252a10cdd3b2f10/EGS_LeagueofLegends_RiotGames_S1_2560x1440-80471984a05c2c6b3ba2d3986f8c92a8"
     ]
   },
-  {
-    "slug": "call-of-duty",
-    "game_name": "Call of Duty",
-    "genre": "FPS",
-    "developer": "Activision",
-    "release_year": 2003,
-    "rating": 4.4,
-    "platforms": "PC / Console",
-    "description": "Call of Duty is the best-selling FPS franchise in history. From the WWII roots to Modern Warfare, Black Ops, and beyond, COD delivers cinematic campaigns and addictive multiplayer. The CDL (Call of Duty League) is the professional esports circuit with franchised city-based teams.",
-    "cover_image": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1938090/header.jpg",
-    "screenshots": [
-      "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1938090/ss_ba0d3c28b6d3e4d97d58a71d0e44eb7c9d68e6fc.jpg",
-      "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1938090/ss_3b2e9b9a7e7e3c1e5a6a2e8b3f1e6d3c4b5f9a7e.jpg"
-    ]
-  },
+  
   {
     "slug": "mobile-legends",
     "game_name": "Mobile Legends: Bang Bang",
@@ -149,21 +107,7 @@
       "https://play-lh.googleusercontent.com/5mxNNq4VFJEuZHPrHLl8QCUNJiR8J3XM6wEkb5xNlA4E-jL0HS2WpD6cpJV3QZX_8A"
     ]
   },
-  {
-    "slug": "madden-nfl",
-    "game_name": "Madden NFL",
-    "genre": "Sports",
-    "developer": "EA Sports",
-    "release_year": 1988,
-    "rating": 4.1,
-    "platforms": "PC / Console",
-    "description": "Madden NFL is the definitive American football simulation franchise. With real NFL teams, players, and the official playbook, Madden lets fans build dynasties, manage rosters, and compete online. The Madden Championship Series brings competitive esports to gridiron fans worldwide.",
-    "cover_image": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/2073780/header.jpg",
-    "screenshots": [
-      "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/2073780/ss_1234567890abcdef1234567890abcdef12345678.jpg",
-      "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/2073780/ss_abcdef1234567890abcdef1234567890abcdef12.jpg"
-    ]
-  },
+  
   {
     "slug": "ea-sports-fc",
     "game_name": "EA Sports FC",
@@ -282,21 +226,6 @@
     "screenshots": [
       "https://play-lh.googleusercontent.com/B4Ew4KbkCFI8P4G3QF8B4Q3W7L9N1P3R5T7V9X1Z3B5D7F9H1J3L5N7P9R1T3V5X7Z",
       "https://play-lh.googleusercontent.com/Wm5X1Y9K8G7F6E5D4C3B2A1Z0Y9X8W7V6U5T4S3R2Q1P0O9N8M7L6K5J4I3H2G1F0E"
-    ]
-  },
-  {
-    "slug": "mech-arena",
-    "game_name": "Mech Arena",
-    "genre": "FPS",
-    "developer": "Plarium",
-    "release_year": 2021,
-    "rating": 4.1,
-    "platforms": "Mobile / PC",
-    "description": "Mech Arena is a fast-paced sci-fi shooter where players pilot customizable mechs in 5v5 team battles and battle royale arenas. With dozens of mechs and weapons to unlock, strategic squad compositions, and cross-platform play between mobile and PC, Mech Arena brings competitive robot combat to everyone.",
-    "cover_image": "https://play-lh.googleusercontent.com/tZ1Q3k5Y8X9W2V7U6T5S4R3Q2P1O0N9M8L7K6J5I4H3G2F1E0D9C8B7A6Z5Y4X3W2V",
-    "screenshots": [
-      "https://play-lh.googleusercontent.com/A1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q7R8S9T0U1V2W3X4Y5Z6A7B8C9D0E1F2G3",
-      "https://play-lh.googleusercontent.com/Z9Y8X7W6V5U4T3S2R1Q0P9O8N7M6L5K4J3I2H1G0F9E8D7C6B5A4Z3Y2X1W0V9U8T"
     ]
   }
 ]

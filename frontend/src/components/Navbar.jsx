@@ -9,6 +9,7 @@ const NAV_LINKS = [
   { to: "/teamfinder", label: "Team Finder" },
   { to: "/stream", label: "Stream" },
   { to: "/communities", label: "Communities" },
+  { to: "/about", label: "About" },
 ];
 
 // ── Small avatar — shows profile pic or initial ───────────────────────────────
