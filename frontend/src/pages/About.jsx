@@ -42,17 +42,17 @@ const FEATURES = [
 ];
 
 const STATS = [
-  { value: "10 000+", label: "Registered players" },
-  { value: "500+", label: "Tournaments hosted" },
-  { value: "50+", label: "Games supported" },
+  { value: "50K+", label: "Registered players" },
+  { value: "1200+", label: "Tournaments hosted" },
+  { value: "25+", label: "Games supported" },
   { value: "24 / 7", label: "Live streams" },
 ];
 
 const TEAM = [
-  { name: "Apex", role: "Founder & CEO", emoji: "🦁" },
-  { name: "Nova", role: "Head of Product", emoji: "🚀" },
-  { name: "Cipher", role: "Lead Engineer", emoji: "⚡" },
-  { name: "Spectre", role: "Community Manager", emoji: "🎯" },
+  { name: "Aryan & Adi", role: "Founder & CEO", emoji: "🦁" },
+  { name: "Aditya", role: "Head of Product", emoji: "🚀" },
+  { name: "Aryan", role: "Lead Engineer", emoji: "⚡" },
+  { name: "Claude", role: "Community Manager", emoji: "🎯" },
 ];
 
 const VALUES = [
@@ -96,7 +96,8 @@ function HeroSection() {
         {/* Badge */}
         <span className="badge-red mb-6 inline-flex">
           <span className="w-1.5 h-1.5 rounded-full bg-red-light animate-pulse" />
-          About ArenaX
+          ArenaX Beta
+          <span className="w-1.5 h-1.5 rounded-full bg-red-light animate-pulse" />
         </span>
 
         <h1 className="font-display font-bold text-5xl sm:text-6xl text-white leading-tight mb-6">
@@ -181,9 +182,8 @@ function MissionSection() {
           />
           <div className="relative space-y-4">
             {[
-              { label: "Founded", value: "2023" },
+              { label: "Founded", value: "2026" },
               { label: "HQ", value: "Remote — worldwide" },
-              { label: "Stack", value: "React · Node.js · PostgreSQL" },
               { label: "Model", value: "Free to play, fair monetisation" },
             ].map(({ label, value }) => (
               <div
