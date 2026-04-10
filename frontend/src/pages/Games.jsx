@@ -745,6 +745,64 @@ export default function Games() {
                 ))}
               </div>
             </div>
+
+            {/* Sync button */}
+            <div className="card py-4 px-4">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
+                Admin
+              </p>
+              {syncResult && (
+                <p className="text-green-400 text-[11px] mb-2 leading-snug">
+                  {syncResult}
+                </p>
+              )}
+              <button
+                onClick={handleSync}
+                disabled={syncing}
+                className="w-full text-sm py-2 px-3 rounded-lg font-bold transition-all flex items-center justify-center gap-2"
+                style={{
+                  background: syncing
+                    ? "rgba(244,165,35,0.08)"
+                    : "rgba(244,165,35,0.12)",
+                  color: "#f4a523",
+                  border: "1px solid rgba(244,165,35,0.25)",
+                  opacity: syncing ? 0.7 : 1,
+                }}
+              >
+                {syncing ? (
+                  <>
+                    <svg
+                      className="animate-spin"
+                      width="13"
+                      height="13"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                    >
+                      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                    </svg>
+                    Syncing…
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      width="13"
+                      height="13"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                    >
+                      <polyline points="23 4 23 10 17 10" />
+                      <polyline points="1 20 1 14 7 14" />
+                      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                    </svg>
+                    Sync Games
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>

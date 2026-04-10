@@ -290,3 +290,41 @@ ALTER TABLE games
 -- → Start your backend server
 -- → POST /api/games/sync   (or click "Sync Games" in the admin panel)
 -- → All 20 games from data/games.json will be inserted + communities auto-created
+
+
+CREATE TABLE IF NOT EXISTS user_follows (
+  follower_id  INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+  following_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (follower_id, following_id),
+  CHECK (follower_id <> following_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_follows_follower  ON user_follows(follower_id);
+CREATE INDEX IF NOT EXISTS idx_user_follows_following ON user_follows(following_id);
+
+-- Step 1: Fix cascade constraints
+ALTER TABLE communities
+  DROP CONSTRAINT IF EXISTS communities_game_id_fkey,
+  ADD CONSTRAINT communities_game_id_fkey
+    FOREIGN KEY (game_id) REFERENCES games(game_id) ON DELETE CASCADE;
+
+ALTER TABLE community_posts
+  DROP CONSTRAINT IF EXISTS community_posts_community_id_fkey,
+  ADD CONSTRAINT community_posts_community_id_fkey
+    FOREIGN KEY (community_id) REFERENCES communities(community_id) ON DELETE CASCADE;
+
+ALTER TABLE post_comments
+  DROP CONSTRAINT IF EXISTS post_comments_post_id_fkey,
+  ADD CONSTRAINT post_comments_post_id_fkey
+    FOREIGN KEY (post_id) REFERENCES community_posts(post_id) ON DELETE CASCADE;
+
+ALTER TABLE user_game_profile
+  DROP CONSTRAINT IF EXISTS user_game_profile_game_id_fkey,
+  ADD CONSTRAINT user_game_profile_game_id_fkey
+    FOREIGN KEY (game_id) REFERENCES games(game_id) ON DELETE CASCADE;
+
+ALTER TABLE tournaments
+  DROP CONSTRAINT IF EXISTS tournaments_game_id_fkey,
+  ADD CONSTRAINT tournaments_game_id_fkey
+    FOREIGN KEY (game_id) REFERENCES games(game_id) ON DELETE CASCADE;
