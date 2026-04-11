@@ -15,6 +15,31 @@ const GENRE_COLORS = {
 }
 const genreColor = (g) => GENRE_COLORS[g] || GENRE_COLORS.default
 
+// ─── Local image map — keys match EXACT backend game_name (lowercased) ────────
+const LOCAL_IMAGES = {
+  'apex legends':               '/ApexLegends.jpg',
+  'battlegrounds mobile india': '/BGMI.jpg',
+  'brawl stars':                '/BrawlStars_1.jpg',
+  'call of duty: mobile':       '/COD_Mobile_1.jpg',
+  'call of duty: warzone':      '/COD_Warzone.jpg',
+  'dota 2':                     '/dota_2.jpg',
+  'ea sports fc':               '/EA-Sports.jpg',
+  'fortnite':                   '/Frotnite.jpg',
+  'free fire':                  '/FreeFire.jpg',
+  'league of legends':          '/league-of-legends_1.jpg',
+  'pubg: battlegrounds':        '/PUBG.jpg',
+  'rocket league':              '/Rocket_League_1.jpg',
+  'valorant':                   '/Valorant.jpg',
+  'counter-strike':             '/images.jpg',
+  'mobile legends: bang bang' : '/MobileLegends.png'
+  // 'counter-strike' and 'mobile legends: bang bang' use API cover_image fallback
+}
+
+const getLocalImage = (gameName) => {
+  if (!gameName) return null
+  return LOCAL_IMAGES[gameName.toLowerCase().trim()] || null
+}
+
 // ─── Star rating display ──────────────────────────────────────────────────────
 function StarRating({ rating, max = 5, size = 10 }) {
   if (!rating) return null
@@ -33,13 +58,23 @@ function StarRating({ rating, max = 5, size = 10 }) {
   )
 }
 
-// ─── Cover image with gradient fallback ──────────────────────────────────────
+// ─── Cover image: local → API cover_image → gradient fallback ─────────────────
 function GameCover({ game, height = 'h-44' }) {
-  const [imgErr, setImgErr] = useState(false)
-  const coverUrl = game.cover_image || game.icon || null
-  const src      = !imgErr && coverUrl ? coverUrl : null
-  const color    = genreColor(game.genre)
-  const abbr     = game.game_name.split(' ').map(w => w[0]).join('').slice(0, 3).toUpperCase()
+  const localImg = getLocalImage(game.game_name)
+  const sources = [localImg, game.cover_image, game.icon].filter(Boolean)
+  const [srcIndex, setSrcIndex] = useState(0)
+
+  const src   = sources[srcIndex] || null
+  const color = genreColor(game.genre)
+  const abbr  = game.game_name.split(' ').map(w => w[0]).join('').slice(0, 3).toUpperCase()
+
+  const handleError = () => {
+    if (srcIndex < sources.length - 1) {
+      setSrcIndex(i => i + 1)
+    } else {
+      setSrcIndex(sources.length)
+    }
+  }
 
   return (
     <div className={`relative w-full ${height} overflow-hidden flex-shrink-0`}>
@@ -48,7 +83,7 @@ function GameCover({ game, height = 'h-44' }) {
           src={src}
           alt={game.game_name}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-          onError={() => setImgErr(true)}
+          onError={handleError}
         />
       ) : (
         <div
@@ -63,7 +98,6 @@ function GameCover({ game, height = 'h-44' }) {
           </div>
         </div>
       )}
-      {/* Bottom fade */}
       <div className="absolute bottom-0 left-0 right-0 h-16 pointer-events-none"
         style={{ background: 'linear-gradient(to top, #1a2340, transparent)' }} />
     </div>
@@ -86,11 +120,9 @@ export default function GameCard({ game, onAdd, onRemove, isFav = false }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* ── Cover image area ── */}
       <div className="relative">
         <GameCover game={game} height="h-44" />
 
-        {/* Genre badge */}
         <div className="absolute top-2 left-2 z-10">
           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
             style={{ background: color + '25', color, border: `1px solid ${color}40` }}>
@@ -98,7 +130,6 @@ export default function GameCard({ game, onAdd, onRemove, isFav = false }) {
           </span>
         </div>
 
-        {/* Platform badge */}
         {game.platforms && (
           <div className="absolute top-2 right-2 z-10">
             <span className="text-[9px] font-bold px-1.5 py-0.5 rounded"
@@ -112,7 +143,6 @@ export default function GameCard({ game, onAdd, onRemove, isFav = false }) {
           </div>
         )}
 
-        {/* Fav star */}
         {isFav && (
           <div className="absolute bottom-2 right-2 z-10 w-6 h-6 rounded-full flex items-center justify-center"
             style={{ background: '#f4a52320', border: '1px solid #f4a52360' }}>
@@ -123,9 +153,7 @@ export default function GameCard({ game, onAdd, onRemove, isFav = false }) {
         )}
       </div>
 
-      {/* ── Card body ── */}
       <div className="p-3 flex flex-col flex-1 gap-1.5">
-        {/* Title + developer */}
         <div>
           <h3 className="text-white text-sm font-semibold truncate leading-tight">{game.game_name}</h3>
           {game.developer && (
@@ -133,7 +161,6 @@ export default function GameCard({ game, onAdd, onRemove, isFav = false }) {
           )}
         </div>
 
-        {/* Rating row */}
         {game.rating && (
           <div className="flex items-center gap-2">
             <StarRating rating={game.rating} />
@@ -143,12 +170,10 @@ export default function GameCard({ game, onAdd, onRemove, isFav = false }) {
           </div>
         )}
 
-        {/* Release year */}
         {game.release_year && (
           <p className="text-[9px] text-gray-600">{game.release_year}</p>
         )}
 
-        {/* Action button */}
         <div className="mt-auto pt-1">
           {isFav ? (
             <button

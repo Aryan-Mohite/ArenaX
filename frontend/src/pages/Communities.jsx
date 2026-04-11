@@ -23,22 +23,47 @@ function Avatar({ user, size = 9 }) {
   return <div className={`${s} rounded-full bg-red/20 border border-red/30 flex items-center justify-center text-red font-bold shrink-0`} style={{ fontSize: size <= 8 ? '0.7rem' : undefined }}>{user?.username?.[0]?.toUpperCase() || '?'}</div>
 }
 
+// ── Local image map — keys = exact game_name from backend (lowercased) ──────────
+const LOCAL_IMAGES = {
+  'apex legends':               '/ApexLegends.jpg',
+  'battlegrounds mobile india': '/BGMI.jpg',
+  'brawl stars':                '/BrawlStars_1.jpg',
+  'call of duty: mobile':       '/COD_Mobile_1.jpg',
+  'call of duty: warzone':      '/COD_Warzone.jpg',
+  'dota 2':                     '/dota_2.jpg',
+  'ea sports fc':               '/EA-Sports.jpg',
+  'fortnite':                   '/Frotnite.jpg',
+  'free fire':                  '/FreeFire.jpg',
+  'league of legends':          '/league-of-legends_1.jpg',
+  'pubg: battlegrounds':        '/PUBG.jpg',
+  'rocket league':              '/Rocket_League_1.jpg',
+  'valorant':                   '/Valorant.jpg',
+}
+const getLocalImage = (name) => name ? LOCAL_IMAGES[name.toLowerCase().trim()] || null : null
+
 // ── Game Community Banner (HoYoLAB-style) ─────────────────────────────────────
 function CommunityBanner({ community, isActive, onClick, postCount }) {
+  // community.name = "Fortnite Community"  (display label)
+  // community.game_name = "Fortnite"       (use THIS for image lookup)
   const gameName = community?.name || community?.game_name || 'Unknown'
-  const initial = gameName[0]?.toUpperCase()
+  const initial  = gameName[0]?.toUpperCase()
+  const localImg = getLocalImage(community?.game_name)   // ← KEY FIX
+  const [imgErr, setImgErr] = useState(false)
+  const imgSrc = (!imgErr && (localImg || community?.icon)) || null
+
   return (
     <button
       onClick={onClick}
       className={`flex flex-col items-center gap-1.5 px-2 py-2 rounded-xl transition-all group shrink-0 ${isActive ? 'opacity-100' : 'opacity-60 hover:opacity-90'}`}
     >
-      {/* Avatar circle — game icon or colorful initial */}
-      <div className={`w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold border-2 transition-all ${isActive ? 'border-red shadow-lg shadow-red/30 scale-105' : 'border-surface-border group-hover:border-red/40'}`}
+      {/* Avatar circle — local image → API icon → initial letter */}
+      <div className={`w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold border-2 transition-all overflow-hidden ${isActive ? 'border-red shadow-lg shadow-red/30 scale-105' : 'border-surface-border group-hover:border-red/40'}`}
         style={{ background: isActive ? 'linear-gradient(135deg,rgba(255,70,85,0.3),rgba(26,35,64,1))' : 'linear-gradient(135deg,#1a2340,#131a2e)' }}>
-        {community?.icon ? (
-          <img src={community.icon} alt={gameName} className="w-10 h-10 rounded-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
-        ) : null}
-        <span className={community?.icon ? 'hidden' : 'block'} style={{ color: isActive ? '#ff4655' : '#9ca3af' }}>{initial}</span>
+        {imgSrc ? (
+          <img src={imgSrc} alt={gameName} className="w-full h-full object-cover" onError={() => setImgErr(true)} />
+        ) : (
+          <span style={{ color: isActive ? '#ff4655' : '#9ca3af' }}>{initial}</span>
+        )}
       </div>
       <span className={`text-xs text-center leading-tight max-w-[72px] truncate font-medium ${isActive ? 'text-red' : 'text-gray-500 group-hover:text-gray-300'}`}>{gameName}</span>
       {isActive && <div className="w-1.5 h-1.5 rounded-full bg-red" />}
