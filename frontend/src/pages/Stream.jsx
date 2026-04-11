@@ -1,13 +1,13 @@
-import { useEffect, useState } from 'react'
-import { getLiveStreams, goLive, endStream } from '../services/streamService'
-import { getMyGames } from '../services/gameService'
-import { PageLoader, EmptyState, ErrorMessage } from '../components/UI'
-import { useAuth } from '../context/AuthContext'
+import { useEffect, useState } from "react";
+import { getLiveStreams, goLive, endStream } from "../services/streamService";
+import { getMyGames } from "../services/gameService";
+import { PageLoader, EmptyState, ErrorMessage } from "../components/UI";
+import { useAuth } from "../context/AuthContext";
 
 function StreamCard({ stream }) {
   return (
     <a
-      href={stream.stream_url || '#'}
+      href={stream.stream_url || "#"}
       target="_blank"
       rel="noreferrer"
       className="card-hover flex flex-col gap-3 group"
@@ -33,68 +33,74 @@ function StreamCard({ stream }) {
           <p className="font-semibold text-white text-sm truncate group-hover:text-red transition-colors">
             {stream.title}
           </p>
-          <p className="text-xs text-gray-500">{stream.username} · {stream.game_name}</p>
+          <p className="text-xs text-gray-500">
+            {stream.username} · {stream.game_name}
+          </p>
         </div>
       </div>
     </a>
-  )
+  );
 }
 
 export default function Stream() {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated } = useAuth();
 
-  const [streams, setStreams]     = useState([])
-  const [myGames, setMyGames]     = useState([])
-  const [loading, setLoading]     = useState(true)
-  const [isLive, setIsLive]       = useState(false)
-  const [showForm, setShowForm]   = useState(false)
-  const [error, setError]         = useState('')
-  const [gameFilter, setGameFilter] = useState('')
-  const [form, setForm] = useState({ game_id: '', title: '', stream_url: '' })
+  const [streams, setStreams] = useState([]);
+  const [myGames, setMyGames] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isLive, setIsLive] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [error, setError] = useState("");
+  const [gameFilter, setGameFilter] = useState("");
+  const [form, setForm] = useState({ game_id: "", title: "", stream_url: "" });
 
   const loadStreams = async () => {
-    setLoading(true)
+    setLoading(true);
     try {
-      const params = gameFilter ? { game_id: gameFilter } : {}
-      const res = await getLiveStreams(params)
-      setStreams(res.data.streams || [])
+      const params = gameFilter ? { game_id: gameFilter } : {};
+      const res = await getLiveStreams(params);
+      setStreams(res.data.streams || []);
     } catch {
-      setStreams([])
+      setStreams([]);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  useEffect(() => { loadStreams() }, [gameFilter])
+  useEffect(() => {
+    loadStreams();
+  }, [gameFilter]);
 
   useEffect(() => {
     if (isAuthenticated) {
-      getMyGames().then(res => setMyGames(res.data.games || [])).catch(() => {})
+      getMyGames()
+        .then((res) => setMyGames(res.data.games || []))
+        .catch(() => {});
     }
-  }, [isAuthenticated])
+  }, [isAuthenticated]);
 
   const handleGoLive = async (e) => {
-    e.preventDefault()
-    setError('')
+    e.preventDefault();
+    setError("");
     try {
-      await goLive(form)
-      setIsLive(true)
-      setShowForm(false)
-      loadStreams()
+      await goLive(form);
+      setIsLive(true);
+      setShowForm(false);
+      loadStreams();
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to go live')
+      setError(err.response?.data?.message || "Failed to go live");
     }
-  }
+  };
 
   const handleEndStream = async () => {
     try {
-      await endStream()
-      setIsLive(false)
-      loadStreams()
+      await endStream();
+      setIsLive(false);
+      loadStreams();
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to end stream')
+      setError(err.response?.data?.message || "Failed to end stream");
     }
-  }
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 animate-fade-in">
@@ -105,59 +111,85 @@ export default function Stream() {
             <span className="live-dot" />
             Live Streams
           </h1>
-          <p className="section-subtitle">{streams.length} streams live right now</p>
+          <p className="section-subtitle">
+            {streams.length} streams live right now
+          </p>
         </div>
 
-        {isAuthenticated && (
-          isLive ? (
-            <button onClick={handleEndStream} className="btn-secondary border-red/30 text-red hover:bg-red/10">
+        {isAuthenticated &&
+          (isLive ? (
+            <button
+              onClick={handleEndStream}
+              className="btn-secondary border-red/30 text-red hover:bg-red/10"
+            >
               ■ End Stream
             </button>
           ) : (
-            <button onClick={() => setShowForm(!showForm)} className="btn-primary">
-              {showForm ? 'Cancel' : '● Go Live'}
+            <button
+              onClick={() => setShowForm(!showForm)}
+              className="btn-primary"
+            >
+              {showForm ? "Cancel" : "● Go Live"}
             </button>
-          )
-        )}
+          ))}
       </div>
 
       {/* Go Live form */}
       {showForm && (
         <div className="card mb-8 animate-slide-up">
-          <h3 className="font-display font-bold text-lg text-white mb-4">Start Streaming</h3>
+          <h3 className="font-display font-bold text-lg text-white mb-4">
+            Start Streaming
+          </h3>
           <ErrorMessage message={error} />
-          <form onSubmit={handleGoLive} className="grid sm:grid-cols-2 gap-4 mt-3">
+          <form
+            onSubmit={handleGoLive}
+            className="grid sm:grid-cols-2 gap-4 mt-3"
+          >
             <div>
-              <label className="block text-sm text-gray-400 mb-1.5">Game *</label>
+              <label className="block text-sm text-gray-400 mb-1.5">
+                Game *
+              </label>
               <select
                 className="input"
                 value={form.game_id}
-                onChange={e => setForm(f => ({ ...f, game_id: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, game_id: e.target.value }))
+                }
                 required
               >
                 <option value="">Select game</option>
-                {myGames.map(g => (
-                  <option key={g.game_id} value={g.game_id}>{g.game_name}</option>
+                {myGames.map((g) => (
+                  <option key={g.game_id} value={g.game_id}>
+                    {g.game_name}
+                  </option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="block text-sm text-gray-400 mb-1.5">Stream Title *</label>
+              <label className="block text-sm text-gray-400 mb-1.5">
+                Stream Title *
+              </label>
               <input
                 className="input"
                 placeholder="Ranked grind — Diamond push"
                 value={form.title}
-                onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, title: e.target.value }))
+                }
                 required
               />
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-sm text-gray-400 mb-1.5">Stream URL (Twitch / YouTube)</label>
+              <label className="block text-sm text-gray-400 mb-1.5">
+                Stream URL (Twitch / YouTube)
+              </label>
               <input
                 className="input"
                 placeholder="https://twitch.tv/your_channel"
                 value={form.stream_url}
-                onChange={e => setForm(f => ({ ...f, stream_url: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, stream_url: e.target.value }))
+                }
                 type="url"
               />
             </div>
@@ -182,12 +214,16 @@ export default function Stream() {
         <select
           className="input w-52"
           value={gameFilter}
-          onChange={e => setGameFilter(e.target.value)}
+          onChange={(e) => setGameFilter(e.target.value)}
         >
           <option value="">All games</option>
-          {[...new Set(streams.map(s => s.game_id))].map(id => {
-            const s = streams.find(s => s.game_id === id)
-            return <option key={id} value={id}>{s?.game_name}</option>
+          {[...new Set(streams.map((s) => s.game_id))].map((id) => {
+            const s = streams.find((s) => s.game_id === id);
+            return (
+              <option key={id} value={id}>
+                {s?.game_name}
+              </option>
+            );
           })}
         </select>
       </div>
@@ -199,16 +235,21 @@ export default function Stream() {
           icon="📡"
           title="No streams live right now"
           subtitle="Check back soon or be the first to go live"
-          action={isAuthenticated && !isLive
-            ? <button onClick={() => setShowForm(true)} className="btn-primary">Go Live</button>
-            : null
+          action={
+            isAuthenticated && !isLive ? (
+              <button onClick={() => setShowForm(true)} className="btn-primary">
+                Go Live
+              </button>
+            ) : null
           }
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {streams.map(s => <StreamCard key={s.stream_id} stream={s} />)}
+          {streams.map((s) => (
+            <StreamCard key={s.stream_id} stream={s} />
+          ))}
         </div>
       )}
     </div>
-  )
+  );
 }

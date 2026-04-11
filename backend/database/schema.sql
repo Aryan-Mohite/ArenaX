@@ -328,3 +328,40 @@ ALTER TABLE tournaments
   DROP CONSTRAINT IF EXISTS tournaments_game_id_fkey,
   ADD CONSTRAINT tournaments_game_id_fkey
     FOREIGN KEY (game_id) REFERENCES games(game_id) ON DELETE CASCADE;
+
+
+
+CREATE TABLE IF NOT EXISTS user_follows (
+  follower_id  INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+  following_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (follower_id, following_id),
+  CHECK (follower_id <> following_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_follows_follower  ON user_follows(follower_id);
+CREATE INDEX IF NOT EXISTS idx_user_follows_following ON user_follows(following_id);
+
+
+-- ─── Migration: Team Finder new features ─────────────────────────────────────
+-- Run once against your PostgreSQL database
+
+-- 1. Add deadline column to team_finder_posts
+ALTER TABLE team_finder_posts
+  ADD COLUMN IF NOT EXISTS deadline TIMESTAMPTZ DEFAULT NULL;
+
+-- 2. Add status column to team_finder_applications
+--    Possible values: 'pending' | 'accepted' | 'rejected'
+ALTER TABLE team_finder_applications
+  ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'pending';
+
+-- 3. Backfill existing applications as 'pending'
+UPDATE team_finder_applications SET status = 'pending' WHERE status IS NULL;
+
+-- 4. Optional index: quickly query open non-expired posts
+CREATE INDEX IF NOT EXISTS idx_tfp_status_deadline
+  ON team_finder_posts (status, deadline);
+
+-- 5. Optional index: accepted applications for chat gate
+CREATE INDEX IF NOT EXISTS idx_tfa_status
+  ON team_finder_applications (status);

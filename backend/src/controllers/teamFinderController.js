@@ -13,6 +13,7 @@ export const getPosts = async (req, res, next) => {
       JOIN games g ON g.game_id = tfp.game_id
       LEFT JOIN user_game_profile ugp ON ugp.user_id = tfp.user_id AND ugp.game_id = tfp.game_id
       WHERE tfp.status = 'open'
+        AND (tfp.deadline IS NULL OR tfp.deadline > NOW())
     `;
     const params = [];
 
@@ -42,7 +43,7 @@ export const getPosts = async (req, res, next) => {
 // ─── CREATE POST ──────────────────────────────────────────────────────────────
 export const createPost = async (req, res, next) => {
   try {
-    const { game_id, rank_required, role_required, region, description } = req.body;
+    const { game_id, rank_required, role_required, region, description, deadline } = req.body;
     const userId = req.user.id;
 
     // A user can only have one open post per game
@@ -59,10 +60,10 @@ export const createPost = async (req, res, next) => {
 
     const result = await pool.query(
       `INSERT INTO team_finder_posts
-         (user_id, game_id, rank_required, role_required, region, description, status)
-       VALUES ($1,$2,$3,$4,$5,$6,'open')
+         (user_id, game_id, rank_required, role_required, region, description, deadline, status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,'open')
        RETURNING *`,
-      [userId, game_id, rank_required, role_required, region, description]
+      [userId, game_id, rank_required, role_required, region, description, deadline || null]
     );
 
     res.status(201).json({ success: true, post: result.rows[0] });
@@ -103,11 +104,11 @@ export const applyToPost = async (req, res, next) => {
     const userId = req.user.id;
 
     const post = await pool.query(
-      "SELECT * FROM team_finder_posts WHERE post_id = $1 AND status = 'open'",
+      "SELECT * FROM team_finder_posts WHERE post_id = $1 AND status = 'open' AND (deadline IS NULL OR deadline > NOW())",
       [post_id]
     );
     if (post.rows.length === 0) {
-      return res.status(404).json({ success: false, message: "Post not found or already closed" });
+      return res.status(404).json({ success: false, message: "Post not found, closed, or expired" });
     }
     if (post.rows[0].user_id === userId) {
       return res.status(400).json({ success: false, message: "Cannot apply to your own post" });
@@ -122,8 +123,8 @@ export const applyToPost = async (req, res, next) => {
     }
 
     const result = await pool.query(
-      `INSERT INTO team_finder_applications (post_id, user_id, message)
-       VALUES ($1,$2,$3) RETURNING *`,
+      `INSERT INTO team_finder_applications (post_id, user_id, message, status)
+       VALUES ($1,$2,$3,'pending') RETURNING *`,
       [post_id, userId, message]
     );
 
@@ -162,6 +163,112 @@ export const getApplicationsForPost = async (req, res, next) => {
     );
 
     res.json({ success: true, applications: result.rows });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ─── GET MY OWN APPLICATIONS (applicant's view — user B) ─────────────────────
+export const getMyApplications = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+
+    const result = await pool.query(
+      `SELECT
+         tfa.application_id,
+         tfa.post_id,
+         tfa.message,
+         tfa.status,
+         tfa.applied_at,
+         tfp.role_required,
+         tfp.rank_required,
+         tfp.region,
+         g.game_name,
+         u.user_id   AS poster_user_id,
+         u.username  AS poster_username,
+         u.profile_picture AS poster_picture
+       FROM team_finder_applications tfa
+       JOIN team_finder_posts tfp ON tfp.post_id = tfa.post_id
+       JOIN games g ON g.game_id = tfp.game_id
+       JOIN users u ON u.user_id = tfp.user_id
+       WHERE tfa.user_id = $1
+       ORDER BY tfa.applied_at DESC`,
+      [userId]
+    );
+
+    res.json({ success: true, applications: result.rows });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ─── ACCEPT APPLICATION ───────────────────────────────────────────────────────
+export const acceptApplication = async (req, res, next) => {
+  try {
+    const { id: post_id, appId: application_id } = req.params;
+    const userId = req.user.id;
+
+    // Verify post ownership
+    const post = await pool.query(
+      "SELECT user_id FROM team_finder_posts WHERE post_id = $1",
+      [post_id]
+    );
+    if (post.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "Post not found" });
+    }
+    if (post.rows[0].user_id !== userId) {
+      return res.status(403).json({ success: false, message: "Not your post" });
+    }
+
+    const result = await pool.query(
+      `UPDATE team_finder_applications
+       SET status = 'accepted'
+       WHERE application_id = $1 AND post_id = $2
+       RETURNING *`,
+      [application_id, post_id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "Application not found" });
+    }
+
+    res.json({ success: true, application: result.rows[0] });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ─── REJECT APPLICATION ───────────────────────────────────────────────────────
+export const rejectApplication = async (req, res, next) => {
+  try {
+    const { id: post_id, appId: application_id } = req.params;
+    const userId = req.user.id;
+
+    // Verify post ownership
+    const post = await pool.query(
+      "SELECT user_id FROM team_finder_posts WHERE post_id = $1",
+      [post_id]
+    );
+    if (post.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "Post not found" });
+    }
+    if (post.rows[0].user_id !== userId) {
+      return res.status(403).json({ success: false, message: "Not your post" });
+    }
+
+    const result = await pool.query(
+      `UPDATE team_finder_applications
+       SET status = 'rejected'
+       WHERE application_id = $1 AND post_id = $2
+       RETURNING *`,
+      [application_id, post_id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "Application not found" });
+    }
+
+    res.json({ success: true, application: result.rows[0] });
   } catch (err) {
     next(err);
   }
