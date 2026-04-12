@@ -7,4 +7,6 @@ export const getAllFavGamesPosts   = (params)           => API.get('/communities
 export const createCommunityPost  = (id, data)         => API.post(`/communities/${id}/posts`, data)
 export const getPost              = (post_id)          => API.get(`/communities/posts/${post_id}`)
 export const addComment           = (post_id, data)    => API.post(`/communities/posts/${post_id}/comments`, data)
+export const deleteComment        = (comment_id)       => API.delete(`/communities/comments/${comment_id}`)
+export const deleteCommunityPost  = (post_id)          => API.delete(`/communities/posts/${post_id}`)
 export const votePost             = (post_id, vote)    => API.post(`/communities/posts/${post_id}/vote`, { vote })
