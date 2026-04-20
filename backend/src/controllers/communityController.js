@@ -124,23 +124,87 @@ export const addComment = async (req, res, next) => {
 };
 
 // ─── UPVOTE / DOWNVOTE POST ───────────────────────────────────────────────────
+// ─── UPVOTE / DOWNVOTE POST (one vote per user, toggle/switch support) ────────
 export const votePost = async (req, res, next) => {
   try {
     const { post_id } = req.params;
     const { vote } = req.body;
+    const userId = req.user.id;
+
     if (!["up", "down"].includes(vote)) {
       return res.status(400).json({ success: false, message: "vote must be 'up' or 'down'" });
     }
-    const field = vote === "up" ? "upvotes" : "downvotes";
+
+    const existing = await pool.query(
+      "SELECT vote_id, vote_type FROM post_votes WHERE post_id = $1 AND user_id = $2",
+      [post_id, userId]
+    );
+
+    let upDelta = 0, downDelta = 0;
+    let userVote = vote;
+
+    if (existing.rows.length > 0) {
+      const prev = existing.rows[0].vote_type;
+      if (prev === vote) {
+        // Same vote → toggle off
+        await pool.query("DELETE FROM post_votes WHERE vote_id = $1", [existing.rows[0].vote_id]);
+        if (vote === "up") upDelta = -1; else downDelta = -1;
+        userVote = null;
+      } else {
+        // Switch vote direction
+        await pool.query("UPDATE post_votes SET vote_type = $1 WHERE vote_id = $2", [vote, existing.rows[0].vote_id]);
+        if (vote === "up") { upDelta = 1; downDelta = -1; } else { upDelta = -1; downDelta = 1; }
+      }
+    } else {
+      await pool.query(
+        "INSERT INTO post_votes (post_id, user_id, vote_type) VALUES ($1, $2, $3)",
+        [post_id, userId, vote]
+      );
+      if (vote === "up") upDelta = 1; else downDelta = 1;
+    }
+
     const result = await pool.query(
-      `UPDATE community_posts SET ${field} = ${field} + 1
+      `UPDATE community_posts
+       SET upvotes = GREATEST(0, upvotes + $2), downvotes = GREATEST(0, downvotes + $3)
        WHERE post_id = $1 RETURNING post_id, upvotes, downvotes`,
-      [post_id]
+      [post_id, upDelta, downDelta]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, message: "Post not found" });
     }
-    res.json({ success: true, votes: result.rows[0] });
+    res.json({ success: true, votes: result.rows[0], userVote });
+  } catch (err) { next(err); }
+};
+
+// ─── DELETE POST ──────────────────────────────────────────────────────────────
+export const deletePost = async (req, res, next) => {
+  try {
+    const { post_id } = req.params;
+    const userId = req.user.id;
+    const result = await pool.query(
+      "DELETE FROM community_posts WHERE post_id = $1 AND user_id = $2 RETURNING post_id",
+      [post_id, userId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "Post not found or not yours" });
+    }
+    res.json({ success: true, message: "Post deleted" });
+  } catch (err) { next(err); }
+};
+
+// ─── DELETE COMMENT ───────────────────────────────────────────────────────────
+export const deleteComment = async (req, res, next) => {
+  try {
+    const { comment_id } = req.params;
+    const userId = req.user.id;
+    const result = await pool.query(
+      "DELETE FROM post_comments WHERE comment_id = $1 AND user_id = $2 RETURNING comment_id",
+      [comment_id, userId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "Comment not found or not yours" });
+    }
+    res.json({ success: true, message: "Comment deleted" });
   } catch (err) { next(err); }
 };
 
