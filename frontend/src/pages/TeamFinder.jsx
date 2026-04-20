@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   getPosts,
   createPost,
@@ -563,6 +564,7 @@ function EnhancedCard({
   currentUserId,
   onViewApplicants,
   onDelete,
+  onViewProfile,
 }) {
   const {
     username,
@@ -595,16 +597,18 @@ function EnhancedCard({
       <div className="px-4 pb-4 flex flex-col gap-3 flex-1">
         {/* User row */}
         <div className="flex items-center gap-3 pt-1">
-          <div
-            className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shrink-0"
+          <button
+            onClick={() => onViewProfile && onViewProfile(post.user_id)}
+            className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shrink-0 transition-transform hover:scale-110 hover:ring-2 ring-red/40 focus:outline-none"
             style={{
               background: accent + "22",
               border: "1px solid " + accent + "44",
               color: accent,
             }}
+            title={`View ${username}'s profile`}
           >
             {username?.[0]?.toUpperCase()}
-          </div>
+          </button>
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-white text-sm truncate">
               {username}
@@ -866,6 +870,7 @@ function MyApplicationsPanel({ onChat }) {
 // ─── Main Component ────────────────────────────────────────────────────────────
 export default function TeamFinder() {
   const { isAuthenticated, user } = useAuth();
+  const navigate = useNavigate();
 
   const [posts, setPosts] = useState([]);
   const [myGames, setMyGames] = useState([]);
@@ -1358,6 +1363,7 @@ export default function TeamFinder() {
                 currentUserId={user?.id}
                 onViewApplicants={setApplicantsPost}
                 onDelete={setDeletePost}
+                onViewProfile={(uid) => navigate(`/users/${uid}`)}
               />
             ))}
           </div>

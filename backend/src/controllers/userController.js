@@ -213,3 +213,53 @@ export const getFollowStatus = async (req, res, next) => {
     });
   } catch (err) { next(err); }
 };
+
+// ─── GET USER ACTIVITY (community posts + team finder posts) ──────────────────
+export const getUserActivity = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const [communityPosts, teamFinderPosts, gameProfiles] = await Promise.all([
+      pool.query(
+        `SELECT cp.post_id, cp.title, cp.content, cp.image_url, cp.upvotes, cp.downvotes,
+                cp.comment_count, cp.created_at,
+                c.name AS community_name, g.game_name
+         FROM community_posts cp
+         JOIN communities c ON c.community_id = cp.community_id
+         LEFT JOIN games g ON g.game_id = c.game_id
+         WHERE cp.user_id = $1
+         ORDER BY cp.created_at DESC
+         LIMIT 20`,
+        [id]
+      ),
+      pool.query(
+        `SELECT tfp.post_id, tfp.rank_required, tfp.role_required, tfp.region,
+                tfp.description, tfp.status, tfp.deadline, tfp.created_at,
+                g.game_name
+         FROM team_finder_posts tfp
+         LEFT JOIN games g ON g.game_id = tfp.game_id
+         WHERE tfp.user_id = $1
+         ORDER BY tfp.created_at DESC
+         LIMIT 20`,
+        [id]
+      ),
+      pool.query(
+        `SELECT ugp.rank, ugp.role, ugp.win_rate, ugp.matches_played, ugp.elo_rating,
+                g.game_name, g.icon
+         FROM user_game_profile ugp
+         JOIN games g ON g.game_id = ugp.game_id
+         WHERE ugp.user_id = $1`,
+        [id]
+      ),
+    ]);
+
+    res.json({
+      success: true,
+      community_posts: communityPosts.rows,
+      team_finder_posts: teamFinderPosts.rows,
+      game_profiles: gameProfiles.rows,
+    });
+  } catch (err) {
+    next(err);
+  }
+};

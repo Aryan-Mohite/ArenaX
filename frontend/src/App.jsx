@@ -12,6 +12,7 @@ import TeamFinder from "./pages/TeamFinder";
 import Communities from "./pages/Communities";
 import Stream from "./pages/Stream";
 import Profile from "./pages/Profile";
+import UserProfile from "./pages/UserProfile";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import About from "./pages/About";
@@ -35,6 +36,7 @@ export default function App() {
             <Route path="/about" element={<About />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/users/:id" element={<UserProfile />} />
             <Route
               path="/profile"
               element={

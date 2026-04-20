@@ -8,6 +8,7 @@ import {
   unfollowUser,
   getMyFollowStats,
   getFollowStatus,
+  getUserActivity,
 } from "../controllers/userController.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 import { validateIdParam } from "../utils/validators.js";
@@ -23,6 +24,9 @@ router.get("/me/stats", authMiddleware, getMyFollowStats);
 
 // GET /api/users/:id  — public profile
 router.get("/:id", validateIdParam, validate, getUserProfile);
+
+// GET /api/users/:id/activity — community posts + team finder posts
+router.get("/:id/activity", validateIdParam, validate, getUserActivity);
 
 // GET /api/users/:id/follow-status — is current user following :id?
 router.get("/:id/follow-status", authMiddleware, validateIdParam, validate, getFollowStatus);
