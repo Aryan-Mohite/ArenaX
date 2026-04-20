@@ -365,3 +365,12 @@ CREATE INDEX IF NOT EXISTS idx_tfp_status_deadline
 -- 5. Optional index: accepted applications for chat gate
 CREATE INDEX IF NOT EXISTS idx_tfa_status
   ON team_finder_applications (status);
+
+
+
+
+
+
+
+
+  
