@@ -293,9 +293,9 @@ export default function UserProfile() {
   if (error) return (
     <div className="max-w-4xl mx-auto px-4 py-20 text-center">
       <div className="text-6xl mb-4 opacity-20">😕</div>
-      <p className="text-gray-300 text-xl font-display font-bold mb-2">Profile not found</p>
+      <p className="text-gray-300 text-xl font-display font-bold mb-2">Player not found</p>
       <p className="text-gray-500 text-sm mb-6">{error}</p>
-      <button onClick={() => navigate(-1)} className="btn-secondary">← Go Back</button>
+      <button onClick={() => navigate(-1)} className="btn-secondary">← Back to Base</button>
     </div>
   );
 
@@ -305,9 +305,9 @@ export default function UserProfile() {
     : null;
 
   const TABS = [
-    { id: "overview", label: "🎮 Games", count: activity.game_profiles.length },
-    { id: "posts", label: "💬 Posts", count: activity.community_posts.length },
-    { id: "teamfinder", label: "⚔️ Team Finder", count: activity.team_finder_posts.length },
+    { id: "overview", label: "🎮 Service Record", count: activity.game_profiles.length },
+    { id: "posts", label: "💬 Comms", count: activity.community_posts.length },
+    { id: "teamfinder", label: "⚔️ Recruitments", count: activity.team_finder_posts.length },
   ];
 
   return (
@@ -457,7 +457,7 @@ export default function UserProfile() {
               style={{ background: "linear-gradient(145deg,#1a2340,#131a2e)" }}
             >
               <div className="text-5xl mb-3 opacity-20">🎮</div>
-              <p className="text-gray-400 font-medium">No game profiles yet</p>
+              <p className="text-gray-400 font-medium">No service record yet</p>
               <p className="text-gray-600 text-sm mt-1">This player hasn't linked any games</p>
             </div>
           ) : (
@@ -475,7 +475,7 @@ export default function UserProfile() {
               style={{ background: "linear-gradient(145deg,#1a2340,#131a2e)" }}
             >
               <div className="text-5xl mb-3 opacity-20">💬</div>
-              <p className="text-gray-400 font-medium">No community posts yet</p>
+              <p className="text-gray-400 font-medium">No comms yet</p>
               <p className="text-gray-600 text-sm mt-1">This player hasn't posted in any community</p>
             </div>
           ) : (
@@ -495,7 +495,7 @@ export default function UserProfile() {
               style={{ background: "linear-gradient(145deg,#1a2340,#131a2e)" }}
             >
               <div className="text-5xl mb-3 opacity-20">⚔️</div>
-              <p className="text-gray-400 font-medium">No team finder listings</p>
+              <p className="text-gray-400 font-medium">No recruitments yet</p>
               <p className="text-gray-600 text-sm mt-1">This player hasn't posted any recruitment listings</p>
             </div>
           ) : (
@@ -505,7 +505,7 @@ export default function UserProfile() {
                 <div className="mb-5">
                   <p className="text-xs text-gray-500 uppercase tracking-widest mb-3 font-semibold flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-green-400 inline-block animate-pulse" />
-                    Active Listings
+                    Active Recruitments
                   </p>
                   <div className="grid sm:grid-cols-2 gap-3">
                     {activity.team_finder_posts.filter(p => p.status === "open").map(post => (
@@ -517,7 +517,7 @@ export default function UserProfile() {
               {/* Past listings */}
               {activity.team_finder_posts.filter(p => p.status !== "open").length > 0 && (
                 <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-widest mb-3 font-semibold">Past Listings</p>
+                  <p className="text-xs text-gray-500 uppercase tracking-widest mb-3 font-semibold">Past Recruitments</p>
                   <div className="grid sm:grid-cols-2 gap-3">
                     {activity.team_finder_posts.filter(p => p.status !== "open").map(post => (
                       <TeamFinderCard key={post.post_id} post={post} />

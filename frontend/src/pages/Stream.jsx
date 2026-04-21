@@ -129,16 +129,16 @@ export default function Stream() {
               onClick={() => setShowForm(!showForm)}
               className="btn-primary"
             >
-              {showForm ? "Cancel" : "● Go Live"}
+              {showForm ? "Abort" : "● Go Live"}
             </button>
           ))}
       </div>
 
-      {/* Go Live form */}
+      {/* Broadcast form */}
       {showForm && (
         <div className="card mb-8 animate-slide-up">
           <h3 className="font-display font-bold text-lg text-white mb-4">
-            Start Streaming
+            Go Live
           </h3>
           <ErrorMessage message={error} />
           <form
@@ -195,7 +195,7 @@ export default function Stream() {
             </div>
             <div className="sm:col-span-2 flex justify-end">
               <button type="submit" className="btn-primary">
-                Go Live Now
+                Stream Now
               </button>
             </div>
           </form>
@@ -205,7 +205,7 @@ export default function Stream() {
       {isLive && (
         <div className="bg-red/10 border border-red/30 rounded-xl px-5 py-4 mb-8 flex items-center gap-3">
           <span className="live-dot" />
-          <p className="text-red font-medium">You are currently live!</p>
+          <p className="text-red font-medium">🔴 You are live!</p>
         </div>
       )}
 
@@ -238,7 +238,7 @@ export default function Stream() {
           action={
             isAuthenticated && !isLive ? (
               <button onClick={() => setShowForm(true)} className="btn-primary">
-                Go Live
+                Broadcast
               </button>
             ) : null
           }

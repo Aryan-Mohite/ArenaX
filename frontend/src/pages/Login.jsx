@@ -42,7 +42,7 @@ export default function Login() {
           <h1 className="font-display font-bold text-4xl text-white tracking-wide mb-2">
             Welcome back
           </h1>
-          <p className="text-gray-400">Sign in to your ArenaX account</p>
+          <p className="text-gray-400">Report for Duty</p>
         </div>
 
         <div className="card">
@@ -82,7 +82,7 @@ export default function Login() {
               disabled={loading}
               className="btn-primary w-full mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Signing in...' : 'Sign in'}
+              {loading ? 'Deploying...' : 'Deploy'}
             </button>
           </form>
         </div>

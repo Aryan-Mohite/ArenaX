@@ -100,7 +100,7 @@ function ErrorState({ message, onRetry }) {
     <div className="card text-center py-12 border-red/20">
       <p className="text-red text-sm mb-4">{message}</p>
       <button onClick={onRetry} className="btn-secondary text-sm px-6 py-2">
-        Retry
+        Respawn
       </button>
     </div>
   );
@@ -206,14 +206,14 @@ export default function Home() {
                   to="/tournament"
                   className="btn-primary text-base px-8 py-3 shadow-lg shadow-red/20"
                 >
-                  Browse Tournaments
+                  Enter the Arena
                 </Link>
                 {/* Secondary CTA — ghost/outline */}
                 <Link
                   to="/teamfinder"
                   className="btn-secondary text-base px-8 py-3"
                 >
-                  Find Teammates
+                  Squad Up
                 </Link>
               </div>
 
@@ -393,10 +393,10 @@ export default function Home() {
               <h2 className="section-title flex items-center gap-2">
                 🏆 Upcoming Tournaments
               </h2>
-              <p className="section-subtitle">Register before spots fill up</p>
+              <p className="section-subtitle">Claim your slot before it closes</p>
             </div>
             <Link to="/tournament" className="btn-ghost text-sm">
-              View all →
+              Full Brackets →
             </Link>
           </div>
 
@@ -439,11 +439,11 @@ export default function Home() {
                 Live Streams
               </h2>
               <p className="section-subtitle">
-                Watch top players compete right now
+                Live from the battlefield
               </p>
             </div>
             <Link to="/stream" className="btn-ghost text-sm">
-              See all →
+              All Streams →
             </Link>
           </div>
 
@@ -625,10 +625,10 @@ export default function Home() {
                 to="/register"
                 className="btn-primary px-8 py-3 text-base shadow-lg shadow-red/20"
               >
-                Create Free Account
+                Deploy Your Profile
               </Link>
               <Link to="/games" className="btn-secondary px-8 py-3 text-base">
-                Browse Games
+                Explore the Grid
               </Link>
             </div>
 

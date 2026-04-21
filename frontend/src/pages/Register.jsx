@@ -49,7 +49,7 @@ export default function Register() {
           <h1 className="font-display font-bold text-4xl text-white tracking-wide mb-2">
             Join ArenaX
           </h1>
-          <p className="text-gray-400">Create your gamer profile in seconds</p>
+          <p className="text-gray-400">Create your Player Card</p>
         </div>
 
         <div className="card">
@@ -111,7 +111,7 @@ export default function Register() {
               disabled={loading}
               className="btn-primary w-full mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Creating account...' : 'Create account'}
+              {loading ? 'Enlisting...' : 'Enlist Now'}
             </button>
           </form>
         </div>

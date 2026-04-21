@@ -1,145 +1,93 @@
-import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
-import {
-  getTournaments,
-  getTournamentById,
-  registerForTournament,
-  createTournament,
-} from "../services/tournamentService";
-import { PageLoader, ErrorMessage, Spinner } from "../components/UI";
-import { useAuth } from "../context/AuthContext";
+import { useEffect, useState } from 'react'
+import { useParams, Link } from 'react-router-dom'
+import { getTournaments, getTournamentById, registerForTournament, createTournament } from '../services/tournamentService'
+import { PageLoader, ErrorMessage, Spinner } from '../components/UI'
+import { useAuth } from '../context/AuthContext'
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 const STATUS_STYLES = {
-  upcoming: {
-    cls: "bg-blue-500/15 text-blue-400 border-blue-500/25",
-    dot: "bg-blue-400",
-  },
-  ongoing: {
-    cls: "bg-green-500/15 text-green-400 border-green-500/25",
-    dot: "bg-green-400 animate-pulse",
-  },
-  completed: {
-    cls: "bg-white/8 text-gray-400 border-white/12",
-    dot: "bg-gray-500",
-  },
-  cancelled: { cls: "bg-red/15 text-red-light border-red/25", dot: "bg-red" },
-};
+  upcoming:  { cls: 'bg-blue-500/15 text-blue-400 border-blue-500/25',  dot: 'bg-blue-400' },
+  ongoing:   { cls: 'bg-green-500/15 text-green-400 border-green-500/25', dot: 'bg-green-400 animate-pulse' },
+  completed: { cls: 'bg-white/8 text-gray-400 border-white/12',          dot: 'bg-gray-500' },
+  cancelled: { cls: 'bg-red/15 text-red-light border-red/25',            dot: 'bg-red' },
+}
 const FORMAT_LABELS = {
-  single_elimination: "Single Elim",
-  double_elimination: "Double Elim",
-  round_robin: "Round Robin",
-  swiss: "Swiss",
-};
+  single_elimination: 'Single Elim',
+  double_elimination: 'Double Elim',
+  round_robin:        'Round Robin',
+  swiss:              'Swiss',
+}
 function StatusBadge({ status }) {
-  const s = STATUS_STYLES[status] || STATUS_STYLES.upcoming;
+  const s = STATUS_STYLES[status] || STATUS_STYLES.upcoming
   return (
-    <span
-      className={
-        "inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border " +
-        s.cls
-      }
-    >
-      <span className={"w-1.5 h-1.5 rounded-full " + s.dot} />
+    <span className={'inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ' + s.cls}>
+      <span className={'w-1.5 h-1.5 rounded-full ' + s.dot} />
       {status}
     </span>
-  );
+  )
 }
 function fmt(d, opts) {
-  if (!d) return "TBD";
-  return new Date(d).toLocaleDateString("en-US", opts);
+  if (!d) return 'TBD'
+  return new Date(d).toLocaleDateString('en-US', opts)
 }
-function fmtMoney(v) {
-  return v > 0 ? "$" + Number(v).toLocaleString() : null;
-}
+function fmtMoney(v) { return v > 0 ? '$' + Number(v).toLocaleString() : null }
 
 // ── Organizer Post Form ───────────────────────────────────────────────────────
 const EMPTY_FORM = {
-  name: "",
-  game_id: "",
-  prize_pool: "",
-  entry_fee: "0",
-  region: "",
-  format: "single_elimination",
-  start_date: "",
-  end_date: "",
-  registration_deadline: "",
-  image_url: "",
-  description: "",
-  organizer_name: "",
-  location: "",
-  join_link: "",
-};
+  name: '', game_id: '', prize_pool: '', entry_fee: '0',
+  region: '', format: 'single_elimination',
+  start_date: '', end_date: '', registration_deadline: '',
+  image_url: '', description: '', organizer_name: '', location: '', join_link: '',
+}
 
 function OrganizerPostModal({ games, onClose, onCreated }) {
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState(1); // 1 = basics, 2 = details, 3 = media
+  const [form,    setForm]    = useState(EMPTY_FORM)
+  const [error,   setError]   = useState('')
+  const [loading, setLoading] = useState(false)
+  const [step,    setStep]    = useState(1)   // 1 = basics, 2 = details, 3 = media
 
-  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   const handleSubmit = async () => {
-    setError("");
-    if (!form.name.trim()) return setError("Tournament name is required");
-    if (!form.game_id) return setError("Please select a game");
-    if (!form.start_date) return setError("Start date is required");
-    if (!form.end_date) return setError("End date is required");
-    if (!form.organizer_name.trim())
-      return setError("Organizer name is required");
-    setLoading(true);
+    setError('')
+    if (!form.name.trim())       return setError('Tournament name is required')
+    if (!form.game_id)           return setError('Please select a game')
+    if (!form.start_date)        return setError('Start date is required')
+    if (!form.end_date)          return setError('End date is required')
+    if (!form.organizer_name.trim()) return setError('Organizer name is required')
+    setLoading(true)
     try {
       const payload = {
         ...form,
-        game_id: Number(form.game_id),
+        game_id:   Number(form.game_id),
         prize_pool: Number(form.prize_pool) || 0,
-        entry_fee: Number(form.entry_fee) || 0,
-      };
-      const res = await createTournament(payload);
-      onCreated(res.data.tournament);
-      onClose();
+        entry_fee:  Number(form.entry_fee)  || 0,
+      }
+      const res = await createTournament(payload)
+      onCreated(res.data.tournament)
+      onClose()
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to create tournament");
+      setError(err.response?.data?.message || 'Failed to create tournament')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
-  const STEPS = ["Basics", "Details", "Media & Links"];
+  const STEPS = ['Basics', 'Details', 'Media & Links']
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto"
-      style={{ backdropFilter: "blur(10px)", background: "rgba(2,6,23,0.8)" }}
-    >
-      <div
-        className="w-full max-w-2xl my-4 rounded-2xl border border-surface-border overflow-hidden animate-slide-up"
-        style={{
-          background: "linear-gradient(145deg,#1a2340,#131a2e)",
-          boxShadow:
-            "0 0 0 1px rgba(255,70,85,0.12),0 32px 100px rgba(0,0,0,0.7)",
-        }}
-      >
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto"
+      style={{ backdropFilter: 'blur(10px)', background: 'rgba(2,6,23,0.8)' }}>
+      <div className="w-full max-w-2xl my-4 rounded-2xl border border-surface-border overflow-hidden animate-slide-up"
+        style={{ background: 'linear-gradient(145deg,#1a2340,#131a2e)', boxShadow: '0 0 0 1px rgba(255,70,85,0.12),0 32px 100px rgba(0,0,0,0.7)' }}>
+
         {/* Modal header */}
-        <div
-          className="relative px-6 pt-6 pb-4 border-b border-surface-border"
-          style={{
-            background:
-              "linear-gradient(135deg,rgba(255,70,85,0.1) 0%,transparent 60%)",
-          }}
-        >
-          <div
-            className="absolute top-0 right-0 w-48 h-48 rounded-full pointer-events-none"
-            style={{
-              background:
-                "radial-gradient(circle,rgba(255,70,85,0.15) 0%,transparent 70%)",
-              transform: "translate(30%,-30%)",
-            }}
-          />
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:text-white hover:bg-white/10 transition-colors text-lg"
-          >
+        <div className="relative px-6 pt-6 pb-4 border-b border-surface-border"
+          style={{ background: 'linear-gradient(135deg,rgba(255,70,85,0.1) 0%,transparent 60%)' }}>
+          <div className="absolute top-0 right-0 w-48 h-48 rounded-full pointer-events-none"
+            style={{ background: 'radial-gradient(circle,rgba(255,70,85,0.15) 0%,transparent 70%)', transform: 'translate(30%,-30%)' }} />
+          <button onClick={onClose}
+            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:text-white hover:bg-white/10 transition-colors text-lg">
             &#10005;
           </button>
           <div className="flex items-center gap-3">
@@ -147,34 +95,22 @@ function OrganizerPostModal({ games, onClose, onCreated }) {
               &#127942;
             </div>
             <div>
-              <h2 className="font-display font-bold text-xl text-white">
-                Post a Tournament
-              </h2>
-              <p className="text-xs text-gray-500 mt-0.5">
-                Fill in your event details for the community
-              </p>
+              <h2 className="font-display font-bold text-xl text-white">Forge a Tournament</h2>
+              <p className="text-xs text-gray-500 mt-0.5">Fill in your event details for the community</p>
             </div>
           </div>
           {/* Step pills */}
           <div className="flex gap-2 mt-4">
             {STEPS.map((s, i) => (
-              <button
-                key={s}
-                onClick={() => setStep(i + 1)}
-                className={
-                  "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all " +
+              <button key={s} onClick={() => setStep(i + 1)}
+                className={'flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all ' +
                   (step === i + 1
-                    ? "bg-red text-white"
+                    ? 'bg-red text-white'
                     : step > i + 1
-                      ? "bg-green-500/15 text-green-400 border border-green-500/20"
-                      : "bg-white/5 text-gray-500 border border-white/10")
-                }
-              >
-                {step > i + 1 ? (
-                  <span>&#10003;</span>
-                ) : (
-                  <span className="font-mono">{i + 1}</span>
-                )}
+                      ? 'bg-green-500/15 text-green-400 border border-green-500/20'
+                      : 'bg-white/5 text-gray-500 border border-white/10')
+                }>
+                {step > i + 1 ? <span>&#10003;</span> : <span className="font-mono">{i + 1}</span>}
                 {s}
               </button>
             ))}
@@ -192,44 +128,26 @@ function OrganizerPostModal({ games, onClose, onCreated }) {
                 <label className="block text-xs text-gray-500 uppercase tracking-wider mb-1.5">
                   Tournament Name <span className="text-red">*</span>
                 </label>
-                <input
-                  className="input"
-                  placeholder="e.g. South Asia Valorant Invitational 2025"
-                  value={form.name}
-                  onChange={(e) => set("name", e.target.value)}
-                />
+                <input className="input" placeholder="e.g. South Asia Valorant Invitational 2025"
+                  value={form.name} onChange={e => set('name', e.target.value)} />
               </div>
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs text-gray-500 uppercase tracking-wider mb-1.5">
                     Game <span className="text-red">*</span>
                   </label>
-                  <select
-                    className="input"
-                    value={form.game_id}
-                    onChange={(e) => set("game_id", e.target.value)}
-                  >
+                  <select className="input" value={form.game_id} onChange={e => set('game_id', e.target.value)}>
                     <option value="">Select a game</option>
-                    {games.map((g) => (
-                      <option key={g.game_id} value={g.game_id}>
-                        {g.game_name}
-                      </option>
-                    ))}
+                    {games.map(g => <option key={g.game_id} value={g.game_id}>{g.game_name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-500 uppercase tracking-wider mb-1.5">
-                    Format
-                  </label>
-                  <select
-                    className="input"
-                    value={form.format}
-                    onChange={(e) => set("format", e.target.value)}
-                  >
-                    <option value="single_elimination">TDM</option>
-                    <option value="double_elimination">Battle Royale</option>
-                    <option value="round_robin">Spike Rush</option>
-                    <option value="swiss">DeathMatch</option>
+                  <label className="block text-xs text-gray-500 uppercase tracking-wider mb-1.5">Format</label>
+                  <select className="input" value={form.format} onChange={e => set('format', e.target.value)}>
+                    <option value="single_elimination">Single Elimination</option>
+                    <option value="double_elimination">Double Elimination</option>
+                    <option value="round_robin">Round Robin</option>
+                    <option value="swiss">Swiss</option>
                   </select>
                 </div>
               </div>
@@ -238,35 +156,19 @@ function OrganizerPostModal({ games, onClose, onCreated }) {
                   <label className="block text-xs text-gray-500 uppercase tracking-wider mb-1.5">
                     Organizer Name <span className="text-red">*</span>
                   </label>
-                  <input
-                    className="input"
-                    placeholder="e.g. ESL India, Nodwin Gaming"
-                    value={form.organizer_name}
-                    onChange={(e) => set("organizer_name", e.target.value)}
-                  />
+                  <input className="input" placeholder="e.g. ESL India, Nodwin Gaming"
+                    value={form.organizer_name} onChange={e => set('organizer_name', e.target.value)} />
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-500 uppercase tracking-wider mb-1.5">
-                    Region
-                  </label>
-                  <input
-                    className="input"
-                    placeholder="e.g. South Asia, NA, EU"
-                    value={form.region}
-                    onChange={(e) => set("region", e.target.value)}
-                  />
+                  <label className="block text-xs text-gray-500 uppercase tracking-wider mb-1.5">Region</label>
+                  <input className="input" placeholder="e.g. South Asia, NA, EU"
+                    value={form.region} onChange={e => set('region', e.target.value)} />
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-gray-500 uppercase tracking-wider mb-1.5">
-                  Location
-                </label>
-                <input
-                  className="input"
-                  placeholder="e.g. Mumbai, India  /  Online"
-                  value={form.location}
-                  onChange={(e) => set("location", e.target.value)}
-                />
+                <label className="block text-xs text-gray-500 uppercase tracking-wider mb-1.5">Location</label>
+                <input className="input" placeholder="e.g. Mumbai, India  /  Online"
+                  value={form.location} onChange={e => set('location', e.target.value)} />
               </div>
             </div>
           )}
@@ -279,85 +181,43 @@ function OrganizerPostModal({ games, onClose, onCreated }) {
                   <label className="block text-xs text-gray-500 uppercase tracking-wider mb-1.5">
                     Start Date <span className="text-red">*</span>
                   </label>
-                  <input
-                    className="input"
-                    type="date"
-                    value={form.start_date}
-                    onChange={(e) => set("start_date", e.target.value)}
-                  />
+                  <input className="input" type="date" value={form.start_date} onChange={e => set('start_date', e.target.value)} />
                 </div>
                 <div>
                   <label className="block text-xs text-gray-500 uppercase tracking-wider mb-1.5">
                     End Date <span className="text-red">*</span>
                   </label>
-                  <input
-                    className="input"
-                    type="date"
-                    value={form.end_date}
-                    onChange={(e) => set("end_date", e.target.value)}
-                  />
+                  <input className="input" type="date" value={form.end_date} onChange={e => set('end_date', e.target.value)} />
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-gray-500 uppercase tracking-wider mb-1.5">
-                  Registration Deadline
-                </label>
-                <input
-                  className="input"
-                  type="date"
-                  value={form.registration_deadline}
-                  onChange={(e) => set("registration_deadline", e.target.value)}
-                />
+                <label className="block text-xs text-gray-500 uppercase tracking-wider mb-1.5">Registration Deadline</label>
+                <input className="input" type="date" value={form.registration_deadline}
+                  onChange={e => set('registration_deadline', e.target.value)} />
               </div>
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs text-gray-500 uppercase tracking-wider mb-1.5">
-                    Prize Pool (USD)
-                  </label>
+                  <label className="block text-xs text-gray-500 uppercase tracking-wider mb-1.5">Prize Pool (USD)</label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-mono">
-                      $
-                    </span>
-                    <input
-                      className="input pl-7"
-                      type="number"
-                      min="0"
-                      placeholder="0"
-                      value={form.prize_pool}
-                      onChange={(e) => set("prize_pool", e.target.value)}
-                    />
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-mono">$</span>
+                    <input className="input pl-7" type="number" min="0" placeholder="0"
+                      value={form.prize_pool} onChange={e => set('prize_pool', e.target.value)} />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-500 uppercase tracking-wider mb-1.5">
-                    Entry Fee (USD)
-                  </label>
+                  <label className="block text-xs text-gray-500 uppercase tracking-wider mb-1.5">Entry Fee (USD)</label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-mono">
-                      $
-                    </span>
-                    <input
-                      className="input pl-7"
-                      type="number"
-                      min="0"
-                      placeholder="0 = Free"
-                      value={form.entry_fee}
-                      onChange={(e) => set("entry_fee", e.target.value)}
-                    />
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-mono">$</span>
+                    <input className="input pl-7" type="number" min="0" placeholder="0 = Free"
+                      value={form.entry_fee} onChange={e => set('entry_fee', e.target.value)} />
                   </div>
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-gray-500 uppercase tracking-wider mb-1.5">
-                  Description
-                </label>
-                <textarea
-                  className="input resize-none"
-                  rows={4}
+                <label className="block text-xs text-gray-500 uppercase tracking-wider mb-1.5">Description</label>
+                <textarea className="input resize-none" rows={4}
                   placeholder="Describe the tournament — rules, eligibility, schedule, prizes breakdown..."
-                  value={form.description}
-                  onChange={(e) => set("description", e.target.value)}
-                />
+                  value={form.description} onChange={e => set('description', e.target.value)} />
               </div>
             </div>
           )}
@@ -366,72 +226,35 @@ function OrganizerPostModal({ games, onClose, onCreated }) {
           {step === 3 && (
             <div className="space-y-4 animate-fade-in">
               <div>
-                <label className="block text-xs text-gray-500 uppercase tracking-wider mb-1.5">
-                  Banner Image URL
-                </label>
-                <input
-                  className="input"
-                  placeholder="https://i.imgur.com/your-banner.jpg"
-                  value={form.image_url}
-                  onChange={(e) => set("image_url", e.target.value)}
-                />
+                <label className="block text-xs text-gray-500 uppercase tracking-wider mb-1.5">Banner Image URL</label>
+                <input className="input" placeholder="https://i.imgur.com/your-banner.jpg"
+                  value={form.image_url} onChange={e => set('image_url', e.target.value)} />
                 {form.image_url && (
                   <div className="mt-2 rounded-xl overflow-hidden border border-surface-border h-36">
-                    <img
-                      src={form.image_url}
-                      alt="preview"
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.target.style.display = "none";
-                      }}
-                    />
+                    <img src={form.image_url} alt="preview" className="w-full h-full object-cover"
+                      onError={e => { e.target.style.display = 'none' }} />
                   </div>
                 )}
               </div>
               <div>
-                <label className="block text-xs text-gray-500 uppercase tracking-wider mb-1.5">
-                  Registration / Join Link
-                </label>
-                <input
-                  className="input"
-                  placeholder="https://battlefy.com/your-tournament or Challonge link"
-                  value={form.join_link}
-                  onChange={(e) => set("join_link", e.target.value)}
-                />
-                <p className="text-xs text-gray-600 mt-1">
-                  Players will be sent here to register for your tournament
-                </p>
+                <label className="block text-xs text-gray-500 uppercase tracking-wider mb-1.5">Registration / Join Link</label>
+                <input className="input" placeholder="https://battlefy.com/your-tournament or Challonge link"
+                  value={form.join_link} onChange={e => set('join_link', e.target.value)} />
+                <p className="text-xs text-gray-600 mt-1">Players will be sent here to register for your tournament</p>
               </div>
 
               {/* Summary preview */}
               <div className="rounded-xl border border-surface-border bg-navy/40 p-4 space-y-2">
-                <p className="text-xs text-gray-500 uppercase tracking-wider mb-3">
-                  Preview Summary
-                </p>
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-3">Pre-Match Briefing</p>
                 {[
-                  ["Tournament", form.name || "—"],
-                  [
-                    "Game",
-                    games.find(
-                      (g) => String(g.game_id) === String(form.game_id),
-                    )?.game_name || "—",
-                  ],
-                  ["Organizer", form.organizer_name || "—"],
-                  ["Location", form.location || "—"],
-                  [
-                    "Dates",
-                    form.start_date
-                      ? form.start_date + " → " + form.end_date
-                      : "—",
-                  ],
-                  ["Prize Pool", fmtMoney(form.prize_pool) || "N/A"],
-                  [
-                    "Entry Fee",
-                    Number(form.entry_fee) === 0
-                      ? "Free"
-                      : "$" + form.entry_fee,
-                  ],
-                  ["Format", FORMAT_LABELS[form.format] || form.format],
+                  ['Tournament', form.name || '—'],
+                  ['Game',       games.find(g => String(g.game_id) === String(form.game_id))?.game_name || '—'],
+                  ['Organizer',  form.organizer_name || '—'],
+                  ['Location',   form.location || '—'],
+                  ['Dates',      form.start_date ? (form.start_date + ' → ' + form.end_date) : '—'],
+                  ['Prize Pool', fmtMoney(form.prize_pool) || 'N/A'],
+                  ['Entry Fee',  Number(form.entry_fee) === 0 ? 'Free' : ('$' + form.entry_fee)],
+                  ['Format',     FORMAT_LABELS[form.format] || form.format],
                 ].map(([k, v]) => (
                   <div key={k} className="flex items-baseline gap-2 text-sm">
                     <span className="text-gray-500 w-24 shrink-0">{k}</span>
@@ -445,107 +268,59 @@ function OrganizerPostModal({ games, onClose, onCreated }) {
 
         {/* Footer */}
         <div className="px-6 py-4 border-t border-surface-border flex items-center justify-between gap-3">
-          <button
-            onClick={() => setStep((s) => Math.max(1, s - 1))}
-            disabled={step === 1}
-            className="btn-secondary disabled:opacity-40 disabled:cursor-not-allowed"
-          >
+          <button onClick={() => setStep(s => Math.max(1, s - 1))} disabled={step === 1}
+            className="btn-secondary disabled:opacity-40 disabled:cursor-not-allowed">
             &#8592; Back
           </button>
           <div className="flex gap-2">
-            {step < 3 ? (
-              <button
-                onClick={() => setStep((s) => s + 1)}
-                className="btn-primary flex items-center gap-2"
-              >
-                Continue &#8594;
-              </button>
-            ) : (
-              <button
-                onClick={handleSubmit}
-                disabled={loading}
-                className="btn-primary flex items-center gap-2"
-              >
-                {loading ? (
-                  <>
-                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Publishing...
-                  </>
-                ) : (
-                  <>
-                    <span>&#127942;</span>Publish Tournament
-                  </>
-                )}
-              </button>
-            )}
+            {step < 3
+              ? <button onClick={() => setStep(s => s + 1)} className="btn-primary flex items-center gap-2">
+                  Continue &#8594;
+                </button>
+              : <button onClick={handleSubmit} disabled={loading}
+                  className="btn-primary flex items-center gap-2">
+                  {loading
+                    ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Sanctioning...</>
+                    : <><span>&#127942;</span>Sanction Event</>}
+                </button>
+            }
           </div>
         </div>
       </div>
     </div>
-  );
+  )
 }
 
 // ── Rich Tournament Card ──────────────────────────────────────────────────────
 function TournamentCard({ tournament }) {
   const {
-    tournament_id,
-    name,
-    game_name,
-    prize_pool,
-    entry_fee,
-    region,
-    format,
-    start_date,
-    status,
-    registered_teams,
-    image_url,
-    organizer_name,
-    location,
-    description,
-  } = tournament;
+    tournament_id, name, game_name, prize_pool, entry_fee,
+    region, format, start_date, status, registered_teams,
+    image_url, organizer_name, location, description,
+  } = tournament
 
-  const startDateShort = fmt(start_date, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-  const prizeStr = fmtMoney(prize_pool);
+  const startDateShort = fmt(start_date, { month: 'short', day: 'numeric', year: 'numeric' })
+  const prizeStr       = fmtMoney(prize_pool)
 
   return (
-    <Link
-      to={"/tournament/" + tournament_id}
+    <Link to={'/tournament/' + tournament_id}
       className="group flex flex-col rounded-2xl border border-surface-border overflow-hidden transition-all duration-300 hover:border-red/40 hover:-translate-y-1 hover:shadow-[0_16px_48px_rgba(0,0,0,0.5)]"
-      style={{ background: "linear-gradient(145deg,#1a2340,#131a2e)" }}
-    >
+      style={{ background: 'linear-gradient(145deg,#1a2340,#131a2e)' }}>
+
       {/* Banner image or gradient placeholder */}
       <div className="relative h-36 overflow-hidden bg-navy shrink-0">
         {image_url ? (
-          <img
-            src={image_url}
-            alt={name}
+          <img src={image_url} alt={name}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-            onError={(e) => {
-              e.target.parentElement.classList.add("fallback-banner");
-            }}
-          />
+            onError={e => { e.target.parentElement.classList.add('fallback-banner') }} />
         ) : (
-          <div
-            className="absolute inset-0 flex items-center justify-center"
-            style={{
-              background:
-                "linear-gradient(135deg,rgba(255,70,85,0.18) 0%,rgba(15,23,42,0.9) 100%)",
-            }}
-          >
+          <div className="absolute inset-0 flex items-center justify-center"
+            style={{ background: 'linear-gradient(135deg,rgba(255,70,85,0.18) 0%,rgba(15,23,42,0.9) 100%)' }}>
             <span className="text-5xl opacity-30">&#127942;</span>
           </div>
         )}
         {/* Gradient overlay */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background: "linear-gradient(to top, #1a2340 0%, transparent 60%)",
-          }}
-        />
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, #1a2340 0%, transparent 60%)' }} />
         {/* Status badge top-right */}
         <div className="absolute top-3 right-3">
           <StatusBadge status={status} />
@@ -582,128 +357,85 @@ function TournamentCard({ tournament }) {
         </div>
 
         {description && (
-          <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">
-            {description}
-          </p>
+          <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">{description}</p>
         )}
 
         {/* Stats grid */}
         <div className="grid grid-cols-2 gap-2 mt-auto pt-1">
           <div className="bg-navy/60 rounded-lg px-3 py-2">
-            <p className="text-xs text-gray-500">Entry</p>
+            <p className="text-xs text-gray-500">Entry Fee</p>
             <p className="text-sm font-semibold text-white mt-0.5">
-              {Number(entry_fee) === 0 ? "Free" : "$" + Number(entry_fee)}
+              {Number(entry_fee) === 0 ? 'Free' : '$' + Number(entry_fee)}
             </p>
           </div>
           <div className="bg-navy/60 rounded-lg px-3 py-2">
-            <p className="text-xs text-gray-500">Teams</p>
-            <p className="text-sm font-semibold text-white mt-0.5">
-              {registered_teams || 0}
-            </p>
+            <p className="text-xs text-gray-500">Squads</p>
+            <p className="text-sm font-semibold text-white mt-0.5">{registered_teams || 0}</p>
           </div>
         </div>
 
         {/* Footer row */}
         <div className="flex items-center justify-between pt-2 border-t border-surface-border">
           <div className="flex gap-1.5 flex-wrap">
-            {format && (
-              <span className="badge-gray text-xs">
-                {FORMAT_LABELS[format] || format}
-              </span>
-            )}
-            {region && (
-              <span className="badge-gray text-xs">&#127758; {region}</span>
-            )}
+            {format && <span className="badge-gray text-xs">{FORMAT_LABELS[format] || format}</span>}
+            {region && <span className="badge-gray text-xs">&#127758; {region}</span>}
           </div>
           <p className="text-xs text-gray-600">{startDateShort}</p>
         </div>
       </div>
     </Link>
-  );
+  )
 }
 
 // ── Tournament Detail view ────────────────────────────────────────────────────
 function TournamentDetail({ id }) {
-  const { isAuthenticated } = useAuth();
-  const [tournament, setTournament] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [teamId, setTeamId] = useState("");
-  const [registering, setRegistering] = useState(false);
-  const [success, setSuccess] = useState("");
+  const { isAuthenticated } = useAuth()
+  const [tournament,   setTournament]   = useState(null)
+  const [loading,      setLoading]      = useState(true)
+  const [error,        setError]        = useState('')
+  const [teamId,       setTeamId]       = useState('')
+  const [registering,  setRegistering]  = useState(false)
+  const [success,      setSuccess]      = useState('')
 
   useEffect(() => {
     getTournamentById(id)
-      .then((res) => setTournament(res.data.tournament))
-      .catch(() => setError("Tournament not found"))
-      .finally(() => setLoading(false));
-  }, [id]);
+      .then(res => setTournament(res.data.tournament))
+      .catch(() => setError('Tournament not found'))
+      .finally(() => setLoading(false))
+  }, [id])
 
   const handleRegister = async (e) => {
-    e.preventDefault();
-    if (!teamId) return setError("Enter your team ID");
-    setRegistering(true);
-    setError("");
+    e.preventDefault()
+    if (!teamId) return setError('Enter your team ID')
+    setRegistering(true); setError('')
     try {
-      await registerForTournament(id, { team_id: Number(teamId) });
-      setSuccess("Your team has been registered!");
-      setTeamId("");
+      await registerForTournament(id, { team_id: Number(teamId) })
+      setSuccess('Your team has been registered!')
+      setTeamId('')
     } catch (err) {
-      setError(err.response?.data?.message || "Registration failed");
-    } finally {
-      setRegistering(false);
-    }
-  };
+      setError(err.response?.data?.message || 'Registration failed')
+    } finally { setRegistering(false) }
+  }
 
-  if (loading) return <PageLoader />;
-  if (!tournament)
-    return (
-      <div className="max-w-3xl mx-auto px-4 py-10">
-        <ErrorMessage message={error} />
-      </div>
-    );
+  if (loading) return <PageLoader />
+  if (!tournament) return <div className="max-w-3xl mx-auto px-4 py-10"><ErrorMessage message={error} /></div>
 
-  const t = tournament;
-  const startFull = fmt(t.start_date, {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-  const endFull = fmt(t.end_date, {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-  const prizeStr = fmtMoney(t.prize_pool);
+  const t = tournament
+  const startFull = fmt(t.start_date, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+  const endFull   = fmt(t.end_date,   { year: 'numeric', month: 'long', day: 'numeric' })
+  const prizeStr  = fmtMoney(t.prize_pool)
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 animate-fade-in">
-      <Link
-        to="/tournament"
-        className="inline-flex items-center gap-1.5 text-gray-500 hover:text-white text-sm mb-6 transition-colors group"
-      >
-        <span className="group-hover:-translate-x-0.5 transition-transform">
-          &#8592;
-        </span>{" "}
-        Back to Tournaments
+      <Link to="/tournament" className="inline-flex items-center gap-1.5 text-gray-500 hover:text-white text-sm mb-6 transition-colors group">
+        <span className="group-hover:-translate-x-0.5 transition-transform">&#8592;</span> Back to Tournaments
       </Link>
 
       {/* Banner */}
       {t.image_url && (
         <div className="rounded-2xl overflow-hidden mb-6 h-56 sm:h-72 relative border border-surface-border">
-          <img
-            src={t.image_url}
-            alt={t.name}
-            className="w-full h-full object-cover"
-          />
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                "linear-gradient(to top,rgba(15,23,42,0.9) 0%,transparent 60%)",
-            }}
-          />
+          <img src={t.image_url} alt={t.name} className="w-full h-full object-cover" />
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(to top,rgba(15,23,42,0.9) 0%,transparent 60%)' }} />
           <div className="absolute bottom-4 left-5">
             <StatusBadge status={t.status} />
           </div>
@@ -717,13 +449,8 @@ function TournamentDetail({ id }) {
 
       {/* Header card */}
       <div className="card mb-6 relative overflow-hidden">
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background:
-              "radial-gradient(ellipse at top right,rgba(255,70,85,0.12) 0%,transparent 60%)",
-          }}
-        />
+        <div className="absolute inset-0 pointer-events-none"
+          style={{ background: 'radial-gradient(ellipse at top right,rgba(255,70,85,0.12) 0%,transparent 60%)' }} />
         <div className="relative">
           {!t.image_url && (
             <div className="flex items-center gap-2 mb-3">
@@ -731,18 +458,14 @@ function TournamentDetail({ id }) {
             </div>
           )}
           <p className="text-gray-500 text-sm">{t.game_name}</p>
-          <h1 className="font-display font-bold text-3xl sm:text-4xl text-white mt-1 leading-tight">
-            {t.name}
-          </h1>
+          <h1 className="font-display font-bold text-3xl sm:text-4xl text-white mt-1 leading-tight">{t.name}</h1>
 
           {/* Organizer info */}
           <div className="flex flex-wrap gap-x-5 gap-y-2 mt-3 text-sm text-gray-400">
             {t.organizer_name && (
               <span className="flex items-center gap-1.5">
                 <span className="text-red">&#128100;</span>
-                <span>
-                  by <strong className="text-white">{t.organizer_name}</strong>
-                </span>
+                <span>by <strong className="text-white">{t.organizer_name}</strong></span>
               </span>
             )}
             {t.location && (
@@ -756,60 +479,26 @@ function TournamentDetail({ id }) {
           {/* Stat grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
             {[
-              {
-                label: "Prize Pool",
-                value: prizeStr || "N/A",
-                highlight: !!prizeStr,
-              },
-              {
-                label: "Entry Fee",
-                value: Number(t.entry_fee) === 0 ? "Free" : "$" + t.entry_fee,
-                highlight: false,
-              },
-              {
-                label: "Region",
-                value: t.region || "Global",
-                highlight: false,
-              },
-              {
-                label: "Format",
-                value: FORMAT_LABELS[t.format] || t.format || "TBD",
-                highlight: false,
-              },
-            ].map((s) => (
+              { label: 'Prize Pool',  value: prizeStr || 'N/A',           highlight: !!prizeStr },
+              { label: 'Entry Fee',   value: Number(t.entry_fee) === 0 ? 'Free' : ('$' + t.entry_fee), highlight: false },
+              { label: 'Region',      value: t.region || 'Global',         highlight: false },
+              { label: 'Format',      value: FORMAT_LABELS[t.format] || t.format || 'TBD', highlight: false },
+            ].map(s => (
               <div key={s.label} className="bg-navy rounded-xl p-3 text-center">
                 <p className="text-xs text-gray-500">{s.label}</p>
-                <p
-                  className={
-                    "font-semibold mt-1 " +
-                    (s.highlight ? "text-red" : "text-white")
-                  }
-                >
-                  {s.value}
-                </p>
+                <p className={'font-semibold mt-1 ' + (s.highlight ? 'text-red' : 'text-white')}>{s.value}</p>
               </div>
             ))}
           </div>
 
           {/* Dates */}
           <div className="mt-4 pt-4 border-t border-surface-border flex flex-wrap gap-x-6 gap-y-2 text-sm">
-            <span className="text-gray-500">
-              Starts: <span className="text-white ml-1">{startFull}</span>
-            </span>
-            {t.end_date && (
-              <span className="text-gray-500">
-                Ends: <span className="text-white ml-1">{endFull}</span>
-              </span>
-            )}
+            <span className="text-gray-500">Starts: <span className="text-white ml-1">{startFull}</span></span>
+            {t.end_date && <span className="text-gray-500">Ends: <span className="text-white ml-1">{endFull}</span></span>}
             {t.registration_deadline && (
               <span className="text-gray-500">
-                Reg. Deadline:{" "}
-                <span className="text-yellow-400 ml-1">
-                  {fmt(t.registration_deadline, {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
+                Reg. Deadline: <span className="text-yellow-400 ml-1">
+                  {fmt(t.registration_deadline, { month: 'short', day: 'numeric', year: 'numeric' })}
                 </span>
               </span>
             )}
@@ -820,36 +509,21 @@ function TournamentDetail({ id }) {
       {/* Description */}
       {t.description && (
         <div className="card mb-6">
-          <h2 className="font-display font-bold text-lg text-white mb-3">
-            About this Tournament
-          </h2>
-          <p className="text-gray-400 text-sm leading-relaxed whitespace-pre-line">
-            {t.description}
-          </p>
+          <h2 className="font-display font-bold text-lg text-white mb-3">Mission Briefing</h2>
+          <p className="text-gray-400 text-sm leading-relaxed whitespace-pre-line">{t.description}</p>
         </div>
       )}
 
       {/* Join link CTA */}
-      {t.join_link && t.status === "upcoming" && (
-        <div
-          className="mb-6 rounded-2xl border border-red/25 px-5 py-5 flex flex-col sm:flex-row items-start sm:items-center gap-4"
-          style={{
-            background:
-              "linear-gradient(135deg,rgba(255,70,85,0.08) 0%,rgba(26,35,64,0.7) 100%)",
-          }}
-        >
+      {t.join_link && t.status === 'upcoming' && (
+        <div className="mb-6 rounded-2xl border border-red/25 px-5 py-5 flex flex-col sm:flex-row items-start sm:items-center gap-4"
+          style={{ background: 'linear-gradient(135deg,rgba(255,70,85,0.08) 0%,rgba(26,35,64,0.7) 100%)' }}>
           <div className="flex-1">
-            <p className="font-semibold text-white">Ready to compete?</p>
-            <p className="text-sm text-gray-400 mt-0.5">
-              Register through the official tournament page
-            </p>
+            <p className="font-semibold text-white">Ready to Enter the Gauntlet?</p>
+            <p className="text-sm text-gray-400 mt-0.5">Register through the official tournament page</p>
           </div>
-          <a
-            href={t.join_link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn-primary flex items-center gap-2 shrink-0"
-          >
+          <a href={t.join_link} target="_blank" rel="noopener noreferrer"
+            className="btn-primary flex items-center gap-2 shrink-0">
             <span>&#128279;</span> Register Now
           </a>
         </div>
@@ -859,17 +533,12 @@ function TournamentDetail({ id }) {
       {t.registered_teams?.length > 0 && (
         <div className="card mb-6">
           <h2 className="font-display font-bold text-lg text-white mb-3">
-            Registered Teams{" "}
-            <span className="text-gray-500 font-normal text-base">
-              ({t.registered_teams.length})
-            </span>
+            Registered Teams <span className="text-gray-500 font-normal text-base">({t.registered_teams.length})</span>
           </h2>
           <div className="flex flex-wrap gap-2">
-            {t.registered_teams.map((team) => (
-              <span
-                key={team.team_id}
-                className="inline-flex items-center gap-1.5 bg-navy border border-surface-border text-gray-300 text-sm px-3 py-1.5 rounded-full"
-              >
+            {t.registered_teams.map(team => (
+              <span key={team.team_id}
+                className="inline-flex items-center gap-1.5 bg-navy border border-surface-border text-gray-300 text-sm px-3 py-1.5 rounded-full">
                 &#128100; {team.team_name}
               </span>
             ))}
@@ -880,37 +549,16 @@ function TournamentDetail({ id }) {
       {/* Bracket */}
       {t.matches?.length > 0 && (
         <div className="card mb-6">
-          <h2 className="font-display font-bold text-lg text-white mb-4">
-            Bracket
-          </h2>
+          <h2 className="font-display font-bold text-lg text-white mb-4">War Map</h2>
           <div className="flex flex-col gap-2">
-            {t.matches.map((m) => (
-              <div
-                key={m.match_id}
-                className="bg-navy rounded-xl px-4 py-3 flex items-center justify-between gap-4"
-              >
-                <span
-                  className={
-                    "font-medium text-sm flex-1 text-right " +
-                    (m.winner_team_id === m.team1_id
-                      ? "text-white"
-                      : "text-gray-500")
-                  }
-                >
+            {t.matches.map(m => (
+              <div key={m.match_id} className="bg-navy rounded-xl px-4 py-3 flex items-center justify-between gap-4">
+                <span className={'font-medium text-sm flex-1 text-right ' + (m.winner_team_id === m.team1_id ? 'text-white' : 'text-gray-500')}>
                   {m.team1_name}
                 </span>
-                <span className="text-gray-600 text-xs font-mono bg-surface-card px-2 py-1 rounded">
-                  {m.score || "vs"}
-                </span>
-                <span
-                  className={
-                    "font-medium text-sm flex-1 " +
-                    (m.winner_team_id === m.team2_id
-                      ? "text-white"
-                      : "text-gray-500")
-                  }
-                >
-                  {m.team2_name || "TBD"}
+                <span className="text-gray-600 text-xs font-mono bg-surface-card px-2 py-1 rounded">{m.score || 'vs'}</span>
+                <span className={'font-medium text-sm flex-1 ' + (m.winner_team_id === m.team2_id ? 'text-white' : 'text-gray-500')}>
+                  {m.team2_name || 'TBD'}
                 </span>
               </div>
             ))}
@@ -919,104 +567,76 @@ function TournamentDetail({ id }) {
       )}
 
       {/* Register with Team ID */}
-      {isAuthenticated && t.status === "upcoming" && !t.join_link && (
+      {isAuthenticated && t.status === 'upcoming' && !t.join_link && (
         <div className="card">
-          <h2 className="font-display font-bold text-lg text-white mb-1">
-            Register Your Team
-          </h2>
-          <p className="text-gray-500 text-sm mb-4">
-            You must be the captain of your team to register.
-          </p>
-          {success ? (
-            <div className="bg-green-500/10 border border-green-500/30 text-green-400 rounded-lg px-4 py-3 text-sm">
-              {success}
-            </div>
-          ) : (
-            <form onSubmit={handleRegister} className="flex gap-3">
-              <ErrorMessage message={error} />
-              <input
-                className="input flex-1"
-                placeholder="Your Team ID"
-                value={teamId}
-                onChange={(e) => setTeamId(e.target.value)}
-                type="number"
-                min="1"
-              />
-              <button
-                type="submit"
-                disabled={registering}
-                className="btn-primary shrink-0"
-              >
-                {registering ? <Spinner size="sm" /> : "Register"}
-              </button>
-            </form>
-          )}
+          <h2 className="font-display font-bold text-lg text-white mb-1">Enter the Gauntlet</h2>
+          <p className="text-gray-500 text-sm mb-4">You must be the captain of your team to register.</p>
+          {success
+            ? <div className="bg-green-500/10 border border-green-500/30 text-green-400 rounded-lg px-4 py-3 text-sm">{success}</div>
+            : (
+              <form onSubmit={handleRegister} className="flex gap-3">
+                <ErrorMessage message={error} />
+                <input className="input flex-1" placeholder="Your Team ID"
+                  value={teamId} onChange={e => setTeamId(e.target.value)} type="number" min="1" />
+                <button type="submit" disabled={registering} className="btn-primary shrink-0">
+                  {registering ? <Spinner size="sm" /> : 'Register'}
+                </button>
+              </form>
+            )
+          }
         </div>
       )}
 
       {!isAuthenticated && (
         <div className="card text-center py-8">
-          <p className="text-gray-400 mb-4">
-            Sign in to register your team for this tournament
-          </p>
-          <Link to="/login" className="btn-primary">
-            Sign In
-          </Link>
+          <p className="text-gray-400 mb-4">Sign in to register your team for this tournament</p>
+          <Link to="/login" className="btn-primary">Sign In to Compete</Link>
         </div>
       )}
     </div>
-  );
+  )
 }
 
 // ── Tournament List ───────────────────────────────────────────────────────────
 function TournamentList() {
-  const { isAuthenticated } = useAuth();
-  const [tournaments, setTournaments] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ status: "", region: "" });
-  const [showForm, setShowForm] = useState(false);
-  const [allGames, setAllGames] = useState([]);
-  const [toast, setToast] = useState("");
+  const { isAuthenticated } = useAuth()
+  const [tournaments, setTournaments] = useState([])
+  const [loading,     setLoading]     = useState(true)
+  const [filters,     setFilters]     = useState({ status: '', region: '' })
+  const [showForm,    setShowForm]    = useState(false)
+  const [allGames,    setAllGames]    = useState([])
+  const [toast,       setToast]       = useState('')
 
-  const showToast = (msg) => {
-    setToast(msg);
-    setTimeout(() => setToast(""), 3000);
-  };
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000) }
 
   useEffect(() => {
-    setLoading(true);
+    setLoading(true)
     getTournaments(filters)
-      .then((res) => setTournaments(res.data.tournaments || []))
+      .then(res => setTournaments(res.data.tournaments || []))
       .catch(() => setTournaments([]))
-      .finally(() => setLoading(false));
-  }, [filters]);
+      .finally(() => setLoading(false))
+  }, [filters])
 
   // Fetch all games for the form dropdown
   useEffect(() => {
     if (isAuthenticated) {
-      import("../services/gameService")
-        .then((m) => {
-          m.getGames?.()
-            ?.then((r) => setAllGames(r.data?.games || []))
-            .catch(() => {});
-        })
-        .catch(() => {});
+      import('../services/gameService').then(m => {
+        m.getGames?.()?.then(r => setAllGames(r.data?.games || [])).catch(() => {})
+      }).catch(() => {})
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated])
 
   const handleCreated = (t) => {
-    setTournaments((prev) => [{ ...t, registered_teams: 0 }, ...prev]);
-    showToast("Tournament posted successfully!");
-  };
+    setTournaments(prev => [{ ...t, registered_teams: 0 }, ...prev])
+    showToast('Tournament posted successfully!')
+  }
 
-  const featured =
-    tournaments.find((t) => t.status === "ongoing") || tournaments[0];
-  const rest = featured
-    ? tournaments.filter((t) => t.tournament_id !== featured.tournament_id)
-    : tournaments;
+  const featured = tournaments.find(t => t.status === 'ongoing') || tournaments[0]
+  const rest     = featured ? tournaments.filter(t => t.tournament_id !== featured.tournament_id) : tournaments
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 animate-fade-in">
+
       {/* Toast */}
       {toast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-surface-card border border-green-500/30 text-green-400 text-sm px-5 py-3 rounded-full shadow-card animate-fade-in">
@@ -1034,86 +654,49 @@ function TournamentList() {
       )}
 
       {/* Hero */}
-      <div
-        className="relative mb-10 rounded-2xl overflow-hidden border border-surface-border"
-        style={{
-          background:
-            "linear-gradient(135deg,#0f172a 0%,#1a2340 50%,#0d0f20 100%)",
-        }}
-      >
+      <div className="relative mb-10 rounded-2xl overflow-hidden border border-surface-border"
+        style={{ background: 'linear-gradient(135deg,#0f172a 0%,#1a2340 50%,#0d0f20 100%)' }}>
         {/* Dot grid */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle,rgba(255,70,85,0.1) 1px,transparent 1px)",
-            backgroundSize: "32px 32px",
-            maskImage:
-              "radial-gradient(ellipse 80% 60% at 50% 0%,black 30%,transparent 100%)",
-          }}
-        />
-        <div
-          className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[220px] pointer-events-none"
-          style={{
-            background:
-              "radial-gradient(ellipse,rgba(255,70,85,0.15) 0%,transparent 70%)",
-          }}
-        />
+        <div className="absolute inset-0 pointer-events-none" style={{
+          backgroundImage: 'radial-gradient(circle,rgba(255,70,85,0.1) 1px,transparent 1px)',
+          backgroundSize: '32px 32px',
+          maskImage: 'radial-gradient(ellipse 80% 60% at 50% 0%,black 30%,transparent 100%)',
+        }} />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[220px] pointer-events-none"
+          style={{ background: 'radial-gradient(ellipse,rgba(255,70,85,0.15) 0%,transparent 70%)' }} />
 
         <div className="relative z-10 px-8 py-12 sm:py-16 flex flex-col sm:flex-row items-start sm:items-center gap-6">
           <div className="flex-1">
             <div className="inline-flex items-center gap-2 bg-red/10 border border-red/20 rounded-full px-3 py-1 mb-4">
               <span className="live-dot" />
-              <span className="text-xs text-red-light font-semibold tracking-wider uppercase">
-                eSports Tournaments
-              </span>
+              <span className="text-xs text-red-light font-semibold tracking-wider uppercase">Proving Grounds</span>
             </div>
             <h1 className="font-display font-bold text-4xl sm:text-5xl text-white leading-tight">
               Compete on the <span className="text-gradient">World Stage</span>
             </h1>
             <p className="text-gray-400 mt-3 max-w-lg text-sm leading-relaxed">
-              Browse upcoming eSports events, register your team, and track
-              brackets live. Organizers can post and manage their own
-              tournaments.
+              Browse open brackets, register your squad, and track live results.
+              Organizers can forge and manage their own events.
             </p>
             <div className="flex flex-wrap gap-3 mt-6">
-              {isAuthenticated ? (
-                <button
-                  onClick={() => setShowForm(true)}
-                  className="btn-primary flex items-center gap-2"
-                >
-                  <span>&#127942;</span> Post a Tournament
-                </button>
-              ) : (
-                <Link
-                  to="/login"
-                  className="btn-primary flex items-center gap-2"
-                >
-                  <span>&#128279;</span> Login to Post
-                </Link>
-              )}
+              {isAuthenticated
+                ? <button onClick={() => setShowForm(true)} className="btn-primary flex items-center gap-2">
+                    <span>&#127942;</span> Forge a Tournament
+                  </button>
+                : <Link to="/login" className="btn-primary flex items-center gap-2">
+                    <span>&#128279;</span> Sign In to Forge
+                  </Link>
+              }
               <div className="flex items-center gap-2 text-sm text-gray-500 self-center">
                 <span>&#9889;</span> Live brackets &amp; team registration
               </div>
             </div>
           </div>
           <div className="flex sm:flex-col gap-3 shrink-0">
-            {[
-              ["&#127942;", "Tournaments"],
-              ["&#128100;&#128100;", "Teams Registered"],
-              ["&#127881;", "Prize Pools"],
-            ].map(([icon, label]) => (
-              <div
-                key={label}
-                className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5"
-              >
-                <span
-                  className="text-xl"
-                  dangerouslySetInnerHTML={{ __html: icon }}
-                />
-                <span className="text-xs text-gray-400 whitespace-nowrap">
-                  {label}
-                </span>
+            {[['&#127942;','Tournaments'],['&#128100;&#128100;','Teams Registered'],['&#127881;','Prize Pools']].map(([icon,label]) => (
+              <div key={label} className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5">
+                <span className="text-xl" dangerouslySetInnerHTML={{ __html: icon }} />
+                <span className="text-xs text-gray-400 whitespace-nowrap">{label}</span>
               </div>
             ))}
           </div>
@@ -1122,45 +705,25 @@ function TournamentList() {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-8 items-center">
-        <select
-          className="input w-44"
-          value={filters.status}
-          onChange={(e) =>
-            setFilters((f) => ({ ...f, status: e.target.value }))
-          }
-        >
+        <select className="input w-44" value={filters.status}
+          onChange={e => setFilters(f => ({ ...f, status: e.target.value }))}>
           <option value="">All Statuses</option>
-          <option value="upcoming">Upcoming</option>
+          <option value="upcoming">Incoming</option>
           <option value="ongoing">Ongoing</option>
           <option value="completed">Completed</option>
         </select>
         <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">
-            &#127758;
-          </span>
-          <input
-            className="input pl-9 w-44"
-            placeholder="Region..."
-            value={filters.region}
-            onChange={(e) =>
-              setFilters((f) => ({ ...f, region: e.target.value }))
-            }
-          />
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">&#127758;</span>
+          <input className="input pl-9 w-44" placeholder="Region..."
+            value={filters.region} onChange={e => setFilters(f => ({ ...f, region: e.target.value }))} />
         </div>
         {(filters.status || filters.region) && (
-          <button
-            onClick={() => setFilters({ status: "", region: "" })}
-            className="btn-ghost text-sm text-red-light"
-          >
-            &#10005; Clear
-          </button>
+          <button onClick={() => setFilters({ status: '', region: '' })}
+            className="btn-ghost text-sm text-red-light">&#10005; Clear</button>
         )}
         {tournaments.length > 0 && (
           <span className="text-sm text-gray-500 ml-auto">
-            <span className="text-white font-semibold">
-              {tournaments.length}
-            </span>{" "}
-            event{tournaments.length !== 1 ? "s" : ""}
+            <span className="text-white font-semibold">{tournaments.length}</span> event{tournaments.length !== 1 ? 's' : ''}
           </span>
         )}
       </div>
@@ -1173,34 +736,27 @@ function TournamentList() {
       ) : tournaments.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <div className="text-6xl mb-4 opacity-20">&#127942;</div>
-          <p className="text-gray-300 font-medium text-xl font-display">
-            No tournaments found
-          </p>
-          <p className="text-gray-500 text-sm mt-2 max-w-xs">
-            Try adjusting filters, or be the first to post one!
-          </p>
+          <p className="text-gray-300 font-medium text-xl font-display">No tournaments found</p>
+          <p className="text-gray-500 text-sm mt-2 max-w-xs">Try adjusting filters, or be the first to post one!</p>
           {isAuthenticated && (
-            <button
-              onClick={() => setShowForm(true)}
-              className="btn-primary mt-6 flex items-center gap-2"
-            >
-              <span>&#127942;</span> Post a Tournament
+            <button onClick={() => setShowForm(true)} className="btn-primary mt-6 flex items-center gap-2">
+              <span>&#127942;</span> Forge a Tournament
             </button>
           )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-          {tournaments.map((t) => (
+          {tournaments.map(t => (
             <TournamentCard key={t.tournament_id} tournament={t} />
           ))}
         </div>
       )}
     </div>
-  );
+  )
 }
 
 // ── Root ──────────────────────────────────────────────────────────────────────
 export default function Tournament() {
-  const { id } = useParams();
-  return id ? <TournamentDetail id={id} /> : <TournamentList />;
+  const { id } = useParams()
+  return id ? <TournamentDetail id={id} /> : <TournamentList />
 }

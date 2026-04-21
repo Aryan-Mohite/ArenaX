@@ -5,10 +5,10 @@ import { useAuth } from "../context/AuthContext";
 const NAV_LINKS = [
   { to: "/", label: "Home" },
   { to: "/games", label: "Games" },
-  { to: "/tournament", label: "Tournaments" },
-  { to: "/teamfinder", label: "Team Finder" },
-  { to: "/stream", label: "Stream" },
-  { to: "/communities", label: "Communities" },
+  { to: "/tournament", label: "The Arena" },
+  { to: "/teamfinder", label: "LFG Hub" },
+  { to: "/stream", label: "Spectate" },
+  { to: "/communities", label: "The Nexus" },
   { to: "/about", label: "About" },
 ];
 
@@ -118,7 +118,7 @@ export default function Navbar() {
                 Sign in
               </Link>
               <Link to="/register" className="btn-primary text-sm">
-                Get Started
+                Join the Battle
               </Link>
             </>
           ) : (
@@ -164,7 +164,7 @@ export default function Navbar() {
                       <p className="text-sm font-semibold text-white truncate">
                         {user?.username}
                       </p>
-                      <p className="text-xs text-gray-500">Logged in</p>
+                      <p className="text-xs text-gray-500">Online</p>
                     </div>
                   </div>
 
@@ -187,7 +187,7 @@ export default function Navbar() {
                           d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
                         />
                       </svg>
-                      My Profile
+                      Player Card
                     </Link>
 
                     <div className="border-t border-surface-border my-1" />
@@ -209,7 +209,7 @@ export default function Navbar() {
                           d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
                         />
                       </svg>
-                      Sign out
+                      GG · Logout
                     </button>
                   </div>
                 </div>

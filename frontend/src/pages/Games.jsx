@@ -334,7 +334,7 @@ export default function Games() {
                   eSports Platform
                 </span>
                 <span className="h-px w-8 bg-surface-border" />
-                <span className="text-xs text-gray-600">Games Library</span>
+                <span className="text-xs text-gray-600">The Grid</span>
               </div>
               <h1 className="font-display font-bold text-4xl md:text-5xl text-white tracking-tight">
                 ALL <span className="text-gradient">GAMES</span>
@@ -355,7 +355,7 @@ export default function Games() {
                 <p className="font-display font-bold text-xl text-white">
                   {myGameIds.size}
                 </p>
-                <p className="text-xs text-gray-500">In Library</p>
+                <p className="text-xs text-gray-500">✓ Enlisted</p>
               </div>
             </div>
           </div>
@@ -379,9 +379,9 @@ export default function Games() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2">
                 <span className="w-1 h-4 bg-red rounded-full inline-block" />
-                Top Rated Games
+                Top Tier Games
               </h2>
-              <span className="text-xs text-gray-500">By community rating</span>
+              <span className="text-xs text-gray-500">By Player Rating</span>
             </div>
             <div
               className="flex gap-3 overflow-x-auto pb-2"
@@ -551,7 +551,7 @@ export default function Games() {
                 value={sort}
                 onChange={(e) => setSort(e.target.value)}
               >
-                <option value="rating">Top Rated</option>
+                <option value="rating">Top Tier</option>
                 <option value="az">A → Z</option>
                 <option value="za">Z → A</option>
               </select>

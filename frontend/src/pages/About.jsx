@@ -5,46 +5,46 @@ import { Link } from "react-router-dom";
 const FEATURES = [
   {
     icon: "🏆",
-    title: "Tournaments",
-    desc: "Create or join competitive tournaments across your favourite titles. Brackets, prize pools, and live updates — all in one place.",
+    title: "The Arena",
+    desc: "Forge or enter competitive tournaments across your favourite titles. War maps, prize pools, and live bracket updates — all in one place.",
     to: "/tournament",
   },
   {
     icon: "🎮",
     title: "Game Library",
-    desc: "Browse a curated catalogue of titles. Add games to your profile and let ArenaX auto-fetch your in-game stats and rank.",
+    desc: "Browse the Grid of supported titles. Add games to your Loadout and let ArenaX live-sync your in-game stats and rank.",
     to: "/games",
   },
   {
     icon: "🤝",
-    title: "Team Finder",
-    desc: "Post a looking-for-team listing or browse open squads. Filter by game, rank, and play style to find your perfect roster.",
+    title: "LFG Hub",
+    desc: "Open a draft in the Mercenary Market or browse open squads. Filter by game, rank, and play style to assemble your dream roster.",
     to: "/teamfinder",
   },
   {
     icon: "💬",
-    title: "Communities",
-    desc: "Jump into game-specific communities, share clips, discuss meta, and connect with players who love the same games you do.",
+    title: "The Nexus",
+    desc: "Jump into The Nexus, drop clips, debate meta, and link up with players in the same trenches as you.",
     to: "/communities",
   },
   {
     icon: "📡",
-    title: "Live Streams",
-    desc: "Watch community members stream live. Going live yourself is one click away — no external setup required.",
+    title: "Spectate",
+    desc: "Spectate community members broadcasting live. Going live yourself is one click away — no external setup required.",
     to: "/stream",
   },
   {
     icon: "📊",
-    title: "Player Profiles",
-    desc: "Your profile is your gaming résumé. Display ranks, stats, tournament history and the games you play — all in one card.",
+    title: "Player Cards",
+    desc: "Your Player Card is your gaming résumé. Display ranks, Service Record, tournament history and your Arsenal — all in one place.",
     to: "/profile",
   },
 ];
 
 const STATS = [
   { value: "50K+", label: "Registered players" },
-  { value: "1200+", label: "Tournaments hosted" },
-  { value: "25+", label: "Games supported" },
+  { value: "1200+", label: "Tournaments forged" },
+  { value: "25+", label: "Games in the Grid" },
   { value: "24 / 7", label: "Live streams" },
 ];
 
@@ -59,12 +59,12 @@ const VALUES = [
   {
     icon: "⚔️",
     title: "Compete Fiercely",
-    desc: "We believe competition brings out the best in people. Every feature is built to help you perform at your peak.",
+    desc: "We believe competition forges the best players. Every feature is built to help you peak and stay there.",
   },
   {
     icon: "🌐",
     title: "Play Together",
-    desc: "Gaming is better with others. We remove friction from finding teammates, communities, and rivals.",
+    desc: "Gaming is better with a squad. We remove every obstacle between you and your next teammate, community, and rival.",
   },
   {
     icon: "🔒",
@@ -74,7 +74,7 @@ const VALUES = [
   {
     icon: "📈",
     title: "Grow Continuously",
-    desc: "Track your progress, learn from losses, and watch your rank climb. Data is your coach.",
+    desc: "Study your Service Record, learn from every loss, and watch your rank climb. Data is your coach.",
   },
 ];
 
@@ -113,7 +113,7 @@ function HeroSection() {
 
         <div className="flex flex-wrap justify-center gap-3">
           <Link to="/register" className="btn-primary">
-            Join for free
+            Enlist Free
           </Link>
           <Link to="/tournament" className="btn-secondary">
             View tournaments
@@ -155,7 +155,7 @@ function MissionSection() {
           </h2>
           <p className="text-gray-400 leading-relaxed mb-4">
             We started ArenaX because the competitive gaming scene was
-            fragmented. Tournaments lived on one site, team recruiting on
+            fragmented. Brackets lived on one site, squad recruiting on
             Discord, stats on another dashboard, and communities spread across
             dozens of subreddits.
           </p>
@@ -319,15 +319,15 @@ function CtaSection() {
           Ready to compete?
         </h2>
         <p className="text-gray-400 mb-8 leading-relaxed">
-          Create your free account in seconds. No credit card, no hidden fees —
+          Enlist in seconds. No credit card, no hidden fees —
           just you, your games, and the competition.
         </p>
         <div className="flex flex-wrap justify-center gap-3">
           <Link to="/register" className="btn-primary">
-            Create free account
+            Deploy Your Profile
           </Link>
           <Link to="/games" className="btn-secondary">
-            Browse games
+            Explore the Grid
           </Link>
         </div>
       </div>

@@ -121,7 +121,7 @@ function PushRequestModal({ post, onClose, onSubmit }) {
             </div>
             <div>
               <p className="text-xs text-gray-500 uppercase tracking-widest mb-0.5">
-                Sending Request To
+                Dispatching Request To
               </p>
               <p className="font-display font-bold text-white text-lg">
                 {post.username}
@@ -166,10 +166,10 @@ function PushRequestModal({ post, onClose, onSubmit }) {
               {loading ? (
                 <>
                   <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Sending...
+                  Dispatching...
                 </>
               ) : (
-                <>🚀 Push Request</>
+                <>⚡ Send Request</>
               )}
             </button>
           </div>
@@ -179,8 +179,8 @@ function PushRequestModal({ post, onClose, onSubmit }) {
   );
 }
 
-// ─── ApplicantsModal ──────────────────────────────────────────────────────────
-function ApplicantsModal({ post, onClose, onChat, onAccept, onReject }) {
+// ─── RosterModal ──────────────────────────────────────────────────────────
+function RosterModal({ post, onClose, onChat, onAccept, onReject }) {
   const [apps, setApps] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -214,7 +214,7 @@ function ApplicantsModal({ post, onClose, onChat, onAccept, onReject }) {
         >
           <div>
             <h3 className="font-display font-bold text-white text-lg">
-              Applicants
+              Roster
             </h3>
             <p className="text-xs text-gray-500 mt-0.5">
               {post.game_name} · {post.role_required || "Any Role"}
@@ -417,7 +417,7 @@ function ChatModal({ partnerId, partnerName, onClose }) {
             <p className="font-semibold text-white text-sm">{partnerName}</p>
             <p className="text-xs text-green-400 flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block" />
-              Team Chat
+              Squad Comms
             </p>
           </div>
           <button
@@ -437,7 +437,7 @@ function ChatModal({ partnerId, partnerName, onClose }) {
           ) : messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center flex-1 text-center">
               <div className="text-4xl mb-2 opacity-20">💬</div>
-              <p className="text-gray-500 text-sm">Start the conversation!</p>
+              <p className="text-gray-500 text-sm">Break the ice, soldier!</p>
             </div>
           ) : (
             messages.map((msg) => {
@@ -526,12 +526,12 @@ function DeleteConfirmModal({ post, onClose, onConfirm }) {
             🗑️
           </div>
           <h3 className="font-display font-bold text-white text-lg">
-            Delete Listing?
+            Close Draft?
           </h3>
           <p className="text-gray-400 text-sm mt-2 leading-relaxed">
-            This will permanently close your listing for{" "}
+            This will permanently close your draft for{" "}
             <span className="text-white font-medium">{post.game_name}</span>.
-            All pending applications will be removed.
+            All pending applicants will be dismissed.
           </p>
         </div>
         <div className="flex gap-3 px-6 pb-6">
@@ -546,7 +546,7 @@ function DeleteConfirmModal({ post, onClose, onConfirm }) {
             {loading ? (
               <span className="w-4 h-4 border-2 border-red/30 border-t-red rounded-full animate-spin" />
             ) : (
-              "🗑️ Delete"
+              "🗑️ Disband"
             )}
           </button>
         </div>
@@ -562,7 +562,7 @@ function EnhancedCard({
   alreadyApplied,
   isAuthenticated,
   currentUserId,
-  onViewApplicants,
+  onViewRoster,
   onDelete,
   onViewProfile,
 }) {
@@ -651,10 +651,10 @@ function EnhancedCard({
         {isOwner && (
           <div className="mt-auto flex gap-2">
             <button
-              onClick={() => onViewApplicants(post)}
+              onClick={() => onViewRoster(post)}
               className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold border border-blue-500/30 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors"
             >
-              👥 Applicants
+              👥 Roster
             </button>
             <button
               onClick={() => onDelete(post)}
@@ -682,7 +682,7 @@ function EnhancedCard({
                 color: accent,
               }}
             >
-              🚀 Push Request
+              ⚡ Send Request
             </button>
           ))}
 
@@ -691,7 +691,7 @@ function EnhancedCard({
             href="/login"
             className="mt-auto text-center block w-full py-2.5 rounded-lg border border-surface-border text-gray-500 text-sm hover:border-red/30 hover:text-gray-300 transition-colors"
           >
-            Login to Apply
+            Sign In to Apply
           </a>
         )}
       </div>
@@ -761,9 +761,9 @@ function MyApplicationsPanel({ onChat }) {
             📨
           </div>
           <div className="text-left">
-            <p className="font-semibold text-white text-sm">My Applications</p>
+            <p className="font-semibold text-white text-sm">My Dispatches</p>
             <p className="text-xs text-gray-500">
-              Track your team join requests
+              Track all your squad dispatches
             </p>
           </div>
           {/* Unread accepted badge */}
@@ -883,7 +883,7 @@ export default function TeamFinder() {
   const [appliedIds, setAppliedIds] = useState(new Set());
 
   // New state for new features
-  const [applicantsPost, setApplicantsPost] = useState(null);
+  const [applicantsPost, setRosterPost] = useState(null);
   const [chatPartner, setChatPartner] = useState(null); // { userId, username }
   const [deletePost, setDeletePost] = useState(null);
 
@@ -931,7 +931,7 @@ export default function TeamFinder() {
     try {
       await applyToPost(postId, { message });
       setAppliedIds((prev) => new Set([...prev, postId]));
-      showToast("Request sent! The team leader will review it.", "success");
+      showToast("Request dispatched! Awaiting squad leader review.", "success");
     } catch (err) {
       showToast(
         err.response?.data?.message || "Failed to send request",
@@ -956,10 +956,10 @@ export default function TeamFinder() {
         description: "",
         deadline: "",
       });
-      showToast("Listing published!", "success");
+      showToast("Recruitment deployed!", "success");
       loadPosts();
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to create post");
+      setError(err.response?.data?.message || "Failed to deploy recruitment");
     }
   };
 
@@ -1008,7 +1008,7 @@ export default function TeamFinder() {
     try {
       await authFetch(`/teamfinder/${postId}/close`, { method: "PATCH" });
       setPosts((prev) => prev.filter((p) => p.post_id !== postId));
-      showToast("Listing deleted", "success");
+      showToast("Recruitment closed", "success");
     } catch {
       showToast("Failed to delete listing", "error");
     }
@@ -1039,11 +1039,11 @@ export default function TeamFinder() {
         />
       )}
       {applicantsPost && (
-        <ApplicantsModal
+        <RosterModal
           post={applicantsPost}
-          onClose={() => setApplicantsPost(null)}
+          onClose={() => setRosterPost(null)}
           onChat={(userId, username) => {
-            setApplicantsPost(null);
+            setRosterPost(null);
             setChatPartner({ userId, username });
           }}
           onAccept={handleAccept}
@@ -1079,11 +1079,11 @@ export default function TeamFinder() {
             <div className="inline-flex items-center gap-2 bg-red/10 border border-red/20 rounded-full px-3 py-1 mb-4">
               <span className="live-dot" />
               <span className="text-xs text-red-light font-semibold tracking-wider uppercase">
-                Player Recruitment
+                Mercenary Market
               </span>
             </div>
             <h1 className="font-display font-bold text-4xl sm:text-5xl text-white leading-tight">
-              Find Your <span className="text-gradient">Perfect Squad</span>
+              Build Your <span className="text-gradient">Dream Squad</span>
             </h1>
             <p className="text-gray-400 mt-3 max-w-lg text-sm leading-relaxed">
               Push join requests, post recruitment listings, and build your
@@ -1095,23 +1095,23 @@ export default function TeamFinder() {
                   onClick={() => setShowForm(!showForm)}
                   className="btn-primary flex items-center gap-2"
                 >
-                  <span>📋</span> Post a Listing
+                  <span>📋</span> Draft a Listing
                 </button>
               ) : (
                 <a href="/login" className="btn-primary">
-                  Login to Post
+                  Sign In to Recruit
                 </a>
               )}
               <div className="flex items-center gap-2 text-sm text-gray-500 self-center">
-                <span>🎯</span> Push requests to any open listing
+                <span>🎯</span> Send your application to any open recruitment
               </div>
             </div>
           </div>
           <div className="flex sm:flex-col gap-3 shrink-0">
             {[
-              ["⚔️", "Active Listings"],
-              ["🤝", "Push Requests"],
-              ["🏆", "Teams Formed"],
+              ["⚔️", "Open Drafts"],
+              ["⚡", "Squad Requests"],
+              ["🏆", "Squads Assembled"],
             ].map(([icon, label]) => (
               <div
                 key={label}
@@ -1139,10 +1139,10 @@ export default function TeamFinder() {
           <div className="flex items-center justify-between px-6 pt-5 pb-3 border-b border-surface-border">
             <div>
               <h3 className="font-display font-bold text-xl text-white">
-                Create a Listing
+                Open a Draft
               </h3>
               <p className="text-xs text-gray-500 mt-0.5">
-                Fill in the details to find your ideal teammate
+                Set your requirements and recruit your next squadmate
               </p>
             </div>
             <button
@@ -1232,7 +1232,7 @@ export default function TeamFinder() {
                   }
                 />
                 <p className="text-xs text-gray-600 mt-1">
-                  Listing will show a countdown and auto-expire at this time
+                  Draft will show a countdown and auto-close at this time
                 </p>
               </div>
               <div className="sm:col-span-2">
@@ -1261,7 +1261,7 @@ export default function TeamFinder() {
                   type="submit"
                   className="btn-primary flex items-center gap-2"
                 >
-                  <span>📋</span> Publish Listing
+                  <span>📋</span> Deploy Listing
                 </button>
               </div>
             </form>
@@ -1269,7 +1269,7 @@ export default function TeamFinder() {
         </div>
       )}
 
-      {/* My Applications — visible to applicants (B) */}
+      {/* My Dispatches — visible to applicants (B) */}
       {isAuthenticated && (
         <MyApplicationsPanel
           onChat={(userId, username) => setChatPartner({ userId, username })}
@@ -1322,25 +1322,25 @@ export default function TeamFinder() {
       {loading ? (
         <div className="min-h-[40vh] flex flex-col items-center justify-center gap-3">
           <div className="w-10 h-10 border-2 border-surface-border border-t-red rounded-full animate-spin" />
-          <p className="text-gray-500 text-sm">Searching for squads...</p>
+          <p className="text-gray-500 text-sm">Scouting for squads...</p>
         </div>
       ) : posts.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <div className="text-6xl mb-4 opacity-20">🎯</div>
           <p className="text-gray-300 font-medium text-xl font-display">
-            No listings found
+            No recruitments found
           </p>
           <p className="text-gray-500 text-sm mt-2 max-w-xs">
             {filters.region || filters.game_id
               ? "Try removing filters to see all listings"
-              : "Be the first to post a team finder listing"}
+              : "Be the first to open a recruitment draft"}
           </p>
           {isAuthenticated && (
             <button
               onClick={() => setShowForm(true)}
               className="btn-primary mt-6"
             >
-              Post a Listing
+              Draft a Listing
             </button>
           )}
         </div>
@@ -1361,7 +1361,7 @@ export default function TeamFinder() {
                 alreadyApplied={appliedIds.has(post.post_id)}
                 isAuthenticated={isAuthenticated}
                 currentUserId={user?.id}
-                onViewApplicants={setApplicantsPost}
+                onViewRoster={setRosterPost}
                 onDelete={setDeletePost}
                 onViewProfile={(uid) => navigate(`/users/${uid}`)}
               />
