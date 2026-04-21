@@ -219,7 +219,7 @@ export const getUserActivity = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const [communityPosts, teamFinderPosts, gameProfiles] = await Promise.all([
+    const [communityPosts, teamFinderPosts, gameProfiles, teams] = await Promise.all([
       pool.query(
         `SELECT cp.post_id, cp.title, cp.content, cp.image_url, cp.upvotes, cp.downvotes,
                 cp.comment_count, cp.created_at,
@@ -251,6 +251,20 @@ export const getUserActivity = async (req, res, next) => {
          WHERE ugp.user_id = $1`,
         [id]
       ),
+      pool.query(
+        `SELECT t.team_id, t.team_name, t.region, t.description, t.created_at,
+                g.game_name, g.icon AS game_icon,
+                tm.role AS member_role,
+                COUNT(tm2.user_id) FILTER (WHERE tm2.status = 'active') AS member_count
+         FROM team_members tm
+         JOIN teams t ON t.team_id = tm.team_id
+         LEFT JOIN games g ON g.game_id = t.game_id
+         LEFT JOIN team_members tm2 ON tm2.team_id = t.team_id
+         WHERE tm.user_id = $1 AND tm.status = 'active'
+         GROUP BY t.team_id, g.game_name, g.icon, tm.role
+         ORDER BY tm.joined_at DESC`,
+        [id]
+      ),
     ]);
 
     res.json({
@@ -258,6 +272,7 @@ export const getUserActivity = async (req, res, next) => {
       community_posts: communityPosts.rows,
       team_finder_posts: teamFinderPosts.rows,
       game_profiles: gameProfiles.rows,
+      teams: teams.rows,
     });
   } catch (err) {
     next(err);

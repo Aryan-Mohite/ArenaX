@@ -368,7 +368,29 @@ CREATE INDEX IF NOT EXISTS idx_tfa_status
 
 
 
+-- 1. Add game_id to teams so each team belongs to a game
+ALTER TABLE teams
+  ADD COLUMN IF NOT EXISTS game_id INT REFERENCES games(game_id) ON DELETE SET NULL;
 
+-- 2. Add team_id to team_finder_posts (nullable for backward compat)
+ALTER TABLE team_finder_posts
+  ADD COLUMN IF NOT EXISTS team_id INT REFERENCES teams(team_id) ON DELETE SET NULL;
+
+-- 3. Extend application status to support the new 3-stage flow:
+--    pending → draft_accepted (captain chats) → accepted (on roster) | rejected
+--    The column already exists with values 'pending'|'accepted'|'rejected'
+--    We just need to allow 'draft_accepted'
+ALTER TABLE team_finder_applications
+  DROP CONSTRAINT IF EXISTS team_finder_applications_status_check;
+
+-- 4. Index for faster team lookups
+CREATE INDEX IF NOT EXISTS idx_teams_game      ON teams(game_id);
+CREATE INDEX IF NOT EXISTS idx_teams_created_by ON teams(created_by);
+CREATE INDEX IF NOT EXISTS idx_tfp_team        ON team_finder_posts(team_id);
+
+-- 5. comment_count column on community_posts (if missing)
+ALTER TABLE community_posts
+  ADD COLUMN IF NOT EXISTS comment_count INT DEFAULT 0;
 
 
 

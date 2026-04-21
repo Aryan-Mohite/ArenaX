@@ -62,6 +62,9 @@ export const validateTeamFinderPost = [
   body("game_id")
     .notEmpty()
     .isInt({ min: 1 }).withMessage("game_id must be a positive integer"),
+  body("team_id")
+    .optional({ nullable: true })
+    .isInt({ min: 1 }).withMessage("team_id must be a positive integer"),
   body("rank_required")
     .optional()
     .isLength({ max: 50 }),
@@ -82,6 +85,9 @@ export const validateCreateTeam = [
     .trim()
     .notEmpty().withMessage("Team name is required")
     .isLength({ min: 2, max: 100 }).withMessage("Team name must be 2–100 characters"),
+  body("game_id")
+    .optional({ nullable: true })
+    .isInt({ min: 1 }).withMessage("game_id must be a positive integer"),
   body("region")
     .optional()
     .isLength({ max: 50 }),

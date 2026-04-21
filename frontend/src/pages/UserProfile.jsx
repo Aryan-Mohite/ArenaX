@@ -213,7 +213,7 @@ export default function UserProfile() {
   const { isAuthenticated, user: currentUser } = useAuth();
 
   const [profile, setProfile] = useState(null);
-  const [activity, setActivity] = useState({ community_posts: [], team_finder_posts: [], game_profiles: [] });
+  const [activity, setActivity] = useState({ community_posts: [], team_finder_posts: [], game_profiles: [], teams: [] });
   const [followStatus, setFollowStatus] = useState({ following: false, followers: 0, following_count: 0, community_posts: 0 });
   const [loading, setLoading] = useState(true);
   const [followLoading, setFollowLoading] = useState(false);
@@ -242,6 +242,7 @@ export default function UserProfile() {
         community_posts: activityRes.data.community_posts || [],
         team_finder_posts: activityRes.data.team_finder_posts || [],
         game_profiles: activityRes.data.game_profiles || [],
+        teams: activityRes.data.teams || [],
       });
 
       if (statusRes) {
@@ -308,6 +309,7 @@ export default function UserProfile() {
     { id: "overview", label: "🎮 Service Record", count: activity.game_profiles.length },
     { id: "posts", label: "💬 Comms", count: activity.community_posts.length },
     { id: "teamfinder", label: "⚔️ Recruitments", count: activity.team_finder_posts.length },
+    { id: "teams", label: "🛡️ Teams", count: activity.teams.length },
   ];
 
   return (
@@ -487,6 +489,41 @@ export default function UserProfile() {
       )}
 
       {/* ── Tab: Team Finder ── */}
+
+      {/* ── Tab: Teams ── */}
+      {activeTab === "teams" && (
+        <div className="animate-fade-in space-y-3">
+          {activity.teams.length === 0 ? (
+            <div className="rounded-2xl border border-surface-border flex flex-col items-center justify-center py-16 text-center" style={{ background: "linear-gradient(145deg,#1a2340,#131a2e)" }}>
+              <div className="text-5xl mb-3 opacity-20">🛡️</div>
+              <p className="text-gray-400 font-medium">Not on any teams yet</p>
+            </div>
+          ) : (
+            activity.teams.map((team, i) => (
+              <div key={team.team_id || i} className="rounded-xl border border-surface-border px-4 py-3 flex items-center gap-3 hover:border-red/30 transition-all" style={{ background: "linear-gradient(145deg,#1a2340,#131a2e)" }}>
+                <div className="w-10 h-10 rounded-xl bg-red/20 border border-red/30 flex items-center justify-center text-lg shrink-0">
+                  {team.game_icon ? <img src={team.game_icon} alt="" className="w-full h-full rounded-xl object-cover" /> : "⚔️"}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-semibold text-white text-sm">{team.team_name}</p>
+                    {team.game_name && <span className="text-xs px-2 py-0.5 rounded-full border border-red/30 bg-red/10 text-red-light">🎮 {team.game_name}</span>}
+                    {team.region && <span className="text-xs text-gray-500">📍 {team.region}</span>}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-0.5">{team.member_count || 0} member{team.member_count !== 1 ? "s" : ""}</p>
+                </div>
+                <span className="text-xs px-2 py-1 rounded-full font-medium shrink-0" style={
+                  team.member_role === "captain"
+                    ? { background: "rgba(255,70,85,0.1)", border: "1px solid rgba(255,70,85,0.3)", color: "#ff4655" }
+                    : { background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#9ca3af" }
+                }>
+                  {team.member_role === "captain" ? "⭐ Captain" : "Member"}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+      )}
       {activeTab === "teamfinder" && (
         <div className="animate-fade-in">
           {activity.team_finder_posts.length === 0 ? (

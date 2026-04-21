@@ -37,8 +37,10 @@ app.use(
 );
 
 // ─── BODY PARSING ─────────────────────────────────────────────────────────────
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// 150 MB limit — supports high-quality base64 image uploads up to 100 MB
+// (base64 inflates ~33%, so a 100 MB source image → ~133 MB payload, comfortably under limit)
+app.use(express.json({ limit: "150mb" }));
+app.use(express.urlencoded({ extended: true, limit: "150mb" }));
 
 // ─── HEALTH CHECK ─────────────────────────────────────────────────────────────
 app.get("/health", (_req, res) => res.json({ status: "ok" }));

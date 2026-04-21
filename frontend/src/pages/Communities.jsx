@@ -4,18 +4,7 @@ import { getCommunities, getCommunityPosts, createCommunityPost, addComment, vot
 import { getMyGames } from '../services/gameService'
 import { PageLoader, EmptyState, ErrorMessage, Spinner } from '../components/UI'
 import { useAuth } from '../context/AuthContext'
-
-// ── Image upload helper ────────────────────────────────────────────────────────
-function useImagePicker() {
-  const [preview, setPreview] = useState(null)
-  const [value,   setValue]   = useState('')
-  const [urlMode, setUrlMode] = useState(false)
-  const inputRef = useRef(null)
-  const pickFile = (file) => { if (!file) return; const r = new FileReader(); r.onload = (e) => { setPreview(e.target.result); setValue(e.target.result); }; r.readAsDataURL(file); }
-  const setUrl = (url) => { setValue(url); setPreview(url); }
-  const clear = () => { setPreview(null); setValue(''); if (inputRef.current) inputRef.current.value = ''; }
-  return { preview, value, urlMode, setUrlMode, pickFile, setUrl, clear, inputRef }
-}
+import { useImageUpload } from '../hooks/useImageUpload'
 
 // ── Avatar ────────────────────────────────────────────────────────────────────
 function Avatar({ user, size = 9, onClick }) {
@@ -280,7 +269,9 @@ function CommentPanel({ post, onClose, currentUserId, onViewProfile }) {
 function NewPostForm({ communityName, onSubmit, onCancel, error }) {
   const [form, setForm] = useState({ title: '', content: '' })
   const [submitting, setSub] = useState(false)
-  const img = useImagePicker()
+  const img = useImageUpload()
+  // urlMode lives locally since the hook doesn't need it
+  const [imgUrlMode, setImgUrlMode] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -326,31 +317,47 @@ function NewPostForm({ communityName, onSubmit, onCancel, error }) {
               <div className="flex gap-1 ml-auto">
                 <button
                   type="button"
-                  onClick={() => { img.setUrlMode(false); img.clear() }}
-                  className={'px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ' + (!img.urlMode ? 'bg-red/20 text-red border border-red/30' : 'text-gray-500 hover:text-white border border-surface-border')}
+                  onClick={() => { setImgUrlMode(false); img.clear() }}
+                  className={'px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ' + (!imgUrlMode ? 'bg-red/20 text-red border border-red/30' : 'text-gray-500 hover:text-white border border-surface-border')}
                 >
                   Upload file
                 </button>
                 <button
                   type="button"
-                  onClick={() => { img.setUrlMode(true); img.clear() }}
-                  className={'px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ' + (img.urlMode ? 'bg-red/20 text-red border border-red/30' : 'text-gray-500 hover:text-white border border-surface-border')}
+                  onClick={() => { setImgUrlMode(true); img.clear() }}
+                  className={'px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ' + (imgUrlMode ? 'bg-red/20 text-red border border-red/30' : 'text-gray-500 hover:text-white border border-surface-border')}
                 >
                   Paste URL
                 </button>
               </div>
             </div>
-            {!img.urlMode ? (
+            {!imgUrlMode ? (
               <div>
-                <input ref={img.inputRef} type="file" accept="image/*,.gif" className="hidden" onChange={e => img.pickFile(e.target.files?.[0])} />
-                <button
-                  type="button"
-                  onClick={() => img.inputRef.current?.click()}
-                  className="w-full border-2 border-dashed border-surface-border rounded-xl py-5 flex flex-col items-center gap-2 text-gray-500 hover:border-red/40 hover:text-gray-300 transition-colors"
+                <input
+                  type="file"
+                  accept="image/*,.gif"
+                  className="hidden"
+                  id="comm-img-upload"
+                  onChange={e => { img.clear(); img.pickFile(e.target.files?.[0]); e.target.value = ''; }}
+                />
+                <label
+                  htmlFor="comm-img-upload"
+                  className="w-full border-2 border-dashed border-surface-border rounded-xl py-5 flex flex-col items-center gap-2 text-gray-500 hover:border-red/40 hover:text-gray-300 transition-colors cursor-pointer"
+                  style={{ display: 'flex' }}
                 >
-                  <span className="text-2xl">💾</span>
-                  <span className="text-xs">Click to browse — PNG, JPG, GIF, WEBP</span>
-                </button>
+                  <span className="text-2xl">{img.processing ? '⏳' : '💾'}</span>
+                  <span className="text-xs">
+                    {img.processing ? 'Optimising image...' : 'Browse image — JPEG, PNG, GIF, WEBP, HEIC (max 100 MB)'}
+                  </span>
+                  {img.processing && (
+                    <div className="w-40 h-1.5 bg-surface-border rounded-full overflow-hidden mt-1">
+                      <div className="h-full bg-red rounded-full transition-all duration-300" style={{ width: img.progress + '%' }} />
+                    </div>
+                  )}
+                </label>
+                {img.error && (
+                  <p className="text-xs mt-1.5 flex items-center gap-1" style={{ color: '#ff4655' }}>⚠ {img.error}</p>
+                )}
               </div>
             ) : (
               <input

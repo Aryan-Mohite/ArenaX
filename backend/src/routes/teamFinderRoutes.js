@@ -1,13 +1,8 @@
 import { Router } from "express";
 import {
-  getPosts,
-  createPost,
-  closePost,
-  applyToPost,
-  getApplicationsForPost,
-  getMyApplications,
-  acceptApplication,
-  rejectApplication,
+  getPosts, createPost, closePost, applyToPost,
+  getApplicationsForPost, getMyApplications,
+  draftAcceptApplication, finalAcceptApplication, rejectApplication
 } from "../controllers/teamFinderController.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 import { validateTeamFinderPost, validateIdParam } from "../utils/validators.js";
@@ -15,28 +10,17 @@ import validate from "../middleware/validateMiddleware.js";
 
 const router = Router();
 
-// GET /api/teamfinder?game_id=&region=&rank_required=
-router.get("/", getPosts);
+// Static routes MUST come before dynamic /:id routes
+router.get("/",                   getPosts);
+router.post("/",                  authMiddleware, validateTeamFinderPost, validate, createPost);
+router.get("/my-applications",    authMiddleware, getMyApplications);
 
-// POST /api/teamfinder  — create a post (auth required)
-router.post("/", authMiddleware, validateTeamFinderPost, validate, createPost);
-
-// PATCH /api/teamfinder/:id/close  — close / delete own post
-router.patch("/:id/close", authMiddleware, validateIdParam, validate, closePost);
-
-// POST /api/teamfinder/:id/apply  — apply to a post
-router.post("/:id/apply", authMiddleware, validateIdParam, validate, applyToPost);
-
-// GET /api/teamfinder/my-applications  — applicant sees their own requests + statuses
-router.get("/my-applications", authMiddleware, getMyApplications);
-
-// GET /api/teamfinder/:id/applications  — get applicants for own post
-router.get("/:id/applications", authMiddleware, validateIdParam, validate, getApplicationsForPost);
-
-// PATCH /api/teamfinder/:id/applications/:appId/accept  — accept an applicant
-router.patch("/:id/applications/:appId/accept", authMiddleware, validateIdParam, validate, acceptApplication);
-
-// PATCH /api/teamfinder/:id/applications/:appId/reject  — reject an applicant
-router.patch("/:id/applications/:appId/reject", authMiddleware, validateIdParam, validate, rejectApplication);
+// Dynamic /:id routes
+router.patch("/:id/close",        authMiddleware, validateIdParam, validate, closePost);
+router.post("/:id/apply",         authMiddleware, validateIdParam, validate, applyToPost);
+router.get("/:id/applications",   authMiddleware, validateIdParam, validate, getApplicationsForPost);
+router.patch("/:id/applications/:appId/draft-accept",  authMiddleware, validateIdParam, validate, draftAcceptApplication);
+router.patch("/:id/applications/:appId/final-accept",  authMiddleware, validateIdParam, validate, finalAcceptApplication);
+router.patch("/:id/applications/:appId/reject",        authMiddleware, validateIdParam, validate, rejectApplication);
 
 export default router;
