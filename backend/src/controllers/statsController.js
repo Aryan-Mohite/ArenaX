@@ -3,38 +3,77 @@
  * Server-side proxy for game stat APIs.
  * All external API calls happen here — no CORS issues, keys stay in .env.
  *
- * GET /api/stats/valorant/:name/:tag
- * GET /api/stats/lol/:name/:tag
- * GET /api/stats/fortnite/:username
- * GET /api/stats/dota2/:steamId
- * GET /api/stats/apex/:username
- * GET /api/stats/pubg/:username
- * GET /api/stats/r6/:username
- * GET /api/stats/csgo/:steamId
+ * ROUTES:
+ *   GET /api/stats/valorant/:name/:tag        → Henrik Dev (free key)
+ *   GET /api/stats/lol/:name/:tag             → Henrik Dev (free key)
+ *   GET /api/stats/fortnite/:username         → fortnite-api.com (no key)
+ *   GET /api/stats/dota2/:steamId             → OpenDota (no key)
+ *   GET /api/stats/apex/:username             → tracker.gg (free key)
+ *   GET /api/stats/pubg/:username             → pubg.op.gg (no key)
+ *   GET /api/stats/r6/:username               → r6.apitab.com (no key)
+ *   GET /api/stats/steam/:steamId             → playerdb.co (no key) — CS2
+ *   GET /api/stats/brawlstars/:tag            → brawlapi.com (no key)
+ *   GET /api/stats/rocketleague/:username     → tracker.gg (free key)
+ *   GET /api/stats/cod/:username              → tracker.gg (free key)
+ *   GET /api/stats/mlbb/:playerId             → informational (no free API)
+ *   GET /api/stats/bgmi/:username             → informational (no public API)
+ *   GET /api/stats/freefire/:username         → informational (no public API)
+ *   GET /api/stats/codmobile/:username        → informational (no public API)
+ *   GET /api/stats/easportsfc/:username       → informational (no public API)
  */
 
 import fetch from "node-fetch";
 
-// ─── Helper: forward a fetch error as a clean JSON response ──────────────────
+// ─── Timeout helper ───────────────────────────────────────────────────────────
+const fetchWithTimeout = (url, opts = {}, ms = 10000) => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  return fetch(url, { ...opts, signal: controller.signal })
+    .finally(() => clearTimeout(timer));
+};
+
+// ─── Helper: send clean error JSON ───────────────────────────────────────────
 const apiError = (res, message, status = 502) =>
   res.status(status).json({ success: false, message });
 
-// ─── Valorant (Henrik Dev — free tier, get key at https://docs.henrikdev.xyz) ─
-// Add HENRIKDEV_KEY=your_key_here to .env (free registration, no credit card)
+// ─── No-API informational response ───────────────────────────────────────────
+// Used for mobile games that have no public developer API
+const noApiResponse = (res, gameName, note) =>
+  res.json({
+    success: true,
+    data: {
+      label:      gameName,
+      rank:       "—",
+      elo_rating: null,
+      role:       "Player",
+      avatar:     null,
+      noApi:      true,
+      extra: [
+        { label: "Status", value: note },
+        { label: "Tip",    value: "Rank is updated automatically when you play tournaments on this platform." },
+      ],
+    },
+  });
+
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  PC / CONSOLE GAMES
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ─── Valorant ─────────────────────────────────────────────────────────────────
+// Free key: https://docs.henrikdev.xyz  →  add HENRIKDEV_KEY=xxx to .env
 export const getValorantStats = async (req, res, next) => {
   try {
     const { name, tag } = req.params;
-    if (!name || !tag)
-      return apiError(res, "Provide name and tag", 400);
+    if (!name || !tag) return apiError(res, "Provide name and tag", 400);
 
-    const encodedName = encodeURIComponent(name);
-    const encodedTag  = encodeURIComponent(tag);
-    const KEY         = process.env.HENRIKDEV_KEY || "";
-    const headers     = KEY ? { Authorization: KEY } : {};
+    const KEY     = process.env.HENRIKDEV_KEY || "";
+    const headers = KEY ? { Authorization: KEY } : {};
+    const n = encodeURIComponent(name);
+    const t = encodeURIComponent(tag);
 
-    // 1. Account info
-    const accRes = await fetch(
-      `https://api.henrikdev.xyz/valorant/v1/account/${encodedName}/${encodedTag}`,
+    const accRes = await fetchWithTimeout(
+      `https://api.henrikdev.xyz/valorant/v1/account/${n}/${t}`,
       { headers }
     );
 
@@ -51,32 +90,28 @@ export const getValorantStats = async (req, res, next) => {
 
     const acc = accData.data;
 
-    // 2. MMR / Rank (optional — graceful if it fails)
     let rankData = null;
     try {
-      const mmrRes = await fetch(
-        `https://api.henrikdev.xyz/valorant/v2/mmr/${acc.region}/${encodedName}/${encodedTag}`,
+      const mmrRes = await fetchWithTimeout(
+        `https://api.henrikdev.xyz/valorant/v2/mmr/${acc.region}/${n}/${t}`,
         { headers }
       );
-      if (mmrRes.ok) {
-        const mmrJson = await mmrRes.json();
-        rankData = mmrJson.data;
-      }
+      if (mmrRes.ok) rankData = (await mmrRes.json()).data;
     } catch { /* rank is optional */ }
 
-    const currentTier  = rankData?.current_data?.currenttierpatched || "Unranked";
-    const rr           = rankData?.current_data?.ranking_in_tier ?? null;
-    const peakTier     = rankData?.highest_rank?.patched_tier || null;
-    const mmr          = rankData?.current_data?.elo ?? null;
+    const currentTier = rankData?.current_data?.currenttierpatched || "Unranked";
+    const rr          = rankData?.current_data?.ranking_in_tier ?? null;
+    const peakTier    = rankData?.highest_rank?.patched_tier || null;
+    const mmr         = rankData?.current_data?.elo ?? null;
 
     return res.json({
       success: true,
       data: {
-        label:         `${acc.name}#${acc.tag}`,
-        rank:          currentTier,
-        elo_rating:    rr,
-        role:          "Agent",
-        avatar:        acc.card?.small || null,
+        label:      `${acc.name}#${acc.tag}`,
+        rank:       currentTier,
+        elo_rating: rr,
+        role:       "Agent",
+        avatar:     acc.card?.small || null,
         extra: [
           { label: "Region",        value: acc.region?.toUpperCase() || "—" },
           { label: "Account Level", value: acc.account_level || "—" },
@@ -87,12 +122,11 @@ export const getValorantStats = async (req, res, next) => {
         ],
       },
     });
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 };
 
-// ─── League of Legends (OpenDota-style — uses Riot Data Dragon, no key) ───────
+// ─── League of Legends ────────────────────────────────────────────────────────
+// Free key: https://docs.henrikdev.xyz  →  add HENRIKDEV_KEY=xxx to .env
 export const getLolStats = async (req, res, next) => {
   try {
     const { name, tag } = req.params;
@@ -100,13 +134,11 @@ export const getLolStats = async (req, res, next) => {
 
     const KEY     = process.env.HENRIKDEV_KEY || "";
     const headers = KEY ? { Authorization: KEY } : {};
+    const n = encodeURIComponent(name);
+    const t = encodeURIComponent(tag || "EUW");
 
-    // Henrik Dev also supports LoL account lookup
-    const encodedName = encodeURIComponent(name);
-    const encodedTag  = tag ? encodeURIComponent(tag) : "EUW";
-
-    const accRes = await fetch(
-      `https://api.henrikdev.xyz/lol/v1/account/${encodedName}/${encodedTag}`,
+    const accRes = await fetchWithTimeout(
+      `https://api.henrikdev.xyz/lol/v1/account/${n}/${t}`,
       { headers }
     );
 
@@ -122,7 +154,6 @@ export const getLolStats = async (req, res, next) => {
       return apiError(res, accData.message || "Player not found", 404);
 
     const acc = accData.data;
-
     return res.json({
       success: true,
       data: {
@@ -140,16 +171,15 @@ export const getLolStats = async (req, res, next) => {
         ],
       },
     });
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 };
 
-// ─── Fortnite (fortnite-api.com — completely free, no key) ────────────────────
+// ─── Fortnite ─────────────────────────────────────────────────────────────────
+// Free — no key needed. https://fortnite-api.com
 export const getFortniteStats = async (req, res, next) => {
   try {
     const { username } = req.params;
-    const apiRes = await fetch(
+    const apiRes = await fetchWithTimeout(
       `https://fortnite-api.com/v2/stats/br/v2?name=${encodeURIComponent(username)}&accountType=epic`
     );
     if (apiRes.status === 404)
@@ -184,25 +214,24 @@ export const getFortniteStats = async (req, res, next) => {
         ],
       },
     });
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 };
 
-// ─── Dota 2 (OpenDota — 100% free, no key needed) ────────────────────────────
+// ─── Dota 2 ──────────────────────────────────────────────────────────────────
+// Free — no key needed. https://opendota.com
 export const getDota2Stats = async (req, res, next) => {
   try {
     const { steamId } = req.params;
     const [playerRes, wlRes] = await Promise.all([
-      fetch(`https://api.opendota.com/api/players/${steamId}`),
-      fetch(`https://api.opendota.com/api/players/${steamId}/wl`),
+      fetchWithTimeout(`https://api.opendota.com/api/players/${steamId}`),
+      fetchWithTimeout(`https://api.opendota.com/api/players/${steamId}/wl`),
     ]);
 
     if (!playerRes.ok)
       return apiError(res, "Dota 2 player not found. Use your Steam32 ID (from opendota.com).", 404);
 
-    const player  = await playerRes.json();
-    const wl      = wlRes.ok ? await wlRes.json() : null;
+    const player = await playerRes.json();
+    const wl     = wlRes.ok ? await wlRes.json() : null;
 
     if (!player.profile)
       return apiError(res, "Profile is private. Make your Steam profile public to fetch Dota 2 stats.", 403);
@@ -224,63 +253,84 @@ export const getDota2Stats = async (req, res, next) => {
         avatar:     player.profile.avatarfull || null,
         extra: [
           { label: "MMR Estimate", value: mmr || "Hidden" },
-          { label: "Wins",        value: wins },
-          { label: "Losses",      value: losses },
-          { label: "Win Rate",    value: winRate ? winRate + "%" : "—" },
-          { label: "Country",     value: player.profile.loccountrycode || "—" },
+          { label: "Wins",         value: wins },
+          { label: "Losses",       value: losses },
+          { label: "Win Rate",     value: winRate ? winRate + "%" : "—" },
+          { label: "Country",      value: player.profile.loccountrycode || "—" },
         ],
       },
     });
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 };
 
-// ─── Apex Legends (mozambiquehe.re — free public tier) ────────────────────────
+// ─── Apex Legends ─────────────────────────────────────────────────────────────
+// Uses tracker.gg — free key at https://tracker.gg/developers
+// Add TRACKER_GG_KEY=xxx to your backend .env
 export const getApexStats = async (req, res, next) => {
   try {
     const { username } = req.params;
-    const ALS_KEY = process.env.ALS_KEY || "PUBLIC";
+    const TRACKER_KEY = process.env.TRACKER_GG_KEY || "";
 
-    const apiRes = await fetch(
-      `https://api.mozambiquehe.re/bridge?auth=${ALS_KEY}&player=${encodeURIComponent(username)}&platform=PC`
+    if (!TRACKER_KEY) {
+      return apiError(
+        res,
+        "Apex Legends stats require a free Tracker.gg API key. " +
+        "Register at https://tracker.gg/developers then add TRACKER_GG_KEY=your_key to your backend .env file.",
+        503
+      );
+    }
+
+    const apiRes = await fetchWithTimeout(
+      `https://api.tracker.gg/api/v2/apex/standard/profile/origin/${encodeURIComponent(username)}`,
+      { headers: { "TRN-Api-Key": TRACKER_KEY, "User-Agent": "Mozilla/5.0" } }
     );
+
+    if (apiRes.status === 403 || apiRes.status === 401)
+      return apiError(res, 'Tracker.gg blocked this request. Go to tracker.gg/developers → your app → add localhost and localhost:5000 to Allowed Hosts.', 403);
+    if (apiRes.status === 404)
+      return apiError(res, `Apex player "${username}" not found. Check your EA/Origin username.`, 404);
     if (!apiRes.ok)
-      return apiError(res, "Apex Legends player not found. Check your EA/Origin username.", 404);
+      return apiError(res, `Apex Legends API error (${apiRes.status}). Try again later.`);
 
-    const data = await apiRes.json();
-    if (data.Error) return apiError(res, data.Error, 404);
+    const data     = await apiRes.json();
+    const segments = data?.data?.segments || [];
+    const overview = segments.find(s => s.type === "overview");
+    const stats    = overview?.stats || {};
 
-    const global = data.global;
-    const ranked = global?.rank;
+    const rank   = stats?.rankScore?.metadata?.rankName || "Rookie";
+    const rp     = Math.round(stats?.rankScore?.value || 0);
+    const level  = Math.round(stats?.level?.value || 0);
+    const kills  = stats?.kills?.displayValue || "—";
+    const damage = stats?.damage?.displayValue || "—";
+    const kd     = stats?.kd?.displayValue || "—";
 
     return res.json({
       success: true,
       data: {
-        label:      global?.name || username,
-        rank:       ranked?.rankName || "Rookie",
-        elo_rating: ranked?.rankScore || null,
-        role:       data.legends?.selected?.LegendName || "Legend",
-        avatar:     null,
+        label:      data?.data?.platformInfo?.platformUserHandle || username,
+        rank,
+        elo_rating: rp || null,
+        role:       "Legend",
+        avatar:     data?.data?.platformInfo?.avatarUrl || null,
         extra: [
-          { label: "Rank",           value: ranked?.rankName || "Unranked" },
-          { label: "Rank Score",     value: ranked?.rankScore || "—" },
-          { label: "Level",          value: global?.level || "—" },
-          { label: "Active Legend",  value: data.legends?.selected?.LegendName || "—" },
-          { label: "Platform",       value: "PC" },
+          { label: "Rank",      value: rank },
+          { label: "RP",        value: rp || "—" },
+          { label: "Level",     value: level || "—" },
+          { label: "Kills",     value: kills },
+          { label: "Damage",    value: damage },
+          { label: "K/D Ratio", value: kd },
         ],
       },
     });
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 };
 
-// ─── PUBG (pubg.op.gg) ────────────────────────────────────────────────────────
+// ─── PUBG ────────────────────────────────────────────────────────────────────
+// Uses pubg.op.gg — no key needed
 export const getPubgStats = async (req, res, next) => {
   try {
     const { username } = req.params;
-    const apiRes = await fetch(
+    const apiRes = await fetchWithTimeout(
       `https://pubg.op.gg/api/users?server=steam&nickname=${encodeURIComponent(username)}`,
       { headers: { Accept: "application/json", "User-Agent": "Mozilla/5.0" } }
     );
@@ -292,9 +342,9 @@ export const getPubgStats = async (req, res, next) => {
     if (!player)
       return apiError(res, `No PUBG player found with username "${username}".`, 404);
 
-    const ranked  = player.stats?.ranked;
-    const tier    = ranked?.currentTier?.tier || player.grade || "Bronze";
-    const rp      = ranked?.currentRankPoint || null;
+    const ranked = player.stats?.ranked;
+    const tier   = ranked?.currentTier?.tier || player.grade || "Bronze";
+    const rp     = ranked?.currentRankPoint || null;
 
     return res.json({
       success: true,
@@ -305,24 +355,23 @@ export const getPubgStats = async (req, res, next) => {
         role:       "PUBG Player",
         avatar:     player.player_image_url || null,
         extra: [
-          { label: "Rank",       value: tier },
-          { label: "Rank Points",value: rp || "—" },
-          { label: "KDA",        value: player.kda?.toFixed(2) || "—" },
-          { label: "Wins",       value: player.wins || "—" },
-          { label: "Top 10 %",   value: player.top10_ratio ? (player.top10_ratio * 100).toFixed(1) + "%" : "—" },
+          { label: "Rank",        value: tier },
+          { label: "Rank Points", value: rp || "—" },
+          { label: "KDA",         value: player.kda?.toFixed(2) || "—" },
+          { label: "Wins",        value: player.wins || "—" },
+          { label: "Top 10 %",    value: player.top10_ratio ? (player.top10_ratio * 100).toFixed(1) + "%" : "—" },
         ],
       },
     });
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 };
 
-// ─── Rainbow Six Siege (r6.apitab.com) ────────────────────────────────────────
+// ─── Rainbow Six Siege ────────────────────────────────────────────────────────
+// Uses r6.apitab.com — no key needed
 export const getR6Stats = async (req, res, next) => {
   try {
     const { username } = req.params;
-    const apiRes = await fetch(
+    const apiRes = await fetchWithTimeout(
       `https://r6.apitab.com/search/uplay/${encodeURIComponent(username)}`,
       { headers: { "User-Agent": "Mozilla/5.0" } }
     );
@@ -359,20 +408,20 @@ export const getR6Stats = async (req, res, next) => {
         ],
       },
     });
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 };
 
-// ─── Counter-Strike / Steam (playerdb.co) ─────────────────────────────────────
+// ─── Counter-Strike 2 / Steam ─────────────────────────────────────────────────
+// Uses playerdb.co — no key needed
+// User enters Steam Custom URL or Steam64 ID
 export const getSteamStats = async (req, res, next) => {
   try {
     const { steamId } = req.params;
-    const apiRes = await fetch(
+    const apiRes = await fetchWithTimeout(
       `https://playerdb.co/api/player/steam/${encodeURIComponent(steamId)}`
     );
     if (!apiRes.ok)
-      return apiError(res, "Steam player not found.", 404);
+      return apiError(res, "Steam player not found. Use your Steam custom URL or Steam64 ID.", 404);
 
     const data = await apiRes.json();
     if (!data.success)
@@ -391,31 +440,32 @@ export const getSteamStats = async (req, res, next) => {
           { label: "Steam ID",     value: p.id },
           { label: "Display Name", value: p.username },
           { label: "Status",       value: p.meta?.personastate === 1 ? "Online" : "Offline" },
+          { label: "Note",         value: "CS2 in-game rank requires Steam Web API key for full rank data." },
         ],
       },
     });
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 };
 
-// ─── Brawl Stars (brawlapi.com community proxy) ───────────────────────────────
+// ─── Brawl Stars ─────────────────────────────────────────────────────────────
+// Uses brawlapi.com — no key needed
 export const getBrawlStarsStats = async (req, res, next) => {
   try {
     const { tag } = req.params;
     const cleanTag = tag.startsWith("#") ? tag.slice(1) : tag;
 
-    const apiRes = await fetch(
+    const apiRes = await fetchWithTimeout(
       `https://api.brawlapi.com/v1/players/${encodeURIComponent("#" + cleanTag)}`
     );
     if (!apiRes.ok)
-      return apiError(res, `Brawl Stars player not found. Check your tag (e.g. 2PP).`, 404);
+      return apiError(res, "Brawl Stars player not found. Check your tag (e.g. 2PP).", 404);
 
     const data = await apiRes.json();
     if (data.error) return apiError(res, "Player not found.", 404);
 
     const trophies = data.trophies || 0;
-    const rank = trophies >= 50000 ? "Legendary" : trophies >= 30000 ? "Masters" : trophies >= 15000 ? "Diamond" : trophies >= 5000 ? "Gold" : "Bronze";
+    const rank = trophies >= 50000 ? "Legendary" : trophies >= 30000 ? "Masters"
+               : trophies >= 15000 ? "Diamond"   : trophies >= 5000  ? "Gold" : "Bronze";
 
     return res.json({
       success: true,
@@ -435,7 +485,172 @@ export const getBrawlStarsStats = async (req, res, next) => {
         ],
       },
     });
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
+};
+
+// ─── Rocket League ────────────────────────────────────────────────────────────
+// Uses tracker.gg — free key at https://tracker.gg/developers
+// Add TRACKER_GG_KEY=xxx to your backend .env
+export const getRocketLeagueStats = async (req, res, next) => {
+  try {
+    const { username } = req.params;
+    const TRACKER_KEY = process.env.TRACKER_GG_KEY || "";
+
+    if (!TRACKER_KEY)
+      return apiError(res, "Rocket League stats require a free Tracker.gg API key. Add TRACKER_GG_KEY to your .env.", 503);
+
+    const apiRes = await fetchWithTimeout(
+      `https://api.tracker.gg/api/v2/rocket-league/standard/profile/epic/${encodeURIComponent(username)}`,
+      { headers: { "TRN-Api-Key": TRACKER_KEY, "User-Agent": "Mozilla/5.0" } }
+    );
+
+    if (apiRes.status === 403 || apiRes.status === 401)
+      return apiError(res, 'Tracker.gg blocked this request. Go to tracker.gg/developers → your app → add localhost and localhost:5000 to Allowed Hosts.', 403);
+    if (apiRes.status === 404)
+      return apiError(res, `Rocket League player "${username}" not found. Use your Epic Games username.`, 404);
+    if (!apiRes.ok)
+      return apiError(res, `Rocket League API error (${apiRes.status}).`);
+
+    const data     = await apiRes.json();
+    const segments = data?.data?.segments || [];
+    const overview = segments.find(s => s.type === "overview");
+    const stats    = overview?.stats || {};
+
+    const rank    = stats?.rating?.metadata?.rankName || "Unranked";
+    const mmr     = Math.round(stats?.rating?.value || 0);
+    const wins    = stats?.wins?.displayValue || "—";
+    const goals   = stats?.goals?.displayValue || "—";
+    const saves   = stats?.saves?.displayValue || "—";
+    const assists = stats?.assists?.displayValue || "—";
+
+    return res.json({
+      success: true,
+      data: {
+        label:      data?.data?.platformInfo?.platformUserHandle || username,
+        rank,
+        elo_rating: mmr || null,
+        role:       "Rocket League Player",
+        avatar:     data?.data?.platformInfo?.avatarUrl || null,
+        extra: [
+          { label: "Rank",    value: rank },
+          { label: "MMR",     value: mmr || "—" },
+          { label: "Wins",    value: wins },
+          { label: "Goals",   value: goals },
+          { label: "Saves",   value: saves },
+          { label: "Assists", value: assists },
+        ],
+      },
+    });
+  } catch (err) { next(err); }
+};
+
+// ─── Call of Duty: Warzone ────────────────────────────────────────────────────
+// Uses tracker.gg — free key at https://tracker.gg/developers
+// Add TRACKER_GG_KEY=xxx to your backend .env
+export const getCodStats = async (req, res, next) => {
+  try {
+    const { username } = req.params;
+    const TRACKER_KEY = process.env.TRACKER_GG_KEY || "";
+
+    if (!TRACKER_KEY)
+      return apiError(res, "CoD stats require a free Tracker.gg API key. Add TRACKER_GG_KEY to your .env.", 503);
+
+    const apiRes = await fetchWithTimeout(
+      `https://api.tracker.gg/api/v2/warzone/standard/profile/atvi/${encodeURIComponent(username)}`,
+      { headers: { "TRN-Api-Key": TRACKER_KEY, "User-Agent": "Mozilla/5.0" } }
+    );
+
+    if (apiRes.status === 403 || apiRes.status === 401)
+      return apiError(res, 'Tracker.gg blocked this request. Go to tracker.gg/developers → your app → add localhost and localhost:5000 to Allowed Hosts.', 403);
+    if (apiRes.status === 404)
+      return apiError(res, `CoD player "${username}" not found. Use your Activision ID (e.g. shroud#1234567).`, 404);
+    if (!apiRes.ok)
+      return apiError(res, `Call of Duty API error (${apiRes.status}).`);
+
+    const data     = await apiRes.json();
+    const segments = data?.data?.segments || [];
+    const overview = segments.find(s => s.type === "overview");
+    const stats    = overview?.stats || {};
+
+    const kd      = stats?.kdRatio?.displayValue || "—";
+    const wins    = stats?.wins?.displayValue || "0";
+    const kills   = stats?.kills?.displayValue || "—";
+    const matches = stats?.gamesPlayed?.displayValue || "—";
+
+    return res.json({
+      success: true,
+      data: {
+        label:      data?.data?.platformInfo?.platformUserHandle || username,
+        rank:       Number(wins) >= 50 ? "Veteran" : Number(wins) >= 10 ? "Experienced" : "Rookie",
+        elo_rating: null,
+        role:       "Operator",
+        avatar:     data?.data?.platformInfo?.avatarUrl || null,
+        extra: [
+          { label: "K/D Ratio", value: kd },
+          { label: "Wins",      value: wins },
+          { label: "Kills",     value: kills },
+          { label: "Matches",   value: matches },
+          { label: "Platform",  value: "PC (Activision)" },
+        ],
+      },
+    });
+  } catch (err) { next(err); }
+};
+
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  MOBILE GAMES
+//  These games have NO public developer APIs.
+//  We return a clear informational response — the frontend shows a friendly
+//  "no API available" card instead of an error.
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ─── BGMI (Battlegrounds Mobile India) ───────────────────────────────────────
+// Krafton has NO public API for BGMI. The PC PUBG API does NOT include mobile data.
+export const getBgmiStats = async (req, res, next) => {
+  return noApiResponse(
+    res,
+    "Battlegrounds Mobile India",
+    "BGMI has no official public API. Krafton does not provide developer access to mobile player stats."
+  );
+};
+
+// ─── Free Fire ───────────────────────────────────────────────────────────────
+// Garena has NO public API for Free Fire.
+export const getFreefireStats = async (req, res, next) => {
+  return noApiResponse(
+    res,
+    "Free Fire",
+    "Free Fire has no official public API. Garena does not provide developer access to player stats."
+  );
+};
+
+// ─── Call of Duty: Mobile ─────────────────────────────────────────────────────
+// Activision has NO public API for CoD Mobile (separate from Warzone/PC).
+export const getCodMobileStats = async (req, res, next) => {
+  return noApiResponse(
+    res,
+    "Call of Duty: Mobile",
+    "CoD Mobile has no official public API. Stats are not accessible to third-party developers."
+  );
+};
+
+// ─── Mobile Legends: Bang Bang ────────────────────────────────────────────────
+// Moonton has NO official public API.
+export const getMlbbStats = async (req, res, next) => {
+  return noApiResponse(
+    res,
+    "Mobile Legends: Bang Bang",
+    "MLBB has no official public API. Moonton does not provide developer access to player stats."
+  );
+};
+
+// ─── EA Sports FC ────────────────────────────────────────────────────────────
+// EA has no public stats API for EA Sports FC / FUT player match stats.
+export const getEaSportsFcStats = async (req, res, next) => {
+  return noApiResponse(
+    res,
+    "EA Sports FC",
+    "EA Sports FC has no official public API for player match stats."
+  );
 };

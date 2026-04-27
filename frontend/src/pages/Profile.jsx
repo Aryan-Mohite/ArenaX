@@ -15,25 +15,64 @@ async function backendFetch(path) {
 }
 
 const FETCHERS = {
-  chess: { label: "Chess.com username", placeholder: "e.g. hikaru", icon: "♟", async fetch(username) { const [statsRes, profileRes] = await Promise.all([fetch(`https://api.chess.com/pub/player/${username.toLowerCase()}/stats`), fetch(`https://api.chess.com/pub/player/${username.toLowerCase()}`)]); if (!statsRes.ok) throw new Error("Chess.com player not found"); const [stats, profile] = await Promise.all([statsRes.json(), profileRes.json()]); const rapid = stats?.chess_rapid?.last; const blitz = stats?.chess_blitz?.last; const bullet = stats?.chess_bullet?.last; const best = rapid || blitz || bullet; return { rank: profile.title || (best?.rating >= 2000 ? "Expert" : best?.rating >= 1500 ? "Intermediate" : "Beginner"), elo_rating: best?.rating || null, role: profile.title || "Player", extra: [{ label: "Rapid", value: rapid?.rating || "—" }, { label: "Blitz", value: blitz?.rating || "—" }, { label: "Bullet", value: bullet?.rating || "—" }, { label: "Country", value: profile.country?.split("/").pop()?.toUpperCase() || "—" }, { label: "Followers", value: profile.followers || "—" }], avatar: profile.avatar || null, label: `Chess.com: ${profile.username || username}` }; } },
-  minecraft: { label: "Minecraft username", placeholder: "e.g. Notch", icon: "⛏", async fetch(username) { const res = await fetch(`https://playerdb.co/api/player/minecraft/${encodeURIComponent(username)}`); if (!res.ok) throw new Error("Minecraft player not found"); const data = await res.json(); if (!data.success) throw new Error("Player not found"); const p = data.data.player; return { rank: "Verified", elo_rating: null, role: "Minecrafter", extra: [{ label: "UUID", value: p.id?.slice(0, 8) + "..." }, { label: "Username", value: p.username }, { label: "Edition", value: "Java" }], avatar: `https://crafatar.com/avatars/${p.id}?size=64&overlay`, label: p.username || username }; } },
-  roblox: { label: "Roblox username", placeholder: "e.g. Builderman", icon: "🟥", async fetch(username) { const searchRes = await fetch("https://users.roblox.com/v1/usernames/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ usernames: [username], excludeBannedUsers: true }) }); if (!searchRes.ok) throw new Error("Roblox API error"); const searchData = await searchRes.json(); const user = searchData.data?.[0]; if (!user) throw new Error("Roblox user not found"); const profileRes = await fetch(`https://users.roblox.com/v1/users/${user.id}`); const profile = await profileRes.json(); return { rank: profile.hasVerifiedBadge ? "Verified" : "Player", elo_rating: null, role: "Roblox Player", extra: [{ label: "Display Name", value: profile.displayName }, { label: "User ID", value: profile.id }, { label: "Verified", value: profile.hasVerifiedBadge ? "Yes" : "No" }, { label: "Joined", value: new Date(profile.created).getFullYear() }], avatar: null, label: profile.displayName || username }; } },
-  valorant: { label: "Riot ID (Name#Tag)", placeholder: "e.g. Nexus Shivaay#7277", icon: "🎯", async fetch(riotId) { const h = riotId.lastIndexOf("#"); if (h === -1) throw new Error("Format must be Name#Tag"); return backendFetch(`/valorant/${encodeURIComponent(riotId.slice(0,h).trim())}/${encodeURIComponent(riotId.slice(h+1).trim())}`); } },
-  lol: { label: "Riot ID (Name#Tag)", placeholder: "e.g. Faker#KR1", icon: "⚔️", async fetch(riotId) { const h = riotId.lastIndexOf("#"); const name = h !== -1 ? riotId.slice(0,h).trim() : riotId.trim(); const tag = h !== -1 ? riotId.slice(h+1).trim() : "EUW"; return backendFetch(`/lol/${encodeURIComponent(name)}/${encodeURIComponent(tag)}`); } },
-  fortnite: { label: "Epic Games username", placeholder: "e.g. Ninja", icon: "🏗️", async fetch(u) { return backendFetch(`/fortnite/${encodeURIComponent(u)}`); } },
-  dota2: { label: "OpenDota / Steam32 ID", placeholder: "e.g. 87278757", icon: "🛡️", async fetch(u) { return backendFetch(`/dota2/${encodeURIComponent(u)}`); } },
-  apex: { label: "EA / Origin username", placeholder: "e.g. shroud", icon: "🔥", async fetch(u) { return backendFetch(`/apex/${encodeURIComponent(u)}`); } },
-  pubg: { label: "PUBG PC username", placeholder: "e.g. shroud", icon: "🪖", async fetch(u) { return backendFetch(`/pubg/${encodeURIComponent(u)}`); } },
-  r6: { label: "Ubisoft username", placeholder: "e.g. Pengu", icon: "🔫", async fetch(u) { return backendFetch(`/r6/${encodeURIComponent(u)}`); } },
-  steam: { label: "Steam Custom URL ID", placeholder: "e.g. gabelogannewell", icon: "🎮", async fetch(u) { return backendFetch(`/steam/${encodeURIComponent(u)}`); } },
-  brawlstars: { label: "Brawl Stars Player Tag", placeholder: "e.g. 2PP (no # needed)", icon: "⭐", async fetch(tag) { return backendFetch(`/brawlstars/${encodeURIComponent(tag.replace(/^#/, ""))}`); } },
-  cod: { label: "Activision ID (name#1234567)", placeholder: "e.g. shroud#1234567", icon: "💣", async fetch(u) { return backendFetch(`/cod/${encodeURIComponent(u)}`); } },
-  mlbb: { label: "MLBB Player ID (numeric)", placeholder: "e.g. 123456789", icon: "⚡", async fetch(u) { return backendFetch(`/mlbb/${encodeURIComponent(u)}`); } },
+  // ── No key needed ─────────────────────────────────────────────────────────
+  chess:        { label: "Chess.com username",                  placeholder: "e.g. hikaru",             icon: "♟",  async fetch(username) { const [statsRes, profileRes] = await Promise.all([fetch(`https://api.chess.com/pub/player/${username.toLowerCase()}/stats`), fetch(`https://api.chess.com/pub/player/${username.toLowerCase()}`)]); if (!statsRes.ok) throw new Error("Chess.com player not found"); const [stats, profile] = await Promise.all([statsRes.json(), profileRes.json()]); const rapid = stats?.chess_rapid?.last; const blitz = stats?.chess_blitz?.last; const bullet = stats?.chess_bullet?.last; const best = rapid || blitz || bullet; return { rank: profile.title || (best?.rating >= 2000 ? "Expert" : best?.rating >= 1500 ? "Intermediate" : "Beginner"), elo_rating: best?.rating || null, role: profile.title || "Player", extra: [{ label: "Rapid", value: rapid?.rating || "—" }, { label: "Blitz", value: blitz?.rating || "—" }, { label: "Bullet", value: bullet?.rating || "—" }, { label: "Country", value: profile.country?.split("/").pop()?.toUpperCase() || "—" }, { label: "Followers", value: profile.followers || "—" }], avatar: profile.avatar || null, label: `Chess.com: ${profile.username || username}` }; } },
+  minecraft:    { label: "Minecraft username",                  placeholder: "e.g. Notch",              icon: "⛏",  async fetch(username) { const res = await fetch(`https://playerdb.co/api/player/minecraft/${encodeURIComponent(username)}`); if (!res.ok) throw new Error("Minecraft player not found"); const data = await res.json(); if (!data.success) throw new Error("Player not found"); const p = data.data.player; return { rank: "Verified", elo_rating: null, role: "Minecrafter", extra: [{ label: "UUID", value: p.id?.slice(0, 8) + "..." }, { label: "Username", value: p.username }, { label: "Edition", value: "Java" }], avatar: `https://crafatar.com/avatars/${p.id}?size=64&overlay`, label: p.username || username }; } },
+  roblox:       { label: "Roblox username",                     placeholder: "e.g. Builderman",         icon: "🟥", async fetch(username) { const searchRes = await fetch("https://users.roblox.com/v1/usernames/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ usernames: [username], excludeBannedUsers: true }) }); if (!searchRes.ok) throw new Error("Roblox API error"); const searchData = await searchRes.json(); const user = searchData.data?.[0]; if (!user) throw new Error("Roblox user not found"); const profileRes = await fetch(`https://users.roblox.com/v1/users/${user.id}`); const profile = await profileRes.json(); return { rank: profile.hasVerifiedBadge ? "Verified" : "Player", elo_rating: null, role: "Roblox Player", extra: [{ label: "Display Name", value: profile.displayName }, { label: "User ID", value: profile.id }, { label: "Verified", value: profile.hasVerifiedBadge ? "Yes" : "No" }, { label: "Joined", value: new Date(profile.created).getFullYear() }], avatar: null, label: profile.displayName || username }; } },
+  fortnite:     { label: "Epic Games username",                 placeholder: "e.g. Ninja",              icon: "🏗️", async fetch(u) { return backendFetch(`/fortnite/${encodeURIComponent(u)}`); } },
+  dota2:        { label: "OpenDota / Steam32 ID",               placeholder: "e.g. 87278757",           icon: "🛡️", async fetch(u) { return backendFetch(`/dota2/${encodeURIComponent(u)}`); } },
+  pubg:         { label: "PUBG PC username",                    placeholder: "e.g. shroud",             icon: "🪖", async fetch(u) { return backendFetch(`/pubg/${encodeURIComponent(u)}`); } },
+  r6:           { label: "Ubisoft username",                    placeholder: "e.g. Pengu",              icon: "🔫", async fetch(u) { return backendFetch(`/r6/${encodeURIComponent(u)}`); } },
+  brawlstars:   { label: "Brawl Stars player tag",              placeholder: "e.g. 2PP (no # needed)", icon: "⭐", async fetch(tag) { return backendFetch(`/brawlstars/${encodeURIComponent(tag.replace(/^#/, ""))}`); } },
+  steam:        { label: "Steam custom URL / Steam64 ID (CS2)", placeholder: "e.g. gabelogannewell",   icon: "🎮", async fetch(u) { return backendFetch(`/steam/${encodeURIComponent(u)}`); } },
+  // ── Needs HENRIKDEV_KEY in backend .env ───────────────────────────────────
+  valorant:     { label: "Riot ID (Name#Tag)",                  placeholder: "e.g. Nexus Shivaay#7277",icon: "🎯", async fetch(riotId) { const h = riotId.lastIndexOf("#"); if (h === -1) throw new Error("Format must be Name#Tag"); return backendFetch(`/valorant/${encodeURIComponent(riotId.slice(0,h).trim())}/${encodeURIComponent(riotId.slice(h+1).trim())}`); } },
+  lol:          { label: "Riot ID (Name#Tag)",                  placeholder: "e.g. Faker#KR1",         icon: "⚔️", async fetch(riotId) { const h = riotId.lastIndexOf("#"); const name = h !== -1 ? riotId.slice(0,h).trim() : riotId.trim(); const tag = h !== -1 ? riotId.slice(h+1).trim() : "EUW"; return backendFetch(`/lol/${encodeURIComponent(name)}/${encodeURIComponent(tag)}`); } },
+  // ── Needs TRACKER_GG_KEY in backend .env ─────────────────────────────────
+  apex:         { label: "EA / Origin username",                placeholder: "e.g. shroud",             icon: "🔥", async fetch(u) { return backendFetch(`/apex/${encodeURIComponent(u)}`); } },
+  rocketleague: { label: "Epic Games username (Rocket League)", placeholder: "e.g. Jstn",              icon: "🚀", async fetch(u) { return backendFetch(`/rocketleague/${encodeURIComponent(u)}`); } },
+  cod:          { label: "Activision ID (name#1234567)",        placeholder: "e.g. shroud#1234567",    icon: "💣", async fetch(u) { return backendFetch(`/cod/${encodeURIComponent(u)}`); } },
+  // ── Mobile games — no public API, shows "no API" info card ───────────────
+  bgmi:         { label: "BGMI username",                       placeholder: "e.g. YourUsername",       icon: "🪖", async fetch(u) { return backendFetch(`/bgmi/${encodeURIComponent(u)}`); } },
+  freefire:     { label: "Free Fire username",                  placeholder: "e.g. YourUsername",       icon: "🔥", async fetch(u) { return backendFetch(`/freefire/${encodeURIComponent(u)}`); } },
+  codmobile:    { label: "CoD Mobile username",                 placeholder: "e.g. YourUsername",       icon: "💣", async fetch(u) { return backendFetch(`/codmobile/${encodeURIComponent(u)}`); } },
+  mlbb:         { label: "MLBB Player ID (numeric)",            placeholder: "e.g. 123456789",          icon: "⚡", async fetch(u) { return backendFetch(`/mlbb/${encodeURIComponent(u)}`); } },
+  easportsfc:   { label: "EA Sports FC username",               placeholder: "e.g. YourUsername",       icon: "⚽", async fetch(u) { return backendFetch(`/easportsfc/${encodeURIComponent(u)}`); } },
 };
 
-const GAME_TO_FETCHER = { chess: "chess", "chess.com": "chess", steam: "steam", minecraft: "minecraft", roblox: "roblox", valorant: "valorant", "league of legends": "lol", league: "lol", fortnite: "fortnite", "dota 2": "dota2", dota2: "dota2", dota: "dota2", pubg: "pubg", battlegrounds: "pubg", "battlegrounds mobile india": "pubg", "counter-strike": "steam", "counter strike": "steam", "rainbow six": "r6", "rainbow 6": "r6", siege: "r6", "brawl stars": "brawlstars", brawlstars: "brawlstars", "apex legends": "apex", apex: "apex", "call of duty": "cod", warzone: "cod", cod: "cod", "mobile legends": "mlbb", mlbb: "mlbb", "free fire": null, "street fighter": null, madden: null, "ea sports": null, "mech arena": null };
+const GAME_TO_FETCHER = {
+  "chess": "chess", "chess.com": "chess",
+  "minecraft": "minecraft", "roblox": "roblox",
+  "valorant": "valorant",
+  "league of legends": "lol", "league": "lol",
+  "fortnite": "fortnite",
+  "dota 2": "dota2", "dota2": "dota2", "dota": "dota2",
+  "pubg: battlegrounds": "pubg", "pubg": "pubg", "battlegrounds": "pubg",
+  "counter-strike 2": "steam", "counter-strike": "steam", "counter strike": "steam", "cs2": "steam",
+  "rainbow six siege": "r6", "rainbow six": "r6", "rainbow 6": "r6", "siege": "r6",
+  "brawl stars": "brawlstars", "brawlstars": "brawlstars",
+  "apex legends": "apex", "apex": "apex",
+  "rocket league": "rocketleague", "rocketleague": "rocketleague",
+  "call of duty: warzone": "cod", "warzone": "cod",
+  "steam": "steam",
+  // Mobile — routes exist but return informational response (no public API)
+  "battlegrounds mobile india": "bgmi", "bgmi": "bgmi",
+  "free fire": "freefire", "freefire": "freefire", "garena free fire": "freefire",
+  "call of duty: mobile": "codmobile", "cod mobile": "codmobile",
+  "mobile legends: bang bang": "mlbb", "mobile legends": "mlbb", "mlbb": "mlbb",
+  "ea sports fc": "easportsfc",
+  // Truly no support
+  "mech arena": null, "street fighter": null, "madden": null, "ea sports": null,
+};
 
-function detectFetcher(gameName = "") { const lower = gameName.toLowerCase(); for (const [key, fetcherKey] of Object.entries(GAME_TO_FETCHER)) { if (lower.includes(key)) return fetcherKey; } return null; }
+function detectFetcher(gameName = "") {
+  const lower = gameName.toLowerCase().trim();
+  if (GAME_TO_FETCHER.hasOwnProperty(lower)) return GAME_TO_FETCHER[lower];
+  for (const [key, fetcherKey] of Object.entries(GAME_TO_FETCHER)) {
+    if (lower.includes(key)) return fetcherKey;
+  }
+  return null;
+}
 
 // ── Share Player Card Modal ────────────────────────────────────────────────────────
 function ShareModal({ profile, onClose }) {
@@ -101,28 +140,89 @@ function FollowStatsModal({ type, onClose }) {
 // ── GameStatsFetcher ───────────────────────────────────────────────────────────
 function GameStatsFetcher({ game, onSave }) {
   const fetcherKey = detectFetcher(game.game_name);
-  const fetcher = FETCHERS[fetcherKey];
-  const [query, setQuery] = useState(""); const [loading, setLoading] = useState(false); const [result, setResult] = useState(null); const [error, setError] = useState(""); const [saved, setSaved] = useState(false);
+  const fetcher    = FETCHERS[fetcherKey];
+
+  const [query,   setQuery]   = useState("");
+  const [loading, setLoading] = useState(false);
+  const [result,  setResult]  = useState(null);
+  const [error,   setError]   = useState("");
+  const [saved,   setSaved]   = useState(false);
+
+  // ── No fetcher at all (truly unsupported game) ────────────────────────────
   if (!fetcher) return (
     <div className="rounded-xl border border-surface-border bg-navy/40 px-4 py-3 flex items-center gap-3">
       <span className="text-2xl opacity-60">📊</span>
-      <div className="flex-1"><p className="text-sm font-semibold text-white">{game.game_name}</p><p className="text-xs text-gray-500 mt-0.5">No public API available — rank updated via tournaments &amp; matches.</p></div>
-      <div className="flex flex-wrap gap-1.5 shrink-0">{game.rank && <span className="badge-blue">{game.rank}</span>}{game.elo_rating && <span className="badge-gray">ELO {game.elo_rating}</span>}</div>
+      <div className="flex-1">
+        <p className="text-sm font-semibold text-white">{game.game_name}</p>
+        <p className="text-xs text-gray-500 mt-0.5">No public API available — rank updated via tournaments &amp; matches.</p>
+      </div>
+      <div className="flex flex-wrap gap-1.5 shrink-0">
+        {game.rank       && <span className="badge-blue">{game.rank}</span>}
+        {game.elo_rating && <span className="badge-gray">ELO {game.elo_rating}</span>}
+      </div>
     </div>
   );
-  const handleFetch = async () => { if (!query.trim()) return; setLoading(true); setError(""); setResult(null); setSaved(false); try { setResult(await fetcher.fetch(query.trim())); } catch (err) { setError(err.message || "Failed to fetch stats"); } finally { setLoading(false); } };
-  const handleSave = async () => { try { await onSave({ game_id: game.game_id, rank: result.rank, role: result.role, elo_rating: result.elo_rating }); setSaved(true); } catch { setError("Failed to save stats"); } };
+
+  const handleFetch = async () => {
+    if (!query.trim()) return;
+    setLoading(true); setError(""); setResult(null); setSaved(false);
+    try { setResult(await fetcher.fetch(query.trim())); }
+    catch (err) { setError(err.message || "Failed to fetch stats"); }
+    finally { setLoading(false); }
+  };
+
+  const handleSave = async () => {
+    try {
+      await onSave({ game_id: game.game_id, rank: result.rank, role: result.role, elo_rating: result.elo_rating });
+      setSaved(true);
+    } catch { setError("Failed to save stats"); }
+  };
+
+  // ── noApi result — mobile game, show info card only (no save button) ──────
+  const NoApiResult = ({ result }) => (
+    <div className="mx-5 mb-5 rounded-xl border border-yellow-500/20 overflow-hidden" style={{ background: "linear-gradient(135deg,rgba(244,165,35,0.06),rgba(26,35,64,0.8))" }}>
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-surface-border/50">
+        <span className="text-2xl">📵</span>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-white">{result.label}</p>
+          <p className="text-xs text-yellow-500/80 mt-0.5">No public API</p>
+        </div>
+      </div>
+      <div className="p-4 space-y-2">
+        {result.extra.map(({ label, value }) => (
+          <div key={label} className="bg-navy/60 rounded-lg px-3 py-2.5">
+            <p className="text-xs text-gray-500 mb-0.5">{label}</p>
+            <p className="text-sm text-white">{value}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
   return (
     <div className="rounded-2xl border border-surface-border overflow-hidden" style={{ background: "linear-gradient(145deg,#1a2340,#131a2e)" }}>
       <div className="flex items-center gap-3 px-5 py-4 border-b border-surface-border">
         <div className="w-10 h-10 rounded-xl bg-red/10 border border-red/20 flex items-center justify-center text-xl shrink-0">{fetcher.icon}</div>
-        <div className="flex-1 min-w-0"><p className="font-semibold text-white text-sm">{game.game_name}</p><p className="text-xs text-gray-500">Sync enabled</p></div>
-        <div className="flex flex-wrap gap-1.5 shrink-0">{game.rank && <span className="badge-blue">{game.rank}</span>}{game.elo_rating && <span className="badge-gray">ELO {game.elo_rating}</span>}</div>
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-white text-sm">{game.game_name}</p>
+          <p className="text-xs text-gray-500">Sync enabled</p>
+        </div>
+        <div className="flex flex-wrap gap-1.5 shrink-0">
+          {game.rank       && <span className="badge-blue">{game.rank}</span>}
+          {game.elo_rating && <span className="badge-gray">ELO {game.elo_rating}</span>}
+        </div>
       </div>
+
       <div className="px-5 py-4">
         <label className="block text-xs text-gray-500 uppercase tracking-wider mb-2">{fetcher.label}</label>
         <div className="flex gap-2">
-          <input className="input flex-1 text-sm" placeholder={fetcher.placeholder} value={query} onChange={(e) => { setQuery(e.target.value); setResult(null); setError(""); setSaved(false); }} onKeyDown={(e) => e.key === "Enter" && handleFetch()} />
+          <input
+            className="input flex-1 text-sm"
+            placeholder={fetcher.placeholder}
+            value={query}
+            onChange={(e) => { setQuery(e.target.value); setResult(null); setError(""); setSaved(false); }}
+            onKeyDown={(e) => e.key === "Enter" && handleFetch()}
+          />
           <button onClick={handleFetch} disabled={loading || !query.trim()} className="btn-primary flex items-center gap-2 px-4 shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
             {loading ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <span>🔍</span>}
             {loading ? "" : "Fetch"}
@@ -130,16 +230,37 @@ function GameStatsFetcher({ game, onSave }) {
         </div>
         {error && <p className="text-red text-xs mt-2 flex items-start gap-1.5"><span>⚠</span><span>{error}</span></p>}
       </div>
-      {result && (
+
+      {result && result.noApi && <NoApiResult result={result} />}
+
+      {result && !result.noApi && (
         <div className="mx-5 mb-5 rounded-xl border border-red/20 overflow-hidden" style={{ background: "linear-gradient(135deg,rgba(255,70,85,0.06),rgba(26,35,64,0.8))" }}>
           <div className="flex items-center gap-3 px-4 py-3 border-b border-surface-border/50">
-            {result.avatar ? <img src={result.avatar} alt="" className="w-10 h-10 rounded-full border border-surface-border object-cover shrink-0" /> : <div className="w-10 h-10 rounded-full bg-red/20 border border-red/30 flex items-center justify-center text-red font-bold shrink-0">{query[0]?.toUpperCase()}</div>}
-            <div className="flex-1 min-w-0"><p className="text-sm font-semibold text-white truncate">{result.label}</p><div className="flex gap-1.5 mt-0.5 flex-wrap">{result.rank && <span className="badge-blue text-xs">{result.rank}</span>}{result.role && <span className="badge-gray text-xs">{result.role}</span>}{result.elo_rating && <span className="badge-red text-xs">ELO {result.elo_rating}</span>}</div></div>
+            {result.avatar
+              ? <img src={result.avatar} alt="" className="w-10 h-10 rounded-full border border-surface-border object-cover shrink-0" />
+              : <div className="w-10 h-10 rounded-full bg-red/20 border border-red/30 flex items-center justify-center text-red font-bold shrink-0">{query[0]?.toUpperCase()}</div>}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-white truncate">{result.label}</p>
+              <div className="flex gap-1.5 mt-0.5 flex-wrap">
+                {result.rank       && <span className="badge-blue text-xs">{result.rank}</span>}
+                {result.role       && <span className="badge-gray text-xs">{result.role}</span>}
+                {result.elo_rating && <span className="badge-red text-xs">ELO {result.elo_rating}</span>}
+              </div>
+            </div>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-4">{result.extra.map(({ label, value }) => (<div key={label} className="bg-navy/60 rounded-lg px-3 py-2.5"><p className="text-xs text-gray-500 mb-0.5">{label}</p><p className="text-sm font-semibold text-white truncate">{value}</p></div>))}</div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-4">
+            {result.extra.map(({ label, value }) => (
+              <div key={label} className="bg-navy/60 rounded-lg px-3 py-2.5">
+                <p className="text-xs text-gray-500 mb-0.5">{label}</p>
+                <p className="text-sm font-semibold text-white truncate">{value}</p>
+              </div>
+            ))}
+          </div>
           <div className="px-4 pb-4 flex items-center justify-between gap-3">
             <p className="text-xs text-gray-500">{saved ? "✓ Saved to your game profile" : "Save rank & ELO to your profile?"}</p>
-            {saved ? <span className="badge-green text-xs">✓ Saved!</span> : <button onClick={handleSave} className="btn-primary text-xs px-4 py-2 flex items-center gap-1.5">💾 Sync to Loadout</button>}
+            {saved
+              ? <span className="badge-green text-xs">✓ Saved!</span>
+              : <button onClick={handleSave} className="btn-primary text-xs px-4 py-2 flex items-center gap-1.5">💾 Sync to Loadout</button>}
           </div>
         </div>
       )}
@@ -229,7 +350,12 @@ export default function Profile() {
   const totalMatches = games.reduce((s, g) => s + (g.matches_played || 0), 0);
   const avgWinRate = games.length ? (games.reduce((s, g) => s + Number(g.win_rate || 0), 0) / games.length).toFixed(1) : null;
   const avgElo = games.length ? Math.round(games.reduce((s, g) => s + (g.elo_rating || 1000), 0) / games.length) : null;
-  const TABS = [{ id: "overview", label: "Service Record" }, { id: "games", label: "Arsenal" }, { id: "gamestats", label: "⚡ Live Sync" }, { id: "teams", label: `🛡️ Teams${myTeams.length ? ` (${myTeams.length})` : ""}` }];
+  const TABS = [
+    { id: "overview",   label: "Service Record" },
+    { id: "games",      label: "Arsenal" },
+    { id: "gamestats",  label: "⚡ Live Sync" },
+    { id: "teams",      label: `🛡️ Teams${myTeams.length ? ` (${myTeams.length})` : ""}` },
+  ];
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 animate-fade-in">
@@ -457,7 +583,7 @@ export default function Profile() {
               <p className="font-semibold text-white text-sm mb-0.5">⚡ Live Stat Sync</p>
               <p className="text-xs text-gray-400 leading-relaxed">Enter your username for supported games to pull live rank &amp; ELO from official APIs. Hit <strong className="text-white">Sync to Loadout</strong> to sync.</p>
               <div className="flex flex-wrap gap-2 mt-3">
-                {[{ icon: "🎯", name: "Valorant" }, { icon: "🏗️", name: "Fortnite" }, { icon: "🛡️", name: "Dota 2" }, { icon: "⭐", name: "Brawl Stars" }, { icon: "🔥", name: "Apex Legends" }, { icon: "🪖", name: "PUBG" }, { icon: "🔫", name: "Rainbow Six" }, { icon: "💣", name: "COD" }, { icon: "⚡", name: "MLBB" }, { icon: "🎮", name: "Steam/CS2" }, { icon: "♟", name: "Chess.com" }, { icon: "⛏", name: "Minecraft" }, { icon: "🟥", name: "Roblox" }].map((g) => (
+                {[{ icon: "🎯", name: "Valorant" }, { icon: "🏗️", name: "Fortnite" }, { icon: "🛡️", name: "Dota 2" }, { icon: "⭐", name: "Brawl Stars" }, { icon: "🔥", name: "Apex Legends" }, { icon: "🪖", name: "PUBG" }, { icon: "🔫", name: "Rainbow Six" }, { icon: "💣", name: "COD" }, { icon: "⚡", name: "MLBB" }, { icon: "🎮", name: "Steam/CS2" }, { icon: "♟", name: "Chess.com" }, { icon: "⛏", name: "Minecraft" }, { icon: "🟥", name: "Roblox" }, { icon: "🚀", name: "Rocket League" }, { icon: "🪖", name: "BGMI" }, { icon: "🔥", name: "Free Fire" }, { icon: "💣", name: "CoD Mobile" }, { icon: "⚽", name: "EA Sports FC" }].map((g) => (
                   <span key={g.name} className="inline-flex items-center gap-1 badge-gray text-xs">{g.icon} {g.name}</span>
                 ))}
               </div>
