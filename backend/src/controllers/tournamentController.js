@@ -104,7 +104,7 @@ export const createTournament = async (req, res, next) => {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'upcoming',$10,$11,$12,$13,$14,$15)
        RETURNING *`,
       [
-        name, game_id, prize_pool || 0, entry_fee || 0, region, format,
+        name, game_id, prize_pool || 0, entry_fee || 0, region || null, format,
         start_date, end_date, registration_deadline || null,
         image_url || null, description || null,
         organizer_name || null, location || null, join_link || null,

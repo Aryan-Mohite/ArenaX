@@ -39,21 +39,23 @@ export const validateCreateTournament = [
     .withMessage("Invalid tournament format"),
   body("start_date")
     .notEmpty().withMessage("Start date is required")
-    .isISO8601().withMessage("start_date must be a valid date (YYYY-MM-DD)"),
+    .isISO8601({ strict: false }).withMessage("start_date must be a valid date (YYYY-MM-DD)"),
   body("end_date")
     .notEmpty().withMessage("End date is required")
-    .isISO8601().withMessage("end_date must be a valid date"),
+    .isISO8601({ strict: false }).withMessage("end_date must be a valid date"),
   body("registration_deadline")
-    .optional()
-    .isISO8601(),
+    .optional({ nullable: true, checkFalsy: true })
+    .isISO8601({ strict: false }),
   body("prize_pool")
-    .optional()
+    .optional({ nullable: true, checkFalsy: true })
+    .customSanitizer(v => Number(v))
     .isFloat({ min: 0 }).withMessage("prize_pool must be a positive number"),
   body("entry_fee")
-    .optional()
+    .optional({ nullable: true, checkFalsy: true })
+    .customSanitizer(v => Number(v))
     .isFloat({ min: 0 }).withMessage("entry_fee must be a positive number"),
   body("region")
-    .optional()
+    .optional({ nullable: true, checkFalsy: true })
     .isLength({ max: 50 }),
 ];
 
