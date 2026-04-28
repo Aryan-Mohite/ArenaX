@@ -153,21 +153,23 @@ function MissionSection() {
           <h2 className="font-display font-bold text-3xl text-white mb-4">
             Our mission
           </h2>
-          <p className="text-gray-400 leading-relaxed mb-4">
-            We started ArenaX because the competitive gaming scene was
-            fragmented. Brackets lived on one site, squad recruiting on
-            Discord, stats on another dashboard, and communities spread across
-            dozens of subreddits.
-          </p>
+
           <p className="text-gray-400 leading-relaxed mb-4">
             Our mission is simple: give every player — from weekend warriors to
             aspiring pros — a single home where they can compete, connect, and
             grow.
           </p>
-          <p className="text-gray-400 leading-relaxed">
-            We are independent, gamer-owned, and obsessed with the experience.
-            No venture capital timelines pushing us to bloat the product. Just a
-            team of players building the platform they always wanted.
+        </div>
+        <div>
+          <h2 className="font-display font-bold text-3xl text-white mb-4">
+            Our Vision
+          </h2>
+
+          <p className="text-gray-400 leading-relaxed mb-4">
+            We envision a world where competitive gaming is as accessible and
+            rewarding as playing itself. A world where every player can find
+            their community, test their skills, and rise through the ranks — all
+            without leaving the platform.
           </p>
         </div>
 
@@ -279,7 +281,7 @@ function TeamSection() {
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-12">
           <h2 className="font-display font-bold text-3xl text-white mb-3">
-            The team
+            The Team
           </h2>
           <p className="text-gray-400 max-w-xl mx-auto">
             A small crew of competitive gamers who got tired of switching
@@ -319,8 +321,8 @@ function CtaSection() {
           Ready to compete?
         </h2>
         <p className="text-gray-400 mb-8 leading-relaxed">
-          Enlist in seconds. No credit card, no hidden fees —
-          just you, your games, and the competition.
+          Enlist in seconds. No credit card, no hidden fees — just you, your
+          games, and the competition.
         </p>
         <div className="flex flex-wrap justify-center gap-3">
           <Link to="/register" className="btn-primary">

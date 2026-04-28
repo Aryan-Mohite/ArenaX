@@ -124,5 +124,6 @@ export const validateCommunityPost = [
 // ─── PARAM VALIDATORS ──────────────────────────────────────────────────────────
 export const validateIdParam = [
   param("id")
+    .customSanitizer(v => Number(v))
     .isInt({ min: 1 }).withMessage("ID must be a positive integer"),
 ];
