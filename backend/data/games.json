@@ -62,21 +62,6 @@
   },
  
   {
-    "slug": "rocket-league",
-    "game_name": "Rocket League",
-    "genre": "Sports",
-    "developer": "Psyonix",
-    "release_year": 2015,
-    "rating": 4.6,
-    "platforms": "PC / Console",
-    "description": "Rocket League is a high-powered hybrid of soccer and rocket-powered cars. Teams of 1–4 boost, flip, and aerial-hit a giant ball into the enemy net. Its skill ceiling is legendary — from beginners to RLCS World Championship contenders, there is always more to master.",
-    "cover_image": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/252950/header.jpg",
-    "screenshots": [
-      "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/252950/ss_d0bc0c4c01c7a25b4fd9fe4b02b97c04b9e7c63d.jpg",
-      "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/252950/ss_34d8bf4e8c2c4d49f4d1a8c2bf4bc0e8fa33d94e.jpg"
-    ]
-  },
-  {
     "slug": "league-of-legends",
     "game_name": "League of Legends",
     "genre": "MOBA",
@@ -92,37 +77,8 @@
     ]
   },
   
-  {
-    "slug": "mobile-legends",
-    "game_name": "Mobile Legends: Bang Bang",
-    "genre": "MOBA",
-    "developer": "Moonton",
-    "release_year": 2016,
-    "rating": 4.3,
-    "platforms": "Mobile",
-    "description": "Mobile Legends: Bang Bang is the most popular mobile MOBA in Southeast Asia. Two teams of five heroes clash in fast-paced 10–15 minute matches designed perfectly for mobile play. The M-Series World Championship attracts massive viewership across Indonesia, Philippines, and beyond.",
-    "cover_image": "https://play-lh.googleusercontent.com/BmWzMc-vBFRB7LBFLFHtS4k8LRp0pJJiX7dJX5t8DH0GnW5zEMzS5fAfKkXPqx-GDHE",
-    "screenshots": [
-      "https://play-lh.googleusercontent.com/eMqJnvnPyAtAT4VXxLLWJfh3d6J2nMGKk9dJeAGPpg50dJRSXCwqHnmzE44FcD_xRw",
-      "https://play-lh.googleusercontent.com/5mxNNq4VFJEuZHPrHLl8QCUNJiR8J3XM6wEkb5xNlA4E-jL0HS2WpD6cpJV3QZX_8A"
-    ]
-  },
   
-  {
-    "slug": "ea-sports-fc",
-    "game_name": "EA Sports FC",
-    "genre": "Sports",
-    "developer": "EA Sports",
-    "release_year": 2023,
-    "rating": 4.2,
-    "platforms": "PC / Console",
-    "description": "EA Sports FC (formerly FIFA) is the world's leading football simulation franchise. Featuring real clubs, players, and tournaments, FC brings the beautiful game to life. Ultimate Team lets players build dream squads and compete online — the eFC competitive scene draws millions globally.",
-    "cover_image": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/2195250/header.jpg",
-    "screenshots": [
-      "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/2195250/ss_6bab63d0b5bcf93e5f3a22a4f2e8b1c9d7f0e4a3.jpg",
-      "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/2195250/ss_9c3f7e1d4b6a2e8c0f5d3b7a9e1c4f6d8b2a0e7c.jpg"
-    ]
-  },
+  
   {
     "slug": "warzone",
     "game_name": "Call of Duty: Warzone",
@@ -212,20 +168,6 @@
       "https://play-lh.googleusercontent.com/gEqI8Fba0cR5OPLOAfGwjF1P_0aMXzjUzj_gzM_zjrqJP-NaYOjH3l-3zZcNbzGhWQ",
       "https://play-lh.googleusercontent.com/hNz5fB1H3G5tV3T8R1X2Kw4ZX5L7M9P1Q3S5U7W9Y1A3C5E7G9I1K3M5O7Q9S1U3W5Y"
     ]
-  },
-  {
-    "slug": "brawl-stars",
-    "game_name": "Brawl Stars",
-    "genre": "Battle Royale",
-    "developer": "Supercell",
-    "release_year": 2018,
-    "rating": 4.4,
-    "platforms": "Mobile",
-    "description": "Brawl Stars is Supercell's fast-paced mobile multiplayer shooter where teams of 3 brawlers compete in a variety of game modes — from Gem Grab to Showdown and Brawl Ball. With a colourful roster of unique brawlers and the Brawl Stars World Finals, it has become a top-tier mobile esports title.",
-    "cover_image": "https://play-lh.googleusercontent.com/sKmd7DmOHnF5kGM7sECjNfxO6OGmCe5n9-VGezAHkKWGZ4NNK8MmzZJhgHCF4GNRTQ",
-    "screenshots": [
-      "https://play-lh.googleusercontent.com/B4Ew4KbkCFI8P4G3QF8B4Q3W7L9N1P3R5T7V9X1Z3B5D7F9H1J3L5N7P9R1T3V5X7Z",
-      "https://play-lh.googleusercontent.com/Wm5X1Y9K8G7F6E5D4C3B2A1Z0Y9X8W7V6U5T4S3R2Q1P0O9N8M7L6K5J4I3H2G1F0E"
-    ]
   }
+  
 ]
