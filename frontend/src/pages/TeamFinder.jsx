@@ -4,6 +4,8 @@ import { getPosts, createPost, applyToPost, closePost, draftAcceptApplication, f
 import { getMyGames } from "../services/gameService";
 import { ErrorMessage } from "../components/UI";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
+import { themeStyles } from "../utils/themeStyles";
 
 const authFetch = async (url, opts = {}) => {
   const token = localStorage.getItem("token") || sessionStorage.getItem("token") || "";
@@ -32,16 +34,18 @@ function GridBackground() {
   );
 }
 
-function ChatModal({ partnerId, partnerName, onClose }) {
+function ChatModal({
+  const { theme } = useTheme();
+  const ts = themeStyles(theme); partnerId, partnerName, onClose }) {
   const [messages,setMessages]=useState([]);const [text,setText]=useState("");const [loading,setLoading]=useState(true);const [sending,setSending]=useState(false);const {user}=useAuth();const bottomRef=useRef(null);const pollRef=useRef(null);
   const loadMessages=useCallback(async()=>{try{const r=await authFetch(`/messages/conversation/${partnerId}?limit=60`);setMessages(r.messages||[]);}catch{} finally{setLoading(false);}},[partnerId]);
   useEffect(()=>{loadMessages();pollRef.current=setInterval(loadMessages,4000);return()=>clearInterval(pollRef.current);},[loadMessages]);
   useEffect(()=>{bottomRef.current?.scrollIntoView({behavior:"smooth"});},[messages]);
   const handleSend=async()=>{if(!text.trim()||sending)return;setSending(true);const opt={message_id:Date.now(),sender_id:user?.id,receiver_id:partnerId,content:text.trim(),sent_at:new Date().toISOString(),_opt:true};setMessages(p=>[...p,opt]);setText("");try{await authFetch("/messages",{method:"POST",body:{receiver_id:partnerId,content:opt.content}});}catch{}setSending(false);};
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" style={{backdropFilter:"blur(8px)",background:"rgba(2,6,23,0.82)"}}>
-      <div className="w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl border border-surface-border overflow-hidden flex flex-col animate-slide-up" style={{height:"min(90vh,580px)",background:"linear-gradient(145deg,#1a2340,#0f172a)",boxShadow:"0 0 0 1px rgba(59,130,246,0.2),0 24px 80px rgba(0,0,0,0.7)"}}>
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-surface-border shrink-0" style={{background:"linear-gradient(135deg,rgba(59,130,246,0.08),transparent)"}}>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" style={ts.modalBackdropSm}>
+      <div className="w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl border border-surface-border overflow-hidden flex flex-col animate-slide-up" style={{height:"min(90vh,580px)",...ts.chatCard}}>
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-surface-border shrink-0" style={ts.modalHeader("rgba(59,130,246,0.08)")}>
           <div className="w-8 h-8 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-blue-400 font-bold text-sm shrink-0">{partnerName?.[0]?.toUpperCase()}</div>
           <div className="flex-1 min-w-0"><p className="font-semibold text-white text-sm">{partnerName}</p><p className="text-xs text-blue-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-blue-400 inline-block"/>Squad Comms</p></div>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:text-white hover:bg-white/10 transition-colors">✕</button>
@@ -67,10 +71,10 @@ function RosterModal({ post, onClose, onChat, navigate }) {
   const doAction=async(app,action,newStatus,msg)=>{setActioning(app.application_id+"_"+action);try{await authFetch(`/teamfinder/${post.post_id}/applications/${app.application_id}/${action}`,{method:"PATCH"});upd(app.application_id,{status:newStatus});if(msg)showToast(msg);}catch{showToast("Failed");}setActioning(null);};
   const groups={draft_accepted:apps.filter(a=>a.status==="draft_accepted"),pending:apps.filter(a=>a.status==="pending"),accepted:apps.filter(a=>a.status==="accepted"),rejected:apps.filter(a=>a.status==="rejected")};
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{backdropFilter:"blur(8px)",background:"rgba(2,6,23,0.82)"}}>
-      <div className="w-full max-w-lg rounded-2xl border border-surface-border overflow-hidden animate-slide-up flex flex-col relative" style={{background:"linear-gradient(145deg,#1a2340,#131a2e)",boxShadow:"0 0 0 1px rgba(255,70,85,0.15),0 24px 80px rgba(0,0,0,0.7)",maxHeight:"90vh"}}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={ts.modalBackdropSm}>
+      <div className="w-full max-w-lg rounded-2xl border border-surface-border overflow-hidden animate-slide-up flex flex-col relative" style={{...ts.modalCard(),maxHeight:"90vh"}}>
         {toast&&<div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-surface-card border border-green-500/30 text-green-400 text-xs px-4 py-2 rounded-full whitespace-nowrap">{toast}</div>}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-surface-border shrink-0" style={{background:"linear-gradient(135deg,rgba(255,70,85,0.08),transparent)"}}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-surface-border shrink-0" style={ts.modalHeader()}>
           <div><h3 className="font-display font-bold text-white text-lg">Applicants — {post.game_name}</h3><p className="text-xs text-gray-500 mt-0.5">{post.team_name?`Team: ${post.team_name}`:"No team assigned"} · {post.role_required||"Any Role"}</p></div>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:text-white hover:bg-white/10 transition-colors">✕</button>
         </div>
@@ -119,7 +123,9 @@ function RosterModal({ post, onClose, onChat, navigate }) {
   );
 }
 
-function MyTeamsPanel({ myGames, onPostForTeam, refreshKey }) {
+function MyTeamsPanel({
+  const { theme } = useTheme();
+  const ts = themeStyles(theme); myGames, onPostForTeam, refreshKey }) {
   const navigate=useNavigate();
   const [teams,setTeams]=useState([]);const [loading,setLoading]=useState(true);const [showCreate,setShowCreate]=useState(false);const [form,setForm]=useState({team_name:"",game_id:"",region:"",description:""});const [creating,setCreating]=useState(false);const [error,setError]=useState("");const [disbandTarget,setDisbandTarget]=useState(null);const [open,setOpen]=useState(true);
   const load=useCallback(()=>{authFetch("/teams/mine").then(r=>setTeams(r.teams||[])).catch(()=>setTeams([])).finally(()=>setLoading(false));},[]);
@@ -127,7 +133,7 @@ function MyTeamsPanel({ myGames, onPostForTeam, refreshKey }) {
   const handleCreate=async(e)=>{e.preventDefault();setError("");setCreating(true);try{const r=await authFetch("/teams",{method:"POST",body:form});setTeams(p=>[r.team,...p]);setShowCreate(false);setForm({team_name:"",game_id:"",region:"",description:""});}catch(err){setError(err.message||"Failed to create team");}setCreating(false);};
   const handleDisband=async(id)=>{try{await authFetch(`/teams/${id}`,{method:"DELETE"});setTeams(p=>p.filter(t=>t.team_id!==id));setDisbandTarget(null);}catch{}};
   return (
-    <div className="mb-8 rounded-2xl border border-surface-border overflow-hidden" style={{background:"linear-gradient(145deg,#1a2340,#131a2e)"}}>
+    <div className="mb-8 rounded-2xl border border-surface-border overflow-hidden" style={ts.cardBg}>
       <button onClick={()=>setOpen(o=>!o)} className="w-full flex items-center justify-between px-6 py-4 hover:bg-white/2 transition-colors">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-red/20 border border-red/30 flex items-center justify-center text-red text-sm">⚔️</div>
@@ -196,7 +202,7 @@ function MyDispatchesPanel({ onChat }) {
   useEffect(()=>{load();const id=setInterval(load,8000);return()=>clearInterval(id);},[load]);
   if(!loading&&apps.length===0)return null;
   return (
-    <div className="mb-8 rounded-2xl border border-surface-border overflow-hidden" style={{background:"linear-gradient(145deg,#1a2340,#131a2e)"}}>
+    <div className="mb-8 rounded-2xl border border-surface-border overflow-hidden" style={ts.cardBg}>
       <button onClick={()=>setOpen(o=>!o)} className="w-full flex items-center justify-between px-6 py-4 hover:bg-white/2 transition-colors">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-blue-400 text-sm">📨</div>
@@ -230,12 +236,14 @@ function MyDispatchesPanel({ onChat }) {
   );
 }
 
-function ApplyModal({ post, onClose, onSubmit }) {
+function ApplyModal({
+  const { theme } = useTheme();
+  const ts = themeStyles(theme); post, onClose, onSubmit }) {
   const [msg,setMsg]=useState("");const [loading,setLoading]=useState(false);
   const handle=async()=>{setLoading(true);await onSubmit(post.post_id,msg||"I'd like to join your team!");setLoading(false);onClose();};
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{backdropFilter:"blur(8px)",background:"rgba(2,6,23,0.75)"}}>
-      <div className="w-full max-w-md rounded-2xl border border-surface-border bg-surface-card animate-slide-up" style={{boxShadow:"0 0 0 1px rgba(255,70,85,0.15),0 24px 80px rgba(0,0,0,0.6)"}}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={ts.modalBackdropSm}>
+      <div className="w-full max-w-md rounded-2xl border border-surface-border bg-surface-card animate-slide-up" style={ts.modalCard()}>
         <div className="relative overflow-hidden rounded-t-2xl px-6 pt-6 pb-4" style={{background:"linear-gradient(135deg,rgba(255,70,85,0.12),transparent)"}}>
           <button onClick={onClose} className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:text-white hover:bg-white/10 transition-colors">✕</button>
           <div className="flex items-center gap-3">
@@ -263,12 +271,14 @@ function ApplyModal({ post, onClose, onSubmit }) {
   );
 }
 
-function CloseDraftModal({ post, onClose, onConfirm }) {
+function CloseDraftModal({
+  const { theme } = useTheme();
+  const ts = themeStyles(theme); post, onClose, onConfirm }) {
   const [loading,setLoading]=useState(false);
   const handle=async()=>{setLoading(true);await onConfirm(post.post_id);setLoading(false);onClose();};
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{backdropFilter:"blur(8px)",background:"rgba(2,6,23,0.82)"}}>
-      <div className="w-full max-w-sm rounded-2xl border border-red/20 overflow-hidden animate-slide-up" style={{background:"linear-gradient(145deg,#1a2340,#131a2e)",boxShadow:"0 0 0 1px rgba(255,70,85,0.15),0 24px 80px rgba(0,0,0,0.7)"}}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={ts.modalBackdropSm}>
+      <div className="w-full max-w-sm rounded-2xl border border-red/20 overflow-hidden animate-slide-up" style={ts.modalCard()}>
         <div className="px-6 pt-6 pb-4 text-center"><div className="w-14 h-14 rounded-2xl bg-red/10 border border-red/20 flex items-center justify-center text-3xl mx-auto mb-4">🗑️</div><h3 className="font-display font-bold text-white text-lg">Close Draft?</h3><p className="text-gray-400 text-sm mt-2 leading-relaxed">This will close your draft for <span className="text-white font-medium">{post.game_name}</span>. All pending applicants will be dismissed.</p></div>
         <div className="flex gap-3 px-6 pb-6"><button onClick={onClose} className="btn-secondary flex-1">Cancel</button><button onClick={handle} disabled={loading} className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-red/30 bg-red/20 text-red-light hover:bg-red/30 transition-colors flex items-center justify-center gap-2">{loading?<span className="w-4 h-4 border-2 border-red/30 border-t-red rounded-full animate-spin"/>:"🗑️ Disband"}</button></div>
       </div>
@@ -283,7 +293,7 @@ function ListingCard({ post, onApply, alreadyApplied, isAuthenticated, currentUs
   const isOwner=currentUserId&&post.user_id===currentUserId;
   const dl=deadlineLabel(deadline);
   return (
-    <div className="relative flex flex-col gap-3 rounded-xl border border-surface-border overflow-hidden transition-all duration-300 hover:border-red/40 hover:-translate-y-0.5" style={{background:"linear-gradient(145deg,#1a2340,#131a2e)"}}>
+    <div className="relative flex flex-col gap-3 rounded-xl border border-surface-border overflow-hidden transition-all duration-300 hover:border-red/40 hover:-translate-y-0.5" style={ts.cardBg}>
       <div className="h-0.5 w-full" style={{background:`linear-gradient(90deg,${accent},transparent)`}}/>
       <div className="px-4 pb-4 flex flex-col gap-3 flex-1">
         {team_name&&<div className="flex items-center gap-1.5 pt-1"><span className="text-xs px-2 py-0.5 rounded-full border border-red/30 bg-red/10 text-red-light font-medium">⚔️ {team_name}</span></div>}
@@ -314,6 +324,8 @@ function ListingCard({ post, onApply, alreadyApplied, isAuthenticated, currentUs
 }
 
 export default function TeamFinder() {
+  const { theme } = useTheme();
+  const ts = themeStyles(theme);
   const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   const [posts,setPosts]=useState([]);const [myGames,setMyGames]=useState([]);const [loading,setLoading]=useState(true);const [showForm,setShowForm]=useState(false);const [prefilledTeam,setPrefilledTeam]=useState(null);const [filters,setFilters]=useState({game_id:"",region:""});const [error,setError]=useState("");const [toast,setToast]=useState({msg:"",type:"success"});const [applyPost,setApplyPost]=useState(null);const [appliedIds,setAppliedIds]=useState(new Set());const [rosterPost,setRosterPost]=useState(null);const [chatPartner,setChatPartner]=useState(null);const [closePost_,setClosePost]=useState(null);const [myTeams,setMyTeams]=useState([]);const [teamsRefresh,setTeamsRefresh]=useState(0);
@@ -337,7 +349,7 @@ export default function TeamFinder() {
       {closePost_&&<CloseDraftModal post={closePost_} onClose={()=>setClosePost(null)} onConfirm={handleClosePost}/>}
 
       {/* Hero */}
-      <div className="relative mb-10 rounded-2xl overflow-hidden border border-surface-border" style={{background:"linear-gradient(135deg,#0f172a 0%,#1a2340 50%,#130a1a 100%)"}}>
+      <div className="relative mb-10 rounded-2xl overflow-hidden border border-surface-border" style={ts.heroBgAlt}>
         <GridBackground/>
         <div className="relative z-10 px-8 py-12 sm:py-16 flex flex-col sm:flex-row items-start sm:items-center gap-6">
           <div className="flex-1">
@@ -354,7 +366,7 @@ export default function TeamFinder() {
 
       {/* Create form */}
       {showForm&&(
-        <div className="mb-8 rounded-2xl border border-red/20 overflow-hidden animate-slide-up" style={{background:"linear-gradient(135deg,rgba(255,70,85,0.06),rgba(26,35,64,0.9))"}}>
+        <div className="mb-8 rounded-2xl border border-red/20 overflow-hidden animate-slide-up" style={ts.createFormBg}>
           <div className="flex items-center justify-between px-6 pt-5 pb-3 border-b border-surface-border">
             <div><h3 className="font-display font-bold text-xl text-white">Open a Draft</h3><p className="text-xs text-gray-500 mt-0.5">{prefilledTeam?`Recruiting for ⚔️ ${prefilledTeam.team_name}`:"Set your requirements and recruit your next squadmate"}</p></div>
             <button onClick={()=>{setShowForm(false);setPrefilledTeam(null);}} className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:text-white hover:bg-white/10 transition-colors">✕</button>

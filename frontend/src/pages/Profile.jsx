@@ -11,6 +11,8 @@ import { getMyGames } from "../services/gameService";
 import { PageLoader, ErrorMessage, StatCard } from "../components/UI";
 import { useAuth } from "../context/AuthContext";
 import API from "../api/api";
+import { useTheme } from "../context/ThemeContext";
+import { themeStyles } from "../utils/themeStyles";
 
 async function backendFetch(path) {
   const res = await fetch(`/api/stats${path}`);
@@ -377,12 +379,12 @@ function ShareModal({ profile, onClose }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backdropFilter: "blur(8px)", background: "rgba(2,6,23,0.75)" }}
+      style={ts.modalBackdropSm}
       onClick={onClose}
     >
       <div
         className="w-full max-w-sm rounded-2xl border border-surface-border overflow-hidden animate-slide-up"
-        style={{ background: "linear-gradient(145deg,#1a2340,#131a2e)" }}
+        style={ts.cardBg}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-surface-border">
@@ -461,12 +463,12 @@ function FollowStatsModal({ type, onClose }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backdropFilter: "blur(8px)", background: "rgba(2,6,23,0.75)" }}
+      style={ts.modalBackdropSm}
       onClick={onClose}
     >
       <div
         className="w-full max-w-sm rounded-2xl border border-surface-border overflow-hidden animate-slide-up"
-        style={{ background: "linear-gradient(145deg,#1a2340,#131a2e)" }}
+        style={ts.cardBg}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-surface-border">
@@ -560,8 +562,7 @@ function GameStatsFetcher({ game, onSave }) {
     <div
       className="mx-5 mb-5 rounded-xl border border-yellow-500/20 overflow-hidden"
       style={{
-        background:
-          "linear-gradient(135deg,rgba(244,165,35,0.06),rgba(26,35,64,0.8))",
+        background: isLight ? "rgba(251,191,36,0.05)" : "linear-gradient(135deg,rgba(244,165,35,0.06),rgba(26,35,64,0.8))",
       }}
     >
       <div className="flex items-center gap-3 px-4 py-3 border-b border-surface-border/50">
@@ -585,7 +586,7 @@ function GameStatsFetcher({ game, onSave }) {
   return (
     <div
       className="rounded-2xl border border-surface-border overflow-hidden"
-      style={{ background: "linear-gradient(145deg,#1a2340,#131a2e)" }}
+      style={ts.cardBg}
     >
       <div className="flex items-center gap-3 px-5 py-4 border-b border-surface-border">
         <div className="w-10 h-10 rounded-xl bg-red/10 border border-red/20 flex items-center justify-center text-xl shrink-0">
@@ -717,6 +718,8 @@ function GameStatsFetcher({ game, onSave }) {
 
 // ── Main Profile ───────────────────────────────────────────────────────────────
 export default function Profile() {
+  const { theme } = useTheme();
+  const ts = themeStyles(theme);
   const { user: authUser, login, token } = useAuth();
   const [profile, setProfile] = useState(null);
   const [games, setGames] = useState([]);

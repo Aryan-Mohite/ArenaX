@@ -1,4 +1,6 @@
 import { Link } from 'react-router-dom'
+import { useTheme } from '../context/ThemeContext'
+import { themeStyles } from '../utils/themeStyles'
 
 const STATUS_STYLES = {
   upcoming:  'badge-blue',
@@ -15,6 +17,9 @@ const FORMAT_LABELS = {
 }
 
 export default function TournamentCard({ tournament }) {
+  const { theme } = useTheme();
+  const ts = themeStyles(theme);
+  const isLight = theme === "light";
   const {
     tournament_id, name, game_name, game_icon,
     prize_pool, entry_fee, region, format,

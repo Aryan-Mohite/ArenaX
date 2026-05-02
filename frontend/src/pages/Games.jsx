@@ -9,6 +9,8 @@ import {
 import GameCard from "../components/GameCard";
 import { PageLoader, EmptyState, ErrorMessage } from "../components/UI";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
+import { themeStyles } from "../utils/themeStyles";
 
 // ─── Genre accent colors ──────────────────────────────────────────────────────
 const GENRE_COLORS = {
@@ -101,7 +103,7 @@ function SpotlightCover({ game }) {
       )}
       <div
         className="absolute bottom-0 left-0 right-0 h-12 pointer-events-none"
-        style={{ background: "linear-gradient(to top, #1a2340, transparent)" }}
+        style={ts.cardImgOverlay}
       />
     </div>
   );
@@ -113,7 +115,7 @@ function SpotlightCard({ game, rank }) {
   return (
     <div
       className="relative rounded-xl overflow-hidden flex-shrink-0 w-36 transition-transform duration-200 hover:-translate-y-1"
-      style={{ border: `1px solid ${color}30`, background: "#1a2340" }}
+      style={ts.gameIconBox()}
     >
       <SpotlightCover game={game} />
       <div
@@ -187,6 +189,9 @@ function SyncBanner({ gameCount, onSync, syncing, syncResult }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function Games() {
+  const { theme } = useTheme();
+  const ts = themeStyles(theme);
+  const isLight = theme === "light";
   const { isAuthenticated } = useAuth();
 
   const [games, setGames] = useState([]);

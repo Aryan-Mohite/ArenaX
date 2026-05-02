@@ -7,7 +7,8 @@ import {
 } from "../services/tournamentService";
 import { PageLoader, ErrorMessage } from "../components/UI";
 import { useAuth } from "../context/AuthContext";
-
+import { useTheme } from "../context/ThemeContext";
+import { themeStyles } from "../utils/themeStyles";
 // ── Shared helpers ────────────────────────────────────────────────────────────
 const STATUS_STYLES = {
   upcoming: {
@@ -70,7 +71,9 @@ const EMPTY_FORM = {
   join_link: "",
 };
 
-function OrganizerPostModal({ games, onClose, onCreated }) {
+function OrganizerPostModal({
+  const { theme } = useTheme();
+  const ts = themeStyles(theme); games, onClose, onCreated }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -126,7 +129,7 @@ function OrganizerPostModal({ games, onClose, onCreated }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto"
-      style={{ backdropFilter: "blur(10px)", background: "rgba(2,6,23,0.8)" }}
+      style={ts.modalBackdrop}
     >
       <div
         className="w-full max-w-2xl my-4 rounded-2xl border border-surface-border overflow-hidden animate-slide-up"
@@ -506,7 +509,9 @@ function OrganizerPostModal({ games, onClose, onCreated }) {
 }
 
 // ── Rich Tournament Card ──────────────────────────────────────────────────────
-function TournamentCard({ tournament }) {
+function TournamentCard({
+  const { theme } = useTheme();
+  const ts = themeStyles(theme); tournament }) {
   const {
     tournament_id,
     name,
@@ -535,7 +540,7 @@ function TournamentCard({ tournament }) {
     <Link
       to={"/tournament/" + tournament_id}
       className="group flex flex-col rounded-2xl border border-surface-border overflow-hidden transition-all duration-300 hover:border-red/40 hover:-translate-y-1 hover:shadow-[0_16px_48px_rgba(0,0,0,0.5)]"
-      style={{ background: "linear-gradient(145deg,#1a2340,#131a2e)" }}
+      style={ts.cardBg}
     >
       {/* Banner image or gradient placeholder */}
       <div className="relative h-36 overflow-hidden bg-navy shrink-0">
@@ -1019,8 +1024,7 @@ function TournamentList() {
       <div
         className="relative mb-10 rounded-2xl overflow-hidden border border-surface-border"
         style={{
-          background:
-            "linear-gradient(135deg,#0f172a 0%,#1a2340 50%,#0d0f20 100%)",
+          ...ts.heroBg,
         }}
       >
         {/* Dot grid */}
@@ -1182,6 +1186,8 @@ function TournamentList() {
 
 // ── Root ──────────────────────────────────────────────────────────────────────
 export default function Tournament() {
+  const { theme } = useTheme();
+  const ts = themeStyles(theme);
   const { id } = useParams();
   return id ? <TournamentDetail id={id} /> : <TournamentList />;
 }
