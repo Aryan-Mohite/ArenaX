@@ -72,8 +72,12 @@ const EMPTY_FORM = {
 };
 
 function OrganizerPostModal({
+  games, onClose, onCreated
+}) {
   const { theme } = useTheme();
-  const ts = themeStyles(theme); games, onClose, onCreated }) {
+  const ts = themeStyles(theme);
+  const isLight = theme === "light";
+
   const [form, setForm] = useState(EMPTY_FORM);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -510,8 +514,12 @@ function OrganizerPostModal({
 
 // ── Rich Tournament Card ──────────────────────────────────────────────────────
 function TournamentCard({
+  tournament
+}) {
   const { theme } = useTheme();
-  const ts = themeStyles(theme); tournament }) {
+  const ts = themeStyles(theme);
+  const isLight = theme === "light";
+
   const {
     tournament_id,
     name,
@@ -957,6 +965,10 @@ function TournamentDetail({ id }) {
 
 // ── Tournament List ───────────────────────────────────────────────────────────
 function TournamentList() {
+  const { theme } = useTheme();
+  const ts = themeStyles(theme);
+  const isLight = theme === "light";
+
   const { isAuthenticated } = useAuth();
   const [tournaments, setTournaments] = useState([]);
   const [loading, setLoading] = useState(true);

@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { getTournaments } from "../services/tournamentService";
 import { getLiveStreams } from "../services/streamService";
 import TournamentCard from "../components/TournamentCard";
+import { useTheme } from "../context/ThemeContext";
+import { themeStyles } from "../utils/themeStyles";
 
 // ─── Skeleton loaders ────────────────────────────────────────────────────────
 function SkeletonCard({ className = "" }) {
@@ -108,6 +110,8 @@ function ErrorState({ message, onRetry }) {
 
 // ─── Main component ────────────────────────────────────────────────────────────
 export default function Home() {
+  const { theme } = useTheme();
+  const ts = themeStyles(theme);
   const [tournaments, setTournaments] = useState([]);
   const [streams, setStreams] = useState([]);
   const [loadingTournaments, setLoadingTournaments] = useState(true);

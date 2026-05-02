@@ -63,6 +63,10 @@ function GameSkeleton() {
 
 // ─── Cover art for spotlight ──────────────────────────────────────────────────
 function SpotlightCover({ game }) {
+  const { theme } = useTheme();
+  const ts = themeStyles(theme);
+  const isLight = theme === "light";
+
   const [err, setErr] = useState(false);
   const color = genreColor(game.genre);
   const abbr = game.game_name
@@ -111,6 +115,10 @@ function SpotlightCover({ game }) {
 
 // ─── Spotlight card ───────────────────────────────────────────────────────────
 function SpotlightCard({ game, rank }) {
+  const { theme } = useTheme();
+  const ts = themeStyles(theme);
+  const isLight = theme === "light";
+
   const color = genreColor(game.genre);
   return (
     <div

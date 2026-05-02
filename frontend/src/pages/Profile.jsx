@@ -340,6 +340,10 @@ function detectFetcher(gameName = "") {
 
 // ── Share Player Card Modal ────────────────────────────────────────────────────────
 function ShareModal({ profile, onClose }) {
+  const { theme } = useTheme();
+  const ts = themeStyles(theme);
+  const isLight = theme === "light";
+
   const [copied, setCopied] = useState(false);
   const profileUrl = `${window.location.origin}/users/${profile?.user_id}`;
   const handleCopy = () => {
@@ -460,6 +464,10 @@ function ShareModal({ profile, onClose }) {
 
 // ── Follow Stats Modal ─────────────────────────────────────────────────────────
 function FollowStatsModal({ type, onClose }) {
+  const { theme } = useTheme();
+  const ts = themeStyles(theme);
+  const isLight = theme === "light";
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -498,6 +506,10 @@ function FollowStatsModal({ type, onClose }) {
 
 // ── GameStatsFetcher ───────────────────────────────────────────────────────────
 function GameStatsFetcher({ game, onSave }) {
+  const { theme } = useTheme();
+  const ts = themeStyles(theme);
+  const isLight = theme === "light";
+
   const fetcherKey = detectFetcher(game.game_name);
   const fetcher = FETCHERS[fetcherKey];
 

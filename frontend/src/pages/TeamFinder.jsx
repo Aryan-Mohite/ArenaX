@@ -35,8 +35,12 @@ function GridBackground() {
 }
 
 function ChatModal({
+  partnerId, partnerName, onClose
+}) {
   const { theme } = useTheme();
-  const ts = themeStyles(theme); partnerId, partnerName, onClose }) {
+  const ts = themeStyles(theme);
+  const isLight = theme === "light";
+
   const [messages,setMessages]=useState([]);const [text,setText]=useState("");const [loading,setLoading]=useState(true);const [sending,setSending]=useState(false);const {user}=useAuth();const bottomRef=useRef(null);const pollRef=useRef(null);
   const loadMessages=useCallback(async()=>{try{const r=await authFetch(`/messages/conversation/${partnerId}?limit=60`);setMessages(r.messages||[]);}catch{} finally{setLoading(false);}},[partnerId]);
   useEffect(()=>{loadMessages();pollRef.current=setInterval(loadMessages,4000);return()=>clearInterval(pollRef.current);},[loadMessages]);
@@ -64,6 +68,10 @@ function ChatModal({
 }
 
 function RosterModal({ post, onClose, onChat, navigate }) {
+  const { theme } = useTheme();
+  const ts = themeStyles(theme);
+  const isLight = theme === "light";
+
   const [apps,setApps]=useState([]);const [loading,setLoading]=useState(true);const [actioning,setActioning]=useState(null);const [toast,setToast]=useState("");
   const showToast=(msg)=>{setToast(msg);setTimeout(()=>setToast(""),2500);};
   useEffect(()=>{authFetch(`/teamfinder/${post.post_id}/applications`).then(r=>setApps(r.applications||[])).catch(()=>setApps([])).finally(()=>setLoading(false));},[post.post_id]);
@@ -124,8 +132,12 @@ function RosterModal({ post, onClose, onChat, navigate }) {
 }
 
 function MyTeamsPanel({
+  myGames, onPostForTeam, refreshKey
+}) {
   const { theme } = useTheme();
-  const ts = themeStyles(theme); myGames, onPostForTeam, refreshKey }) {
+  const ts = themeStyles(theme);
+  const isLight = theme === "light";
+
   const navigate=useNavigate();
   const [teams,setTeams]=useState([]);const [loading,setLoading]=useState(true);const [showCreate,setShowCreate]=useState(false);const [form,setForm]=useState({team_name:"",game_id:"",region:"",description:""});const [creating,setCreating]=useState(false);const [error,setError]=useState("");const [disbandTarget,setDisbandTarget]=useState(null);const [open,setOpen]=useState(true);
   const load=useCallback(()=>{authFetch("/teams/mine").then(r=>setTeams(r.teams||[])).catch(()=>setTeams([])).finally(()=>setLoading(false));},[]);
@@ -197,6 +209,10 @@ function MyTeamsPanel({
 }
 
 function MyDispatchesPanel({ onChat }) {
+  const { theme } = useTheme();
+  const ts = themeStyles(theme);
+  const isLight = theme === "light";
+
   const [apps,setApps]=useState([]);const [loading,setLoading]=useState(true);const [open,setOpen]=useState(true);
   const load=useCallback(async()=>{try{const r=await authFetch("/teamfinder/my-applications");setApps(r.applications||[]);}catch{setApps([]);}finally{setLoading(false);}}, []);
   useEffect(()=>{load();const id=setInterval(load,8000);return()=>clearInterval(id);},[load]);
@@ -237,8 +253,12 @@ function MyDispatchesPanel({ onChat }) {
 }
 
 function ApplyModal({
+  post, onClose, onSubmit
+}) {
   const { theme } = useTheme();
-  const ts = themeStyles(theme); post, onClose, onSubmit }) {
+  const ts = themeStyles(theme);
+  const isLight = theme === "light";
+
   const [msg,setMsg]=useState("");const [loading,setLoading]=useState(false);
   const handle=async()=>{setLoading(true);await onSubmit(post.post_id,msg||"I'd like to join your team!");setLoading(false);onClose();};
   return (
@@ -272,8 +292,12 @@ function ApplyModal({
 }
 
 function CloseDraftModal({
+  post, onClose, onConfirm
+}) {
   const { theme } = useTheme();
-  const ts = themeStyles(theme); post, onClose, onConfirm }) {
+  const ts = themeStyles(theme);
+  const isLight = theme === "light";
+
   const [loading,setLoading]=useState(false);
   const handle=async()=>{setLoading(true);await onConfirm(post.post_id);setLoading(false);onClose();};
   return (
@@ -287,6 +311,10 @@ function CloseDraftModal({
 }
 
 function ListingCard({ post, onApply, alreadyApplied, isAuthenticated, currentUserId, onViewRoster, onClose, onViewProfile }) {
+  const { theme } = useTheme();
+  const ts = themeStyles(theme);
+  const isLight = theme === "light";
+
   const {username,game_name,rank_required,role_required,region,description,poster_rank,poster_elo,created_at,post_id,deadline,team_name,profile_picture}=post;
   const accentMap=["#ff4655","#3b82f6","#8b5cf6","#10b981","#f59e0b"];
   const accent=accentMap[(post_id||0)%accentMap.length];
