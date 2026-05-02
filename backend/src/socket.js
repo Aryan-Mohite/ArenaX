@@ -17,7 +17,7 @@ export const initSocket = (httpServer) => {
   });
 
   // ── AUTH MIDDLEWARE ───────────────────────────────────────────────────────
-  io.use((socket, next) => {
+  io.use(async (socket, next) => {
     const token = socket.handshake.auth?.token;
     if (!token) return next(new Error("No token provided"));
 

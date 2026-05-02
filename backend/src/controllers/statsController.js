@@ -22,7 +22,7 @@
  *   GET /api/stats/easportsfc/:username       → informational (no public API)
  */
 
-import fetch from "node-fetch";
+
 
 // ─── Timeout helper ───────────────────────────────────────────────────────────
 const fetchWithTimeout = (url, opts = {}, ms = 10000) => {

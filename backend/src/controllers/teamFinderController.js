@@ -221,3 +221,21 @@ export const rejectApplication = async (req, res, next) => {
     res.json({ success: true, application: result.rows[0] });
   } catch (err) { next(err); }
 };
+
+// ─── ADMIN DELETE TEAM FINDER POST ───────────────────────────────────────────
+export const adminDeletePost = async (req, res, next) => {
+  try {
+    if (!req.user.isAdmin) {
+      return res.status(403).json({ success: false, message: "Admin access required" });
+    }
+    const { id: post_id } = req.params;
+    const result = await pool.query(
+      "DELETE FROM team_finder_posts WHERE post_id = $1 RETURNING post_id",
+      [post_id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "Post not found" });
+    }
+    res.json({ success: true, message: "Team finder post removed by admin" });
+  } catch (err) { next(err); }
+};

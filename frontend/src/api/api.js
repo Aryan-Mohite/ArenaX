@@ -1,7 +1,9 @@
 import axios from 'axios'
 
+// In dev, Vite proxy rewrites /api → localhost:5000.
+// In production, set VITE_API_URL=https://yourbackend.com/api in your .env
 const API = axios.create({
-  baseURL: '/api',
+  baseURL: import.meta.env.VITE_API_URL || '/api',
   headers: { 'Content-Type': 'application/json' },
 })
 

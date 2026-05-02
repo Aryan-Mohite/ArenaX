@@ -2,7 +2,8 @@ import { Router } from "express";
 import {
   getPosts, createPost, closePost, applyToPost,
   getApplicationsForPost, getMyApplications,
-  draftAcceptApplication, finalAcceptApplication, rejectApplication
+  draftAcceptApplication, finalAcceptApplication, rejectApplication,
+  adminDeletePost,
 } from "../controllers/teamFinderController.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 import { validateTeamFinderPost, validateIdParam } from "../utils/validators.js";
@@ -22,5 +23,8 @@ router.get("/:id/applications",   authMiddleware, validateIdParam, validate, get
 router.patch("/:id/applications/:appId/draft-accept",  authMiddleware, validateIdParam, validate, draftAcceptApplication);
 router.patch("/:id/applications/:appId/final-accept",  authMiddleware, validateIdParam, validate, finalAcceptApplication);
 router.patch("/:id/applications/:appId/reject",        authMiddleware, validateIdParam, validate, rejectApplication);
+
+// DELETE /api/team-finder/:id — admin only hard delete
+router.delete("/:id", authMiddleware, validateIdParam, validate, adminDeletePost);
 
 export default router;

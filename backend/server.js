@@ -2,6 +2,7 @@ import "dotenv/config";
 import http from "http";
 import app from "./src/app.js";
 import { initSocket } from "./src/socket.js";
+import pool from "./src/config/db.js";
 
 const PORT = process.env.PORT || 5000;
 
@@ -14,10 +15,19 @@ server.listen(PORT, () => {
 });
 
 // Graceful shutdown — don't leave the DB pool hanging
-process.on("SIGTERM", () => {
-  console.log("SIGTERM received. Shutting down gracefully...");
-  server.close(() => {
-    console.log("Server closed.");
+const shutdown = (signal) => {
+  console.log(`${signal} received. Shutting down gracefully...`);
+  server.close(async () => {
+    console.log("HTTP server closed.");
+    try {
+      await pool.end();
+      console.log("DB pool closed.");
+    } catch (err) {
+      console.error("Error closing DB pool:", err.message);
+    }
     process.exit(0);
   });
-});
+};
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT",  () => shutdown("SIGINT"));

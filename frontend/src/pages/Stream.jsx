@@ -3,6 +3,7 @@ import { getLiveStreams, goLive, endStream } from "../services/streamService";
 import { getMyGames } from "../services/gameService";
 import { PageLoader, EmptyState, ErrorMessage } from "../components/UI";
 import { useAuth } from "../context/AuthContext";
+import API from "../api/api";
 
 function StreamCard({ stream }) {
   return (
@@ -43,12 +44,13 @@ function StreamCard({ stream }) {
 }
 
 export default function Stream() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   const [streams, setStreams] = useState([]);
   const [myGames, setMyGames] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isLive, setIsLive] = useState(false);
+  const [myStream, setMyStream] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState("");
   const [gameFilter, setGameFilter] = useState("");
@@ -70,6 +72,23 @@ export default function Stream() {
   useEffect(() => {
     loadStreams();
   }, [gameFilter]);
+
+  // On mount, check if the current user already has an active live stream
+  // This persists isLive state across page refreshes
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    API.get("/streams")
+      .then((res) => {
+        const active = (res.data.streams || []).find(
+          (s) => s.user_id === user?.id && s.status === "live",
+        );
+        if (active) {
+          setIsLive(true);
+          setMyStream(active);
+        }
+      })
+      .catch(() => {});
+  }, [isAuthenticated, user?.id]);
 
   useEffect(() => {
     if (isAuthenticated) {

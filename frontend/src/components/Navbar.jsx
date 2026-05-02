@@ -190,6 +190,20 @@ export default function Navbar() {
                       Player Card
                     </Link>
 
+                    {/* Admin Panel Link — only visible to admins */}
+                    {user?.isAdmin && (
+                      <>
+                        <Link
+                          to="/admin"
+                          onClick={() => setDropdownOpen(false)}
+                          className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-yellow-400 hover:text-yellow-300 hover:bg-yellow-400/8 transition-colors group"
+                        >
+                          <span className="text-base">⚡</span>
+                          Admin Panel
+                        </Link>
+                      </>
+                    )}
+
                     <div className="border-t border-surface-border my-1" />
 
                     <button

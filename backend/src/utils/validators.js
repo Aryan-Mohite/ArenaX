@@ -57,6 +57,25 @@ export const validateCreateTournament = [
   body("region")
     .optional({ nullable: true, checkFalsy: true })
     .isLength({ max: 50 }),
+  body("join_link")
+    .optional({ nullable: true, checkFalsy: true })
+    .isURL({ protocols: ["http", "https"], require_protocol: true })
+    .withMessage("join_link must be a valid http/https URL"),
+  body("image_url")
+    .optional({ nullable: true, checkFalsy: true })
+    .isURL({ protocols: ["http", "https"], require_protocol: true })
+    .withMessage("image_url must be a valid http/https URL"),
+  body("description")
+    .optional({ nullable: true, checkFalsy: true })
+    .isLength({ max: 2000 }).withMessage("Description must be under 2000 characters"),
+  body("organizer_name")
+    .optional({ nullable: true, checkFalsy: true })
+    .trim()
+    .isLength({ max: 100 }),
+  body("location")
+    .optional({ nullable: true, checkFalsy: true })
+    .trim()
+    .isLength({ max: 200 }),
 ];
 
 // ─── TEAM FINDER ───────────────────────────────────────────────────────────────

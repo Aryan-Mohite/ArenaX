@@ -1,6 +1,6 @@
 import { Router } from "express";
 import {
-  createTeam, getTeam, getMyTeams, deleteTeam,
+  createTeam, getTeam, getMyTeams, getAllTeams, deleteTeam,
   kickMember, inviteMember, respondToInvitation, leaveTeam
 } from "../controllers/teamController.js";
 import authMiddleware from "../middleware/authMiddleware.js";
@@ -12,6 +12,7 @@ const router = Router();
 
 // Static routes first
 router.get("/mine",               authMiddleware, getMyTeams);
+router.get("/all",                authMiddleware, getAllTeams);  // admin: list all teams
 router.post("/",                  authMiddleware, validateCreateTeam, validate, createTeam);
 router.patch("/invitations/:invite_id", authMiddleware, [param("invite_id").isInt({min:1}), body("action").isIn(["accept","decline"])], validate, respondToInvitation);
 

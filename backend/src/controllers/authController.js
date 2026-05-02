@@ -34,13 +34,14 @@ export const register = async (req, res, next) => {
     );
 
     const user = result.rows[0];
-    const token = generateToken({ id: user.user_id, username: user.username });
+    // New registrations are never admins
+    const token = generateToken({ id: user.user_id, username: user.username, isAdmin: false });
 
     res.status(201).json({
       success: true,
       message: "Registration successful",
       token,
-      user,
+      user: { ...user, isAdmin: false },
     });
   } catch (err) {
     next(err);
@@ -83,7 +84,14 @@ export const login = async (req, res, next) => {
       [user.user_id]
     );
 
-    const token = generateToken({ id: user.user_id, username: user.username });
+    // Derive admin status from ADMIN_EMAILS env var (comma-separated list)
+    // Example in .env: ADMIN_EMAILS=you@gmail.com,partner@gmail.com,dev@company.com
+    const adminEmails = (process.env.ADMIN_EMAILS || "")
+      .split(",")
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
+    const isAdmin = adminEmails.includes(user.email.toLowerCase());
+    const token = generateToken({ id: user.user_id, username: user.username, isAdmin });
 
     res.json({
       success: true,
@@ -93,6 +101,7 @@ export const login = async (req, res, next) => {
         id: user.user_id,
         username: user.username,
         email: user.email,
+        isAdmin,
       },
     });
   } catch (err) {
@@ -115,7 +124,9 @@ export const getMe = async (req, res, next) => {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    res.json({ success: true, user: result.rows[0] });
+    // Attach isAdmin so the frontend knows without re-login
+    const isAdmin = req.user.isAdmin === true;
+    res.json({ success: true, user: { ...result.rows[0], isAdmin } });
   } catch (err) {
     next(err);
   }

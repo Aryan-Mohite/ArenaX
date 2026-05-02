@@ -17,38 +17,45 @@ import { useState, useEffect, useCallback } from "react";
 // ─── Config ───────────────────────────────────────────────────────────────────
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:5000/api";
 const ENTITY_TYPES = [
-  { value: "",                label: "All Types"         },
-  { value: "tournament",      label: "Tournaments"       },
-  { value: "team",            label: "Teams"             },
-  { value: "stream",          label: "Streams"           },
-  { value: "community_post",  label: "Community Posts"   },
-  { value: "team_finder_post",label: "Team Finder Posts" },
-  { value: "match",           label: "Matches"           },
+  { value: "", label: "All Types" },
+  { value: "tournament", label: "Tournaments" },
+  { value: "team", label: "Teams" },
+  { value: "stream", label: "Streams" },
+  { value: "community_post", label: "Community Posts" },
+  { value: "team_finder_post", label: "Team Finder Posts" },
+  { value: "match", label: "Matches" },
 ];
 
 const RESTORABLE = ["tournament", "team", "stream"];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const fmtDate = (d) =>
-  d ? new Date(d).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "—";
+  d
+    ? new Date(d).toLocaleString("en-IN", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      })
+    : "—";
 
-const entityColor = (type) => ({
-  tournament:       "#f97316",
-  team:             "#3b82f6",
-  stream:           "#a855f7",
-  community_post:   "#22c55e",
-  team_finder_post: "#eab308",
-  match:            "#ef4444",
-}[type] ?? "#6b7280");
+const entityColor = (type) =>
+  ({
+    tournament: "#f97316",
+    team: "#3b82f6",
+    stream: "#a855f7",
+    community_post: "#22c55e",
+    team_finder_post: "#eab308",
+    match: "#ef4444",
+  })[type] ?? "#6b7280";
 
-const entityIcon = (type) => ({
-  tournament:       "🏆",
-  team:             "🛡️",
-  stream:           "📡",
-  community_post:   "💬",
-  team_finder_post: "🔍",
-  match:            "⚔️",
-}[type] ?? "📦");
+const entityIcon = (type) =>
+  ({
+    tournament: "🏆",
+    team: "🛡️",
+    stream: "📡",
+    community_post: "💬",
+    team_finder_post: "🔍",
+    match: "⚔️",
+  })[type] ?? "📦";
 
 // ─── API calls ────────────────────────────────────────────────────────────────
 const apiFetch = async (path, opts = {}) => {
@@ -65,29 +72,28 @@ const apiFetch = async (path, opts = {}) => {
   return res.json();
 };
 
-
 // =============================================================================
 // Main Component
 // =============================================================================
 export default function AdminArchiveDashboard() {
-  const [tab, setTab]             = useState("archives");   // "archives" | "audit"
-  const [archives, setArchives]   = useState([]);
-  const [auditLog, setAuditLog]   = useState([]);
-  const [loading, setLoading]     = useState(false);
-  const [error, setError]         = useState(null);
-  const [expanded, setExpanded]   = useState(null);         // log_id of expanded row
-  const [snapshot, setSnapshot]   = useState(null);         // full archived item data
+  const [tab, setTab] = useState("archives"); // "archives" | "audit"
+  const [archives, setArchives] = useState([]);
+  const [auditLog, setAuditLog] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [expanded, setExpanded] = useState(null); // log_id of expanded row
+  const [snapshot, setSnapshot] = useState(null); // full archived item data
   const [snapshotLoading, setSnapshotLoading] = useState(false);
-  const [restoring, setRestoring] = useState(null);         // entity_id being restored
-  const [purging, setPurging]     = useState(false);
+  const [restoring, setRestoring] = useState(null); // entity_id being restored
+  const [purging, setPurging] = useState(false);
   const [purgeResult, setPurgeResult] = useState(null);
-  const [toast, setToast]         = useState(null);
+  const [toast, setToast] = useState(null);
 
   // Filters
   const [entityType, setEntityType] = useState("");
-  const [fromDate, setFromDate]     = useState("");
-  const [toDate, setToDate]         = useState("");
-  const [page, setPage]             = useState(0);
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [page, setPage] = useState(0);
   const PAGE_SIZE = 30;
 
   // ── Toast ──────────────────────────────────────────────────────────────────
@@ -106,7 +112,7 @@ export default function AdminArchiveDashboard() {
         offset: page * PAGE_SIZE,
         ...(entityType ? { entity_type: entityType } : {}),
       });
-      const data = await apiFetch(`/admin/archives?${params}`);
+      const data = await apiFetch(`/archive/admin/archives?${params}`);
       setArchives(data.archives ?? []);
     } catch (e) {
       setError(e.message);
@@ -124,10 +130,10 @@ export default function AdminArchiveDashboard() {
         limit: PAGE_SIZE,
         offset: page * PAGE_SIZE,
         ...(entityType ? { entity_type: entityType } : {}),
-        ...(fromDate   ? { from_date: fromDate }      : {}),
-        ...(toDate     ? { to_date: toDate }           : {}),
+        ...(fromDate ? { from_date: fromDate } : {}),
+        ...(toDate ? { to_date: toDate } : {}),
       });
-      const data = await apiFetch(`/admin/archives/audit?${params}`);
+      const data = await apiFetch(`/archive/admin/archives/audit?${params}`);
       setAuditLog(data.audit_log ?? []);
     } catch (e) {
       setError(e.message);
@@ -145,12 +151,18 @@ export default function AdminArchiveDashboard() {
 
   // ── Expand row → load snapshot ─────────────────────────────────────────────
   const handleExpand = async (row) => {
-    if (expanded === row.log_id) { setExpanded(null); setSnapshot(null); return; }
+    if (expanded === row.log_id) {
+      setExpanded(null);
+      setSnapshot(null);
+      return;
+    }
     setExpanded(row.log_id);
     setSnapshot(null);
     setSnapshotLoading(true);
     try {
-      const data = await apiFetch(`/admin/archives/${row.entity_type}/${row.entity_id}`);
+      const data = await apiFetch(
+        `/archive/admin/archives/${row.entity_type}/${row.entity_id}`,
+      );
       setSnapshot(data.archived_item);
     } catch (e) {
       setSnapshot({ error: e.message });
@@ -161,10 +173,18 @@ export default function AdminArchiveDashboard() {
 
   // ── Restore ────────────────────────────────────────────────────────────────
   const handleRestore = async (entityType, entityId, entityName) => {
-    if (!window.confirm(`Restore "${entityName}"? This will re-insert it into the live database.`)) return;
+    if (
+      !window.confirm(
+        `Restore "${entityName}"? This will re-insert it into the live database.`,
+      )
+    )
+      return;
     setRestoring(entityId);
     try {
-      await apiFetch(`/admin/archives/restore/${entityType}/${entityId}`, { method: "POST" });
+      await apiFetch(
+        `/archive/admin/archives/restore/${entityType}/${entityId}`,
+        { method: "POST" },
+      );
       showToast(`✅ "${entityName}" restored successfully.`);
       fetchArchives();
     } catch (e) {
@@ -176,11 +196,18 @@ export default function AdminArchiveDashboard() {
 
   // ── Purge ──────────────────────────────────────────────────────────────────
   const handlePurge = async () => {
-    if (!window.confirm("⚠️ Permanently delete all archives older than the retention period? This CANNOT be undone.")) return;
+    if (
+      !window.confirm(
+        "⚠️ Permanently delete all archives older than the retention period? This CANNOT be undone.",
+      )
+    )
+      return;
     setPurging(true);
     setPurgeResult(null);
     try {
-      const data = await apiFetch("/admin/archives/purge", { method: "DELETE" });
+      const data = await apiFetch("/archive/admin/archives/purge", {
+        method: "DELETE",
+      });
       setPurgeResult(data.purged);
       showToast("🗑️ Old archives purged.");
       fetchArchives();
@@ -196,7 +223,12 @@ export default function AdminArchiveDashboard() {
     <div style={styles.root}>
       {/* ── Toast ── */}
       {toast && (
-        <div style={{ ...styles.toast, background: toast.ok ? "#16a34a" : "#dc2626" }}>
+        <div
+          style={{
+            ...styles.toast,
+            background: toast.ok ? "#16a34a" : "#dc2626",
+          }}
+        >
           {toast.msg}
         </div>
       )}
@@ -205,7 +237,9 @@ export default function AdminArchiveDashboard() {
       <div style={styles.header}>
         <div>
           <h1 style={styles.title}>🗄️ Archive Manager</h1>
-          <p style={styles.subtitle}>View, inspect, and restore archived ArenaX data</p>
+          <p style={styles.subtitle}>
+            View, inspect, and restore archived ArenaX data
+          </p>
         </div>
         <button
           style={styles.dangerBtn}
@@ -220,7 +254,9 @@ export default function AdminArchiveDashboard() {
       {purgeResult && (
         <div style={styles.purgeResult}>
           <strong>Purge complete:</strong>{" "}
-          {purgeResult.map((r) => `${r.table_name}: ${r.rows_purged} rows`).join(" · ")}
+          {purgeResult
+            .map((r) => `${r.table_name}: ${r.rows_purged} rows`)
+            .join(" · ")}
         </div>
       )}
 
@@ -230,7 +266,10 @@ export default function AdminArchiveDashboard() {
           <button
             key={t}
             style={{ ...styles.tab, ...(tab === t ? styles.tabActive : {}) }}
-            onClick={() => { setTab(t); setPage(0); }}
+            onClick={() => {
+              setTab(t);
+              setPage(0);
+            }}
           >
             {t === "archives" ? "📦 Archived Items" : "📋 Audit Log"}
           </button>
@@ -242,10 +281,15 @@ export default function AdminArchiveDashboard() {
         <select
           style={styles.select}
           value={entityType}
-          onChange={(e) => { setEntityType(e.target.value); setPage(0); }}
+          onChange={(e) => {
+            setEntityType(e.target.value);
+            setPage(0);
+          }}
         >
           {ENTITY_TYPES.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
           ))}
         </select>
 
@@ -268,7 +312,10 @@ export default function AdminArchiveDashboard() {
           </>
         )}
 
-        <button style={styles.refreshBtn} onClick={tab === "archives" ? fetchArchives : fetchAuditLog}>
+        <button
+          style={styles.refreshBtn}
+          onClick={tab === "archives" ? fetchArchives : fetchAuditLog}
+        >
           ↻ Refresh
         </button>
       </div>
@@ -277,7 +324,11 @@ export default function AdminArchiveDashboard() {
       {error && <div style={styles.errorBanner}>⚠️ {error}</div>}
 
       {/* ── Loading ── */}
-      {loading && <div style={styles.loadingBar}><div style={styles.loadingInner} /></div>}
+      {loading && (
+        <div style={styles.loadingBar}>
+          <div style={styles.loadingInner} />
+        </div>
+      )}
 
       {/* ══════════════════════════════════════════════════════════════════════ */}
       {/* ARCHIVES TAB */}
@@ -306,35 +357,56 @@ export default function AdminArchiveDashboard() {
                       key={row.log_id}
                       style={{
                         ...styles.tr,
-                        background: expanded === row.log_id ? "#1e293b" : "transparent",
+                        background:
+                          expanded === row.log_id ? "#1e293b" : "transparent",
                         cursor: "pointer",
                       }}
                       onClick={() => handleExpand(row)}
                     >
                       <td style={styles.td}>
-                        <span style={{
-                          ...styles.typeBadge,
-                          background: entityColor(row.entity_type) + "22",
-                          color: entityColor(row.entity_type),
-                          borderColor: entityColor(row.entity_type) + "55",
-                        }}>
-                          {entityIcon(row.entity_type)} {row.entity_type.replace(/_/g, " ")}
+                        <span
+                          style={{
+                            ...styles.typeBadge,
+                            background: entityColor(row.entity_type) + "22",
+                            color: entityColor(row.entity_type),
+                            borderColor: entityColor(row.entity_type) + "55",
+                          }}
+                        >
+                          {entityIcon(row.entity_type)}{" "}
+                          {row.entity_type.replace(/_/g, " ")}
                         </span>
                       </td>
-                      <td style={{ ...styles.td, fontWeight: 600, color: "#f1f5f9" }}>
+                      <td
+                        style={{
+                          ...styles.td,
+                          fontWeight: 600,
+                          color: "#f1f5f9",
+                        }}
+                      >
                         {row.entity_name ?? `ID: ${row.entity_id}`}
                       </td>
                       <td style={styles.td}>{fmtDate(row.archived_at)}</td>
                       <td style={styles.td}>
-                        <span style={styles.reasonBadge}>{row.archive_reason}</span>
+                        <span style={styles.reasonBadge}>
+                          {row.archive_reason}
+                        </span>
                       </td>
-                      <td style={styles.td}>{row.archived_by_user ?? "system"}</td>
                       <td style={styles.td}>
-                        {row.restored_at
-                          ? <span style={styles.restoredBadge}>✅ {fmtDate(row.restored_at)}</span>
-                          : <span style={styles.pendingBadge}>—</span>}
+                        {row.archived_by_user ?? "system"}
                       </td>
-                      <td style={styles.td} onClick={(e) => e.stopPropagation()}>
+                      <td style={styles.td}>
+                        {row.restored_at ? (
+                          <span style={styles.restoredBadge}>
+                            ✅ {fmtDate(row.restored_at)}
+                          </span>
+                        ) : (
+                          <span style={styles.pendingBadge}>—</span>
+                        )}
+                      </td>
+                      <td
+                        style={styles.td}
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <div style={styles.actionRow}>
                           <button
                             style={styles.inspectBtn}
@@ -342,15 +414,24 @@ export default function AdminArchiveDashboard() {
                           >
                             {expanded === row.log_id ? "▲ Hide" : "▼ Inspect"}
                           </button>
-                          {RESTORABLE.includes(row.entity_type) && !row.restored_at && (
-                            <button
-                              style={styles.restoreBtn}
-                              disabled={restoring === row.entity_id}
-                              onClick={() => handleRestore(row.entity_type, row.entity_id, row.entity_name)}
-                            >
-                              {restoring === row.entity_id ? "…" : "↩ Restore"}
-                            </button>
-                          )}
+                          {RESTORABLE.includes(row.entity_type) &&
+                            !row.restored_at && (
+                              <button
+                                style={styles.restoreBtn}
+                                disabled={restoring === row.entity_id}
+                                onClick={() =>
+                                  handleRestore(
+                                    row.entity_type,
+                                    row.entity_id,
+                                    row.entity_name,
+                                  )
+                                }
+                              >
+                                {restoring === row.entity_id
+                                  ? "…"
+                                  : "↩ Restore"}
+                              </button>
+                            )}
                         </div>
                       </td>
                     </tr>
@@ -360,11 +441,18 @@ export default function AdminArchiveDashboard() {
                       <tr key={`${row.log_id}-snap`}>
                         <td colSpan={7} style={styles.snapshotTd}>
                           {snapshotLoading ? (
-                            <div style={styles.snapshotLoading}>Loading snapshot…</div>
+                            <div style={styles.snapshotLoading}>
+                              Loading snapshot…
+                            </div>
                           ) : snapshot?.error ? (
-                            <div style={styles.snapshotError}>⚠️ {snapshot.error}</div>
+                            <div style={styles.snapshotError}>
+                              ⚠️ {snapshot.error}
+                            </div>
                           ) : (
-                            <SnapshotViewer data={snapshot} entityType={row.entity_type} />
+                            <SnapshotViewer
+                              data={snapshot}
+                              entityType={row.entity_type}
+                            />
                           )}
                         </td>
                       </tr>
@@ -401,29 +489,50 @@ export default function AdminArchiveDashboard() {
               <tbody>
                 {auditLog.map((row) => (
                   <tr key={row.log_id} style={styles.tr}>
-                    <td style={{ ...styles.td, color: "#64748b", fontSize: 12 }}>{row.log_id}</td>
+                    <td
+                      style={{ ...styles.td, color: "#64748b", fontSize: 12 }}
+                    >
+                      {row.log_id}
+                    </td>
                     <td style={styles.td}>
-                      <span style={{
-                        ...styles.typeBadge,
-                        background: entityColor(row.entity_type) + "22",
-                        color: entityColor(row.entity_type),
-                        borderColor: entityColor(row.entity_type) + "55",
-                      }}>
-                        {entityIcon(row.entity_type)} {row.entity_type.replace(/_/g, " ")}
+                      <span
+                        style={{
+                          ...styles.typeBadge,
+                          background: entityColor(row.entity_type) + "22",
+                          color: entityColor(row.entity_type),
+                          borderColor: entityColor(row.entity_type) + "55",
+                        }}
+                      >
+                        {entityIcon(row.entity_type)}{" "}
+                        {row.entity_type.replace(/_/g, " ")}
                       </span>
                     </td>
-                    <td style={{ ...styles.td, color: "#f1f5f9", fontWeight: 600 }}>
+                    <td
+                      style={{
+                        ...styles.td,
+                        color: "#f1f5f9",
+                        fontWeight: 600,
+                      }}
+                    >
                       {row.entity_name ?? `ID ${row.entity_id}`}
                     </td>
                     <td style={styles.td}>{fmtDate(row.archived_at)}</td>
                     <td style={styles.td}>
-                      <span style={styles.reasonBadge}>{row.archive_reason}</span>
+                      <span style={styles.reasonBadge}>
+                        {row.archive_reason}
+                      </span>
                     </td>
-                    <td style={styles.td}>{row.archived_by_user ?? "system"}</td>
                     <td style={styles.td}>
-                      {row.restored_at
-                        ? <span style={styles.restoredBadge}>{fmtDate(row.restored_at)}</span>
-                        : "—"}
+                      {row.archived_by_user ?? "system"}
+                    </td>
+                    <td style={styles.td}>
+                      {row.restored_at ? (
+                        <span style={styles.restoredBadge}>
+                          {fmtDate(row.restored_at)}
+                        </span>
+                      ) : (
+                        "—"
+                      )}
                     </td>
                     <td style={styles.td}>{row.restored_by_user ?? "—"}</td>
                   </tr>
@@ -436,13 +545,19 @@ export default function AdminArchiveDashboard() {
 
       {/* ── Pagination ── */}
       <div style={styles.pagination}>
-        <button style={styles.pageBtn} disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
+        <button
+          style={styles.pageBtn}
+          disabled={page === 0}
+          onClick={() => setPage((p) => p - 1)}
+        >
           ← Prev
         </button>
         <span style={styles.pageNum}>Page {page + 1}</span>
         <button
           style={styles.pageBtn}
-          disabled={(tab === "archives" ? archives : auditLog).length < PAGE_SIZE}
+          disabled={
+            (tab === "archives" ? archives : auditLog).length < PAGE_SIZE
+          }
           onClick={() => setPage((p) => p + 1)}
         >
           Next →
@@ -452,7 +567,6 @@ export default function AdminArchiveDashboard() {
   );
 }
 
-
 // =============================================================================
 // Snapshot Viewer sub-component
 // =============================================================================
@@ -461,17 +575,23 @@ function SnapshotViewer({ data, entityType }) {
 
   if (!data) return <div style={styles.snapshotLoading}>No snapshot data.</div>;
 
-  const childKey = {
-    tournament:       ["registrations_snapshot", "matches_snapshot"],
-    team:             ["members_snapshot", "invitations_snapshot"],
-    community_post:   ["comments_snapshot"],
-    team_finder_post: ["applications_snapshot"],
-    match:            ["player_stats_snapshot"],
-    stream:           [],
-  }[entityType] ?? [];
+  const childKey =
+    {
+      tournament: ["registrations_snapshot", "matches_snapshot"],
+      team: ["members_snapshot", "invitations_snapshot"],
+      community_post: ["comments_snapshot"],
+      team_finder_post: ["applications_snapshot"],
+      match: ["player_stats_snapshot"],
+      stream: [],
+    }[entityType] ?? [];
 
   // Core fields (everything except snapshots and audit columns)
-  const auditCols = new Set(["archived_at", "archived_by", "archive_reason", ...childKey]);
+  const auditCols = new Set([
+    "archived_at",
+    "archived_by",
+    "archive_reason",
+    ...childKey,
+  ]);
   const coreEntries = Object.entries(data).filter(([k]) => !auditCols.has(k));
 
   return (
@@ -493,9 +613,17 @@ function SnapshotViewer({ data, entityType }) {
               <div key={k} style={styles.fieldItem}>
                 <div style={styles.fieldKey}>{k.replace(/_/g, " ")}</div>
                 <div style={styles.fieldVal}>
-                  {v === null ? <em style={{ color: "#64748b" }}>null</em>
-                    : typeof v === "boolean" ? (v ? "✅" : "❌")
-                    : String(v)}
+                  {v === null ? (
+                    <em style={{ color: "#64748b" }}>null</em>
+                  ) : typeof v === "boolean" ? (
+                    v ? (
+                      "✅"
+                    ) : (
+                      "❌"
+                    )
+                  ) : (
+                    String(v)
+                  )}
                 </div>
               </div>
             ))}
@@ -504,12 +632,19 @@ function SnapshotViewer({ data, entityType }) {
           {/* Child snapshots */}
           {childKey.map((key) => {
             const arr = data[key];
-            if (!arr || arr.length === 0) return (
-              <div key={key} style={styles.childSection}>
-                <div style={styles.childTitle}>{key.replace(/_/g, " ").replace("snapshot", "").trim()}</div>
-                <div style={{ color: "#64748b", fontSize: 13, padding: "8px 0" }}>None recorded.</div>
-              </div>
-            );
+            if (!arr || arr.length === 0)
+              return (
+                <div key={key} style={styles.childSection}>
+                  <div style={styles.childTitle}>
+                    {key.replace(/_/g, " ").replace("snapshot", "").trim()}
+                  </div>
+                  <div
+                    style={{ color: "#64748b", fontSize: 13, padding: "8px 0" }}
+                  >
+                    None recorded.
+                  </div>
+                </div>
+              );
 
             return (
               <div key={key} style={styles.childSection}>
@@ -524,7 +659,9 @@ function SnapshotViewer({ data, entityType }) {
                         <div key={k} style={styles.childRow}>
                           <span style={styles.childKey}>{k}</span>
                           <span style={styles.childVal}>
-                            {typeof v === "object" ? JSON.stringify(v) : String(v ?? "—")}
+                            {typeof v === "object"
+                              ? JSON.stringify(v)
+                              : String(v ?? "—")}
                           </span>
                         </div>
                       ))}
@@ -539,7 +676,6 @@ function SnapshotViewer({ data, entityType }) {
     </div>
   );
 }
-
 
 // =============================================================================
 // Styles (dark esports theme matching ArenaX palette)

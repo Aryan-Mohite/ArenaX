@@ -56,6 +56,15 @@ export const updateProfile = async (req, res, next) => {
     const userId = req.user.id;
     const { username, bio, country, region, profile_picture } = req.body;
 
+    // Guard: reject base64 strings over ~7MB (5MB raw → ~6.7MB base64 + overhead)
+    // Anything larger means the 10mb body limit was somehow bypassed or misused
+    if (profile_picture && profile_picture.startsWith("data:") && profile_picture.length > 7_000_000) {
+      return res.status(413).json({
+        success: false,
+        message: "Profile picture is too large. Maximum upload size is 5 MB.",
+      });
+    }
+
     // If changing username, make sure it's not taken
     if (username) {
       const conflict = await pool.query(
@@ -137,6 +146,15 @@ export const followUser = async (req, res, next) => {
 
     if (String(followerId) === String(followingId)) {
       return res.status(400).json({ success: false, message: "Cannot follow yourself" });
+    }
+
+    // Verify the target user actually exists and is active
+    const targetCheck = await pool.query(
+      "SELECT user_id FROM users WHERE user_id = $1 AND status = 'active'",
+      [followingId]
+    );
+    if (targetCheck.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "User not found" });
     }
 
     // Upsert to avoid duplicate errors

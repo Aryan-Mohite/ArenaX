@@ -9,18 +9,18 @@
  *  - Returns a human-readable error string on failure
  *
  * Limits (intentional):
- *  - MAX_FILE_MB = 100 → raw file size cap before compression
- *  - TARGET_PX  = 4096 → max width/height after compression (true 4K)
- *  - QUALITY    = 0.92 → JPEG/WEBP quality — high fidelity for gaming shots
+ *  - MAX_FILE_MB = 5   → raw file size cap before compression
+ *  - TARGET_PX  = 800  → max width/height after compression (avatar-sized)
+ *  - QUALITY    = 0.82 → good quality with significantly smaller output
  *
  * GIFs are NOT compressed (canvas kills animation); they pass through raw.
  * SVGs are rejected — they can embed arbitrary JS.
  */
 
-const MAX_FILE_MB = 100;
+const MAX_FILE_MB = 5;                // raw file cap before compression
 const MAX_BYTES   = MAX_FILE_MB * 1024 * 1024;
-const TARGET_PX   = 4096;   // max dimension — true 4K
-const QUALITY     = 0.92;
+const TARGET_PX   = 800;              // max dimension after compression (avatar-sized)
+const QUALITY     = 0.82;             // good quality, smaller output
 
 const ALLOWED_TYPES = [
   "image/jpeg", "image/jpg", "image/png", "image/webp",

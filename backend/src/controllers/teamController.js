@@ -85,13 +85,18 @@ export const deleteTeam = async (req, res, next) => {
   try {
     const { id: team_id } = req.params;
     const userId = req.user.id;
-    const captainCheck = await pool.query(
-      "SELECT * FROM team_members WHERE team_id=$1 AND user_id=$2 AND role='captain' AND status='active'",
-      [team_id, userId]
-    );
-    if (captainCheck.rows.length === 0) return res.status(403).json({ success: false, message: "Only captain can disband" });
+    const isAdmin = req.user.isAdmin === true;
+
+    if (!isAdmin) {
+      const captainCheck = await pool.query(
+        "SELECT * FROM team_members WHERE team_id=$1 AND user_id=$2 AND role='captain' AND status='active'",
+        [team_id, userId]
+      );
+      if (captainCheck.rows.length === 0)
+        return res.status(403).json({ success: false, message: "Only the captain or an admin can disband this team" });
+    }
     await pool.query("DELETE FROM teams WHERE team_id = $1", [team_id]);
-    res.json({ success: true });
+    res.json({ success: true, message: isAdmin ? "Team disbanded by admin" : "Team disbanded" });
   } catch (err) { next(err); }
 };
 
@@ -159,5 +164,23 @@ export const respondToInvitation = async (req, res, next) => {
       await client.query("COMMIT");
       res.json({ success: true });
     } catch (err) { await client.query("ROLLBACK"); throw err; } finally { client.release(); }
+  } catch (err) { next(err); }
+};
+
+// ─── GET ALL TEAMS (admin) ────────────────────────────────────────────────────
+export const getAllTeams = async (req, res, next) => {
+  try {
+    const { limit = 25, offset = 0 } = req.query;
+    const result = await pool.query(
+      `SELECT t.team_id, t.name, t.tag, t.game_id, t.created_at,
+              u.username AS captain_username
+       FROM teams t
+       LEFT JOIN team_members tm ON tm.team_id = t.team_id AND tm.role = 'captain' AND tm.status = 'active'
+       LEFT JOIN users u ON u.user_id = tm.user_id
+       ORDER BY t.created_at DESC
+       LIMIT $1 OFFSET $2`,
+      [limit, offset]
+    );
+    res.json({ success: true, teams: result.rows });
   } catch (err) { next(err); }
 };

@@ -10,6 +10,7 @@ import {
 import { getMyGames } from "../services/gameService";
 import { PageLoader, ErrorMessage, StatCard } from "../components/UI";
 import { useAuth } from "../context/AuthContext";
+import API from "../api/api";
 
 async function backendFetch(path) {
   const res = await fetch(`/api/stats${path}`);
@@ -765,12 +766,8 @@ export default function Profile() {
           );
         } catch {}
         try {
-          const token = localStorage.getItem("token") || "";
-          const tr = await fetch("/api/teams/mine", {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          const td = await tr.json();
-          setMyTeams(td.teams || []);
+          const td = await API.get("/teams/mine");
+          setMyTeams(td.data.teams || []);
         } catch {}
       } catch {
         setError("Failed to load profile");
@@ -781,7 +778,7 @@ export default function Profile() {
     load();
   }, []);
 
-  // avatarUpload — shared hook handles compression, validation, progress (up to 100 MB)
+  // avatarUpload — shared hook handles compression, validation, progress (up to 5 MB)
   const avatarUpload = useImageUpload();
   // Keep form.profile_picture in sync whenever the hook produces a new value
   useEffect(() => {
@@ -1108,7 +1105,7 @@ export default function Profile() {
                       <span>{avatarUpload.processing ? "⏳" : "💾"}</span>
                       {avatarUpload.processing
                         ? "Optimising image..."
-                        : "Browse image — JPEG, PNG, WEBP, GIF, HEIC (max 100 MB)"}
+                        : "Browse image — JPEG, PNG, WEBP, GIF, HEIC (max 5 MB)"}
                     </button>
 
                     {/* Progress bar */}

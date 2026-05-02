@@ -10,6 +10,7 @@ import {
   getAllFavGamesPosts,
   deletePost,
   deleteComment,
+  getAllPosts,
 } from "../controllers/communityController.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 import { validateCommunityPost, validateIdParam } from "../utils/validators.js";
@@ -19,6 +20,9 @@ import { body, param } from "express-validator";
 const router = Router();
 
 router.get("/", getCommunities);
+
+// GET /api/community/posts — admin: list all posts across all communities
+router.get("/posts", authMiddleware, getAllPosts);
 
 router.get("/all-posts", (req, res, next) => {
   req.optionalAuth = true;

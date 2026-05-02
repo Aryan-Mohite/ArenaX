@@ -16,6 +16,9 @@ import UserProfile from "./pages/UserProfile";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import About from "./pages/About";
+import AdminArchiveDashboard from "./pages/admin/AdminArchiveDashboard";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminRoute from "./components/AdminRoute";
 
 export default function App() {
   return (
@@ -43,6 +46,22 @@ export default function App() {
                 <ProtectedRoute>
                   <Profile />
                 </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <AdminRoute>
+                  <AdminDashboard />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/archives"
+              element={
+                <AdminRoute>
+                  <AdminArchiveDashboard />
+                </AdminRoute>
               }
             />
           </Routes>

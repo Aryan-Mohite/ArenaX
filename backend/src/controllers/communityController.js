@@ -181,14 +181,26 @@ export const deletePost = async (req, res, next) => {
   try {
     const { post_id } = req.params;
     const userId = req.user.id;
-    const result = await pool.query(
-      "DELETE FROM community_posts WHERE post_id = $1 AND user_id = $2 RETURNING post_id",
-      [post_id, userId]
-    );
+    const isAdmin = req.user.isAdmin === true;
+
+    // Admins can delete any post; regular users can only delete their own
+    const result = isAdmin
+      ? await pool.query(
+          "DELETE FROM community_posts WHERE post_id = $1 RETURNING post_id, user_id",
+          [post_id]
+        )
+      : await pool.query(
+          "DELETE FROM community_posts WHERE post_id = $1 AND user_id = $2 RETURNING post_id, user_id",
+          [post_id, userId]
+        );
+
     if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, message: "Post not found or not yours" });
+      return res.status(404).json({
+        success: false,
+        message: isAdmin ? "Post not found" : "Post not found or not yours",
+      });
     }
-    res.json({ success: true, message: "Post deleted" });
+    res.json({ success: true, message: isAdmin ? "Post removed by admin" : "Post deleted" });
   } catch (err) { next(err); }
 };
 
@@ -197,14 +209,26 @@ export const deleteComment = async (req, res, next) => {
   try {
     const { comment_id } = req.params;
     const userId = req.user.id;
-    const result = await pool.query(
-      "DELETE FROM post_comments WHERE comment_id = $1 AND user_id = $2 RETURNING comment_id",
-      [comment_id, userId]
-    );
+    const isAdmin = req.user.isAdmin === true;
+
+    // Admins can delete any comment; regular users can only delete their own
+    const result = isAdmin
+      ? await pool.query(
+          "DELETE FROM post_comments WHERE comment_id = $1 RETURNING comment_id",
+          [comment_id]
+        )
+      : await pool.query(
+          "DELETE FROM post_comments WHERE comment_id = $1 AND user_id = $2 RETURNING comment_id",
+          [comment_id, userId]
+        );
+
     if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, message: "Comment not found or not yours" });
+      return res.status(404).json({
+        success: false,
+        message: isAdmin ? "Comment not found" : "Comment not found or not yours",
+      });
     }
-    res.json({ success: true, message: "Comment deleted" });
+    res.json({ success: true, message: isAdmin ? "Comment removed by admin" : "Comment deleted" });
   } catch (err) { next(err); }
 };
 
@@ -270,6 +294,26 @@ export const getAllFavGamesPosts = async (req, res, next) => {
     params.push(Number(limit), Number(offset));
 
     const result = await pool.query(query, params);
+    res.json({ success: true, posts: result.rows });
+  } catch (err) { next(err); }
+};
+
+// ─── GET ALL POSTS (admin only) ───────────────────────────────────────────────
+export const getAllPosts = async (req, res, next) => {
+  try {
+    const { limit = 25, offset = 0 } = req.query;
+    const result = await pool.query(
+      `SELECT cp.post_id, cp.title, cp.content, cp.created_at,
+              cp.upvotes, cp.downvotes, cp.comment_count,
+              u.username, u.user_id,
+              c.name AS community_name
+       FROM community_posts cp
+       JOIN users u ON u.user_id = cp.user_id
+       JOIN communities c ON c.community_id = cp.community_id
+       ORDER BY cp.created_at DESC
+       LIMIT $1 OFFSET $2`,
+      [limit, offset]
+    );
     res.json({ success: true, posts: result.rows });
   } catch (err) { next(err); }
 };

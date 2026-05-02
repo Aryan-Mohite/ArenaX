@@ -5,6 +5,7 @@ import {
   createTournament,
   registerForTournament,
   updateTournamentStatus,
+  deleteTournament,
 } from "../controllers/tournamentController.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 import { validateCreateTournament, validateIdParam } from "../utils/validators.js";
@@ -41,5 +42,8 @@ router.patch(
   validate,
   updateTournamentStatus
 );
+
+// DELETE /api/tournaments/:id — organizer or admin only
+router.delete("/:id", authMiddleware, validateIdParam, validate, deleteTournament);
 
 export default router;

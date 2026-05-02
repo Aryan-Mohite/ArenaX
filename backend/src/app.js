@@ -1,9 +1,3 @@
-
-
-// =============================================================================
-// Full src/app.js for reference (complete file with changes applied)
-// =============================================================================
-
 import express from "express";
 import cors from "cors";
 
@@ -18,7 +12,8 @@ import messageRoutes   from "./routes/messageRoutes.js";
 import streamRoutes    from "./routes/streamRoutes.js";
 import matchRoutes     from "./routes/matchRoutes.js";
 import statsRoutes     from "./routes/statsRoutes.js";
-import archiveRoutes   from "./routes/archiveRoutes.js";          
+import archiveRoutes   from "./routes/archiveRoutes.js";
+import adminRoutes     from "./routes/adminRoutes.js";
 
 import { errorHandler, notFound } from "./middleware/errorMiddleware.js";
 
@@ -43,8 +38,8 @@ app.use(
 );
 
 // ─── BODY PARSING ─────────────────────────────────────────────────────────────
-app.use(express.json({ limit: "150mb" }));
-app.use(express.urlencoded({ extended: true, limit: "150mb" }));
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // ─── HEALTH CHECK ─────────────────────────────────────────────────────────────
 app.get("/health", (_req, res) => res.json({ status: "ok" }));
@@ -61,39 +56,11 @@ app.use("/api/messages",    messageRoutes);
 app.use("/api/streams",     streamRoutes);
 app.use("/api/matches",     matchRoutes);
 app.use("/api/stats",       statsRoutes);
-app.use("/api/archive",     archiveRoutes);                       // ← ADD THIS
+app.use("/api/archive",     archiveRoutes);
+app.use("/api/admin",       adminRoutes);
 
 // ─── ERROR HANDLING (must be last) ────────────────────────────────────────────
 app.use(notFound);
 app.use(errorHandler);
 
 export default app;
-
-
-// =============================================================================
-// FINAL ARCHIVE-AWARE DELETE ENDPOINTS SUMMARY
-// =============================================================================
-// Old route          →  New route (same HTTP method, different path prefix)
-// ─────────────────────────────────────────────────────────────────────────────
-// DELETE /api/tournaments/:id        →  DELETE /api/archive/tournaments/:id
-// DELETE /api/teams/:id              →  DELETE /api/archive/teams/:id
-// DELETE /api/streams/:id            →  DELETE /api/archive/streams/:id
-// DELETE /api/communities/posts/:id  →  DELETE /api/archive/community/posts/:id
-// DELETE /api/teamfinder/posts/:id   →  DELETE /api/archive/teamfinder/posts/:id
-// DELETE /api/users/me               →  DELETE /api/archive/users/me
-//
-// Admin endpoints:
-// GET    /api/archive/admin/archives
-// GET    /api/archive/admin/archives/audit
-// GET    /api/archive/admin/archives/:entity/:id
-// POST   /api/archive/admin/archives/restore/tournament/:id
-// POST   /api/archive/admin/archives/restore/team/:id
-// POST   /api/archive/admin/archives/restore/stream/:id
-// DELETE /api/archive/admin/archives/purge
-//
-// NOTE: isAdmin checks req.user.isAdmin. Make sure your JWT payload includes
-//       isAdmin: true for admin users. If you don't have this yet, add it to
-//       your login handler:
-//         const isAdmin = user.email === process.env.ADMIN_EMAIL;
-//         const token = generateToken({ id: user.user_id, isAdmin });
-// =============================================================================

@@ -170,10 +170,23 @@ export const updateTournamentStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
+    const userId = req.user.id;
 
     const validStatuses = ["upcoming", "ongoing", "completed", "cancelled"];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ success: false, message: "Invalid status value" });
+    }
+
+    // Only the organizer (created_by) or an admin can change tournament status
+    const existing = await pool.query(
+      "SELECT tournament_id, created_by FROM tournaments WHERE tournament_id = $1",
+      [id]
+    );
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "Tournament not found" });
+    }
+    if (existing.rows[0].created_by !== userId && !req.user.isAdmin) {
+      return res.status(403).json({ success: false, message: "Only the organizer or an admin can update tournament status" });
     }
 
     const result = await pool.query(
@@ -181,10 +194,30 @@ export const updateTournamentStatus = async (req, res, next) => {
       [status, id]
     );
 
-    if (result.rows.length === 0) {
+    res.json({ success: true, tournament: result.rows[0] });
+  } catch (err) { next(err); }
+};
+
+// ─── DELETE TOURNAMENT (organizer or admin) ───────────────────────────────────
+export const deleteTournament = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const isAdmin = req.user.isAdmin === true;
+
+    // Fetch the tournament first to check ownership
+    const existing = await pool.query(
+      "SELECT tournament_id, created_by, status FROM tournaments WHERE tournament_id = $1",
+      [id]
+    );
+    if (existing.rows.length === 0) {
       return res.status(404).json({ success: false, message: "Tournament not found" });
     }
+    if (existing.rows[0].created_by !== userId && !isAdmin) {
+      return res.status(403).json({ success: false, message: "Only the organizer or an admin can delete this tournament" });
+    }
 
-    res.json({ success: true, tournament: result.rows[0] });
+    await pool.query("DELETE FROM tournaments WHERE tournament_id = $1", [id]);
+    res.json({ success: true, message: isAdmin ? "Tournament removed by admin" : "Tournament deleted" });
   } catch (err) { next(err); }
 };
