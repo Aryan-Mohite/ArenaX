@@ -5,6 +5,7 @@ import { getLiveStreams } from "../services/streamService";
 import TournamentCard from "../components/TournamentCard";
 import { useTheme } from "../context/ThemeContext";
 import { themeStyles } from "../utils/themeStyles";
+import GameRadar from "../components/GameRadar";
 
 // ─── Skeleton loaders ────────────────────────────────────────────────────────
 function SkeletonCard({ className = "" }) {
@@ -249,84 +250,9 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Right: game art panel */}
+            {/* Right: dynamic game radar */}
             <div className="hidden lg:flex items-center justify-center relative">
-              <div className="relative w-full max-w-md aspect-square">
-                {/* Glowing ring */}
-                <div
-                  className="absolute inset-0 rounded-full border border-red/20 animate-ping opacity-20"
-                  style={{ animationDuration: "3s" }}
-                />
-                <div className="absolute inset-6 rounded-full border border-red/15" />
-                <div className="absolute inset-12 rounded-full border border-red/10" />
-
-                {/* Centre icon */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-40 h-40 rounded-full bg-red/10 border border-red/30 flex items-center justify-center backdrop-blur-sm">
-                    <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
-                      <path
-                        d="M32 8L56 20V44L32 56L8 44V20L32 8Z"
-                        stroke="#ff4655"
-                        strokeWidth="1.5"
-                        fill="none"
-                        opacity="0.6"
-                      />
-                      <path
-                        d="M32 16L48 25V43L32 52L16 43V25L32 16Z"
-                        fill="#ff4655"
-                        opacity="0.15"
-                      />
-                      <circle
-                        cx="32"
-                        cy="32"
-                        r="8"
-                        fill="#ff4655"
-                        opacity="0.8"
-                      />
-                      <path
-                        d="M24 32H18M40 32H46M32 24V18M32 40V46"
-                        stroke="#ff4655"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                  </div>
-                </div>
-
-                {/* Orbiting game badges */}
-                {GAMES.slice(0, 6).map((g, i) => {
-                  const angle = (i / 6) * 360 - 90;
-                  const rad = (angle * Math.PI) / 180;
-                  const r = 160;
-                  const x = 50 + r * Math.cos(rad) * 0.5;
-                  const y = 50 + r * Math.sin(rad) * 0.5;
-                  return (
-                    <div
-                      key={g.abbr}
-                      className="absolute w-11 h-11 rounded-full border flex items-center justify-center text-xs font-bold transform -translate-x-1/2 -translate-y-1/2 backdrop-blur-sm"
-                      style={{
-                        left: `${x}%`,
-                        top: `${y}%`,
-                        borderColor: g.color + "55",
-                        background: g.color + "18",
-                        color: g.color,
-                        animation: `float ${3 + i * 0.4}s ease-in-out infinite alternate`,
-                      }}
-                    >
-                      {g.abbr}
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Glow behind panel */}
-              <div
-                className="absolute inset-0 pointer-events-none"
-                style={{
-                  background:
-                    "radial-gradient(ellipse at center, #ff465520 0%, transparent 70%)",
-                }}
-              />
+              <GameRadar />
             </div>
           </div>
         </div>
@@ -397,7 +323,9 @@ export default function Home() {
               <h2 className="section-title flex items-center gap-2">
                 🏆 Upcoming Tournaments
               </h2>
-              <p className="section-subtitle">Claim your slot before it closes</p>
+              <p className="section-subtitle">
+                Claim your slot before it closes
+              </p>
             </div>
             <Link to="/tournament" className="btn-ghost text-sm">
               Full Brackets →
@@ -442,9 +370,7 @@ export default function Home() {
                 <span className="live-dot" />
                 Live Streams
               </h2>
-              <p className="section-subtitle">
-                Live from the battlefield
-              </p>
+              <p className="section-subtitle">Live from the battlefield</p>
             </div>
             <Link to="/stream" className="btn-ghost text-sm">
               All Streams →
