@@ -1,46 +1,56 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { registerUser } from '../services/authService'
-import { useAuth } from '../context/AuthContext'
-import { ErrorMessage } from '../components/UI'
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { registerUser } from "../services/authService";
+import { useAuth } from "../context/AuthContext";
+import { ErrorMessage } from "../components/UI";
 
 export default function Register() {
-  const { login }   = useAuth()
-  const navigate    = useNavigate()
+  const { login } = useAuth();
+  const navigate = useNavigate();
 
-  const [form, setForm]       = useState({ username: '', email: '', password: '' })
-  const [error, setError]     = useState('')
-  const [loading, setLoading] = useState(false)
+  const [form, setForm] = useState({ username: "", email: "", password: "" });
+  const [agreed, setAgreed] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
-    setForm(f => ({ ...f, [e.target.name]: e.target.value }))
-    setError('')
-  }
+    setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+    setError("");
+  };
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
+    e.preventDefault();
     if (form.password.length < 8) {
-      return setError('Password must be at least 8 characters')
+      return setError("Password must be at least 8 characters");
     }
-    setLoading(true)
-    setError('')
+    if (!agreed) {
+      return setError(
+        "You must agree to the Terms & Conditions and Privacy Policy to continue.",
+      );
+    }
+    setLoading(true);
+    setError("");
     try {
-      const res = await registerUser(form)
-      login(res.data.user, res.data.token)
-      navigate('/games')  // Send to games page to pick favourites right away
+      const res = await registerUser(form);
+      login(res.data.user, res.data.token);
+      navigate("/games");
     } catch (err) {
-      const errs = err.response?.data?.errors
-      setError(errs ? errs[0]?.message : (err.response?.data?.message || 'Registration failed'))
+      const errs = err.response?.data?.errors;
+      setError(
+        errs
+          ? errs[0]?.message
+          : err.response?.data?.message || "Registration failed",
+      );
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const requirements = [
-    { label: '8+ characters',    met: form.password.length >= 8 },
-    { label: 'One uppercase',     met: /[A-Z]/.test(form.password) },
-    { label: 'One number',        met: /[0-9]/.test(form.password) },
-  ]
+    { label: "8+ characters", met: form.password.length >= 8 },
+    { label: "One uppercase", met: /[A-Z]/.test(form.password) },
+    { label: "One number", met: /[0-9]/.test(form.password) },
+  ];
 
   return (
     <div className="min-h-[calc(100vh-64px)] flex items-center justify-center px-4 py-10">
@@ -57,7 +67,9 @@ export default function Register() {
             <ErrorMessage message={error} />
 
             <div>
-              <label className="block text-sm font-medium text-gray-400 mb-1.5">Username</label>
+              <label className="block text-sm font-medium text-gray-400 mb-1.5">
+                Username
+              </label>
               <input
                 name="username"
                 placeholder="your_gamertag"
@@ -70,7 +82,9 @@ export default function Register() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-400 mb-1.5">Email</label>
+              <label className="block text-sm font-medium text-gray-400 mb-1.5">
+                Email
+              </label>
               <input
                 name="email"
                 type="email"
@@ -84,7 +98,9 @@ export default function Register() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-400 mb-1.5">Password</label>
+              <label className="block text-sm font-medium text-gray-400 mb-1.5">
+                Password
+              </label>
               <input
                 name="password"
                 type="password"
@@ -97,32 +113,100 @@ export default function Register() {
               />
               {form.password.length > 0 && (
                 <div className="flex gap-3 mt-2">
-                  {requirements.map(r => (
-                    <span key={r.label} className={`text-xs flex items-center gap-1 ${r.met ? 'text-green-400' : 'text-gray-600'}`}>
-                      <span>{r.met ? '✓' : '○'}</span> {r.label}
+                  {requirements.map((r) => (
+                    <span
+                      key={r.label}
+                      className={`text-xs flex items-center gap-1 ${r.met ? "text-green-400" : "text-gray-600"}`}
+                    >
+                      <span>{r.met ? "✓" : "○"}</span> {r.label}
                     </span>
                   ))}
                 </div>
               )}
             </div>
 
+            {/* Terms & Privacy checkbox */}
+            <label className="flex items-start gap-3 cursor-pointer mt-1">
+              <div className="relative flex-shrink-0 mt-0.5">
+                <input
+                  type="checkbox"
+                  checked={agreed}
+                  onChange={(e) => {
+                    setAgreed(e.target.checked);
+                    setError("");
+                  }}
+                  className="sr-only"
+                />
+                <div
+                  className="w-4 h-4 rounded border flex items-center justify-center transition-all"
+                  style={{
+                    background: agreed ? "#ff4655" : "transparent",
+                    borderColor: agreed ? "#ff4655" : "var(--border-color)",
+                  }}
+                >
+                  {agreed && (
+                    <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                      <path
+                        d="M1 3.5L3.5 6.5L9 1"
+                        stroke="white"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  )}
+                </div>
+              </div>
+              <span
+                className="text-xs leading-relaxed"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                I agree to the{" "}
+                <Link
+                  to="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium hover:underline"
+                  style={{ color: "#ff4655" }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Terms &amp; Conditions
+                </Link>{" "}
+                and{" "}
+                <Link
+                  to="/privacy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium hover:underline"
+                  style={{ color: "#ff4655" }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Privacy Policy
+                </Link>
+                . I confirm I am at least 13 years old.
+              </span>
+            </label>
+
             <button
               type="submit"
               disabled={loading}
               className="btn-primary w-full mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Enlisting...' : 'Enlist Now'}
+              {loading ? "Enlisting..." : "Enlist Now"}
             </button>
           </form>
         </div>
 
         <p className="text-center text-gray-500 text-sm mt-6">
-          Already have an account?{' '}
-          <Link to="/login" className="text-red hover:text-red-light font-medium transition-colors">
+          Already have an account?{" "}
+          <Link
+            to="/login"
+            className="text-red hover:text-red-light font-medium transition-colors"
+          >
             Sign in
           </Link>
         </p>
       </div>
     </div>
-  )
+  );
 }

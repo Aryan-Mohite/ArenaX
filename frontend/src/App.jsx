@@ -16,6 +16,8 @@ import UserProfile from "./pages/UserProfile";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import About from "./pages/About";
+import TermsAndConditions from "./pages/TermsAndConditions";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 import AdminArchiveDashboard from "./pages/admin/AdminArchiveDashboard";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminRoute from "./components/AdminRoute";
@@ -37,6 +39,8 @@ export default function App() {
             <Route path="/communities" element={<Communities />} />
             <Route path="/stream" element={<Stream />} />
             <Route path="/about" element={<About />} />
+            <Route path="/terms" element={<TermsAndConditions />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/users/:id" element={<UserProfile />} />

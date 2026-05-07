@@ -1,38 +1,40 @@
-import { useState } from 'react'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { loginUser } from '../services/authService'
-import { useAuth } from '../context/AuthContext'
-import { ErrorMessage } from '../components/UI'
+import { useState } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { loginUser } from "../services/authService";
+import { useAuth } from "../context/AuthContext";
+import { ErrorMessage } from "../components/UI";
 
 export default function Login() {
-  const { login } = useAuth()
-  const navigate  = useNavigate()
-  const location  = useLocation()
-  const from      = location.state?.from?.pathname || '/'
+  const { login } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const from = location.state?.from?.pathname || "/";
 
-  const [form, setForm]       = useState({ email: '', password: '' })
-  const [error, setError]     = useState('')
-  const [loading, setLoading] = useState(false)
+  const [form, setForm] = useState({ email: "", password: "" });
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
-    setForm(f => ({ ...f, [e.target.name]: e.target.value }))
-    setError('')
-  }
+    setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+    setError("");
+  };
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
+    e.preventDefault();
+    setLoading(true);
+    setError("");
     try {
-      const res = await loginUser(form)
-      login(res.data.user, res.data.token)
-      navigate(from, { replace: true })
+      const res = await loginUser(form);
+      login(res.data.user, res.data.token);
+      navigate(from, { replace: true });
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed. Check your credentials.')
+      setError(
+        err.response?.data?.message || "Login failed. Check your credentials.",
+      );
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-[calc(100vh-64px)] flex items-center justify-center px-4">
@@ -50,7 +52,9 @@ export default function Login() {
             <ErrorMessage message={error} />
 
             <div>
-              <label className="block text-sm font-medium text-gray-400 mb-1.5">Email</label>
+              <label className="block text-sm font-medium text-gray-400 mb-1.5">
+                Email
+              </label>
               <input
                 name="email"
                 type="email"
@@ -64,7 +68,9 @@ export default function Login() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-400 mb-1.5">Password</label>
+              <label className="block text-sm font-medium text-gray-400 mb-1.5">
+                Password
+              </label>
               <input
                 name="password"
                 type="password"
@@ -82,18 +88,43 @@ export default function Login() {
               disabled={loading}
               className="btn-primary w-full mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Deploying...' : 'Deploy'}
+              {loading ? "Deploying..." : "Deploy"}
             </button>
           </form>
         </div>
 
         <p className="text-center text-gray-500 text-sm mt-6">
-          Don't have an account?{' '}
-          <Link to="/register" className="text-red hover:text-red-light font-medium transition-colors">
+          Don't have an account?{" "}
+          <Link
+            to="/register"
+            className="text-red hover:text-red-light font-medium transition-colors"
+          >
             Create one free
           </Link>
         </p>
+
+        {/* Legal links */}
+        <div
+          className="flex justify-center gap-4 mt-4 text-xs"
+          style={{ color: "var(--text-muted)" }}
+        >
+          <Link
+            to="/terms"
+            className="hover:underline transition-colors"
+            style={{ color: "var(--text-muted)" }}
+          >
+            Terms &amp; Conditions
+          </Link>
+          <span>·</span>
+          <Link
+            to="/privacy"
+            className="hover:underline transition-colors"
+            style={{ color: "var(--text-muted)" }}
+          >
+            Privacy Policy
+          </Link>
+        </div>
       </div>
     </div>
-  )
+  );
 }
