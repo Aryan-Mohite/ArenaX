@@ -519,6 +519,7 @@ function TournamentCard({
   const { theme } = useTheme();
   const ts = themeStyles(theme);
   const isLight = theme === "light";
+  const [copied, setCopied] = useState(false);
 
   const {
     tournament_id,
@@ -536,6 +537,20 @@ function TournamentCard({
     location,
     description,
   } = tournament;
+
+  const handleShare = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const url = `${window.location.origin}/tournament/${tournament_id}`;
+    if (navigator.share) {
+      navigator.share({ title: name, text: `Check out this tournament: ${name}`, url }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(url).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      });
+    }
+  };
 
   const startDateShort = fmt(start_date, {
     month: "short",
@@ -579,8 +594,24 @@ function TournamentCard({
             background: "linear-gradient(to top, #1a2340 0%, transparent 60%)",
           }}
         />
-        {/* Status badge top-right */}
-        <div className="absolute top-3 right-3">
+        {/* Status badge + share button top-right */}
+        <div className="absolute top-3 right-3 flex items-center gap-1.5">
+          <button
+            onClick={handleShare}
+            title="Share tournament"
+            className="flex items-center justify-center w-7 h-7 rounded-md bg-black/40 backdrop-blur-sm hover:bg-red/30 border border-white/10 hover:border-red/40 text-gray-300 hover:text-white transition-all duration-200"
+          >
+            {copied ? (
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-green-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+              </svg>
+            )}
+          </button>
           <StatusBadge status={status} />
         </div>
         {/* Prize pool badge */}

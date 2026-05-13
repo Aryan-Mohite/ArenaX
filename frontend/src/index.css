@@ -610,7 +610,7 @@ header.sticky {
     border-color: rgba(0,0,0,0.09) !important;
   }
 
-  /* ── PostCard (LFG) / TeamFinderCard — dark gradient card ── */
+  /* ── PostCard (TeamUP Arena) / TeamFinderCard — dark gradient card ── */
   /* These use className bg-surface-card or inline ts.cardBg  */
   .rounded-xl.border.border-surface-border.overflow-hidden,
   .rounded-2xl.border.border-surface-border.overflow-hidden {

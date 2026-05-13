@@ -17,7 +17,7 @@ const FEATURES = [
   },
   {
     icon: "🤝",
-    title: "LFG Hub",
+    title: "TeamUP Arena",
     desc: "Open a draft in the Mercenary Market or browse open squads. Filter by game, rank, and play style to assemble your dream roster.",
     to: "/teamfinder",
   },

@@ -7,7 +7,7 @@ const NAV_LINKS = [
   { to: "/", label: "Home" },
   { to: "/games", label: "Games" },
   { to: "/tournament", label: "The Arena" },
-  { to: "/teamfinder", label: "LFG Hub" },
+  { to: "/teamfinder", label: "TeamUP Arena" },
   { to: "/stream", label: "Spectate" },
   { to: "/communities", label: "The Nexus" },
   { to: "/about", label: "About" },

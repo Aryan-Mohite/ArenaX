@@ -1425,7 +1425,7 @@ export default function Profile() {
               <p className="text-sm mt-1">
                 Create a team in{" "}
                 <a href="/teamfinder" className="text-red hover:underline">
-                  LFG Hub
+                  TeamUP Arena
                 </a>{" "}
                 to start recruiting
               </p>
