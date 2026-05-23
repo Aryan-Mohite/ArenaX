@@ -81,6 +81,13 @@ export default function Login() {
                 autoComplete="current-password"
                 className="input"
               />
+              <div className="text-right mt-1.5">
+                <a href="/forgot-password"
+                  className="text-xs hover:underline transition-colors"
+                  style={{ color: "var(--red)" }}>
+                  Forgot password?
+                </a>
+              </div>
             </div>
 
             <button

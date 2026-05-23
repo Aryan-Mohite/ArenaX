@@ -1,18 +1,34 @@
 import { Router } from "express";
-import { register, login, getMe } from "../controllers/authController.js";
-import { validateRegister, validateLogin } from "../utils/validators.js";
+import {
+  sendRegisterOtp,
+  verifyRegisterOtp,
+  resendRegisterOtp,
+  login,
+  getMe,
+  forgotPassword,
+  verifyResetOtp,
+  resetPassword,
+} from "../controllers/authController.js";
+import { validateRegister, validateLogin, validateResetPassword } from "../utils/validators.js";
 import validate from "../middleware/validateMiddleware.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 
 const router = Router();
 
-// POST /api/auth/register
-router.post("/register", validateRegister, validate, register);
+// ─── Registration (2-step: send OTP → verify OTP) ─────────────────────────────
+router.post("/register/send-otp", validateRegister, validate, sendRegisterOtp);
+router.post("/register/verify",   validate, verifyRegisterOtp);
+router.post("/register/resend-otp", validate, resendRegisterOtp);
 
-// POST /api/auth/login
+// ─── Login ────────────────────────────────────────────────────────────────────
 router.post("/login", validateLogin, validate, login);
 
-// GET /api/auth/me  — requires token
+// ─── Current user ─────────────────────────────────────────────────────────────
 router.get("/me", authMiddleware, getMe);
+
+// ─── Forgot / reset password (3-step: send OTP → verify OTP → set password) ──
+router.post("/forgot-password",         forgotPassword);
+router.post("/forgot-password/verify",  verifyResetOtp);
+router.post("/forgot-password/reset",   validateResetPassword, validate, resetPassword);
 
 export default router;
