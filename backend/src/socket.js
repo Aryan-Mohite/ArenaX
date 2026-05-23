@@ -2,6 +2,25 @@ import { Server } from "socket.io";
 import { verifyToken } from "./utils/jwt.js";
 import pool from "./config/db.js";
 
+const SOCKET_MSG_MAX_LEN = 2000;   // matches REST validator
+const STREAM_CHAT_MAX_LEN = 500;   // tighter limit for live chat
+
+// Per-user event rate limiting (in-memory, resets on server restart)
+const socketEventCounts = new Map();
+const RATE_WINDOW_MS = 60_000;
+const RATE_MAX_EVENTS = 60;
+
+function isRateLimited(userId) {
+  const now = Date.now();
+  let entry = socketEventCounts.get(userId);
+  if (!entry || now - entry.windowStart > RATE_WINDOW_MS) {
+    entry = { windowStart: now, count: 0 };
+  }
+  entry.count += 1;
+  socketEventCounts.set(userId, entry);
+  return entry.count > RATE_MAX_EVENTS;
+}
+
 let io;
 
 export const initSocket = (httpServer) => {
@@ -47,6 +66,16 @@ export const initSocket = (httpServer) => {
     socket.on("send_message", async ({ receiverId, content }) => {
       if (!receiverId || !content?.trim()) return;
 
+      // Rate limiting
+      if (isRateLimited(userId)) {
+        return socket.emit("error", { message: "Sending messages too quickly — slow down" });
+      }
+
+      // Content length validation (matches REST endpoint)
+      if (content.trim().length > SOCKET_MSG_MAX_LEN) {
+        return socket.emit("error", { message: `Message too long (max ${SOCKET_MSG_MAX_LEN} characters)` });
+      }
+
       try {
         const result = await pool.query(
           `INSERT INTO messages (sender_id, receiver_id, content)
@@ -83,6 +112,17 @@ export const initSocket = (httpServer) => {
 
     socket.on("stream_chat", ({ streamId, message }) => {
       if (!message?.trim()) return;
+
+      // Rate limiting
+      if (isRateLimited(userId)) {
+        return socket.emit("error", { message: "Chatting too quickly — slow down" });
+      }
+
+      // Content length validation
+      if (message.trim().length > STREAM_CHAT_MAX_LEN) {
+        return socket.emit("error", { message: `Chat message too long (max ${STREAM_CHAT_MAX_LEN} characters)` });
+      }
+
       io.to(`stream:${streamId}`).emit("stream_chat_message", {
         userId,
         username: socket.user.username,
@@ -114,6 +154,7 @@ export const initSocket = (httpServer) => {
     // ── DISCONNECT ─────────────────────────────────────────────────────────
     socket.on("disconnect", () => {
       console.log(`Socket disconnected: user ${userId}`);
+      socketEventCounts.delete(userId);
       socket.broadcast.emit("user_offline", { userId });
     });
   });

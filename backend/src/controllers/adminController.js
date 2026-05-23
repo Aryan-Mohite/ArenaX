@@ -1,11 +1,12 @@
 import pool from "../config/db.js";
 
+// Note: isAdmin check is now handled by requireAdmin middleware in adminRoutes.js
+// — no need to repeat it in each handler.
+
 // ─── GET ALL USERS (admin only) ───────────────────────────────────────────────
 // GET /api/admin/users?status=active|banned&limit=50&offset=0&q=username
 export const getAllUsers = async (req, res, next) => {
   try {
-    if (!req.user.isAdmin) return res.status(403).json({ success: false, message: "Admin access required" });
-
     const { status, q, limit = 50, offset = 0 } = req.query;
 
     let query = `
@@ -38,8 +39,6 @@ export const getAllUsers = async (req, res, next) => {
 // Body: { reason: "optional reason string" }
 export const banUser = async (req, res, next) => {
   try {
-    if (!req.user.isAdmin) return res.status(403).json({ success: false, message: "Admin access required" });
-
     const { id } = req.params;
     const { reason = "Banned by admin" } = req.body;
 
@@ -80,8 +79,6 @@ export const banUser = async (req, res, next) => {
 // PATCH /api/admin/users/:id/unban
 export const unbanUser = async (req, res, next) => {
   try {
-    if (!req.user.isAdmin) return res.status(403).json({ success: false, message: "Admin access required" });
-
     const { id } = req.params;
 
     const target = await pool.query(
@@ -111,8 +108,6 @@ export const unbanUser = async (req, res, next) => {
 // GET /api/admin/stats
 export const getPlatformStats = async (req, res, next) => {
   try {
-    if (!req.user.isAdmin) return res.status(403).json({ success: false, message: "Admin access required" });
-
     const [
       totalUsers,
       activeUsers,
@@ -169,8 +164,6 @@ export const getPlatformStats = async (req, res, next) => {
 // Body: { username: "newUsername" }
 export const forceUpdateUsername = async (req, res, next) => {
   try {
-    if (!req.user.isAdmin) return res.status(403).json({ success: false, message: "Admin access required" });
-
     const { id } = req.params;
     const { username } = req.body;
 

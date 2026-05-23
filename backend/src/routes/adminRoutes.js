@@ -7,13 +7,14 @@ import {
   forceUpdateUsername,
 } from "../controllers/adminController.js";
 import authMiddleware from "../middleware/authMiddleware.js";
+import requireAdmin   from "../middleware/requireAdmin.js";
 import { validateIdParam } from "../utils/validators.js";
 import validate from "../middleware/validateMiddleware.js";
 
 const router = Router();
 
-// All admin routes require a valid JWT — isAdmin check happens inside each handler
-router.use(authMiddleware);
+// All admin routes require a valid JWT AND admin privileges
+router.use(authMiddleware, requireAdmin);
 
 // ─── Platform Stats ───────────────────────────────────────────────────────────
 // GET /api/admin/stats
