@@ -3,7 +3,65 @@ import { Link, useNavigate } from "react-router-dom";
 import { forgotPassword, verifyResetOtp, resetPassword } from "../services/authService";
 import { ErrorMessage } from "../components/UI";
 
-// ── OTP boxes (same as Register) ─────────────────────────────────────────────
+// ── Eye icons ─────────────────────────────────────────────────────────────────
+const EyeOpen = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+    <circle cx="12" cy="12" r="3"/>
+  </svg>
+);
+const EyeOff = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+    <line x1="1" y1="1" x2="23" y2="23"/>
+  </svg>
+);
+
+// ── Reusable password input with show/hide toggle ─────────────────────────────
+function PasswordInput({ value, onChange, placeholder = "••••••••", autoComplete = "new-password" }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div style={{ position: "relative" }}>
+      <input
+        type={show ? "text" : "password"}
+        placeholder={placeholder}
+        value={value}
+        onChange={onChange}
+        required
+        autoComplete={autoComplete}
+        className="input"
+        style={{ paddingRight: "2.75rem" }}
+      />
+      <button
+        type="button"
+        onClick={() => setShow((s) => !s)}
+        style={{
+          position: "absolute",
+          right: "0.75rem",
+          top: "50%",
+          transform: "translateY(-50%)",
+          color: "var(--text-muted)",
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          padding: 0,
+          transition: "color 0.15s",
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+        onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
+        tabIndex={-1}
+        aria-label={show ? "Hide password" : "Show password"}
+      >
+        {show ? <EyeOff /> : <EyeOpen />}
+      </button>
+    </div>
+  );
+}
+
+// ── OTP boxes ─────────────────────────────────────────────────────────────────
 function OtpInput({ value, onChange }) {
   const inputs = useRef([]);
   const digits = value.split("").concat(Array(6).fill("")).slice(0, 6);
@@ -45,6 +103,7 @@ function OtpInput({ value, onChange }) {
   );
 }
 
+// ── Countdown ─────────────────────────────────────────────────────────────────
 function Countdown({ seconds, onExpire }) {
   const [left, setLeft] = useState(seconds);
   useEffect(() => {
@@ -60,21 +119,19 @@ function Countdown({ seconds, onExpire }) {
   return <span style={{ color: left < 60 ? "var(--red)" : "var(--text-secondary)" }}>{m}:{s}</span>;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ── Main component ────────────────────────────────────────────────────────────
 export default function ForgotPassword() {
   const navigate = useNavigate();
 
-  // step: "email" | "otp" | "newpass" | "done"
-  const [step,    setStep]    = useState("email");
-  const [email,   setEmail]   = useState("");
-  const [otp,     setOtp]     = useState("");
-  const [pass,    setPass]    = useState({ newPassword: "", confirm: "" });
-  const [error,   setError]   = useState("");
-  const [loading, setLoading] = useState(false);
-  const [expired, setExpired] = useState(false);
-  const [countKey, setCountKey] = useState(0);  // reset countdown on resend
+  const [step,     setStep]    = useState("email");
+  const [email,    setEmail]   = useState("");
+  const [otp,      setOtp]     = useState("");
+  const [pass,     setPass]    = useState({ newPassword: "", confirm: "" });
+  const [error,    setError]   = useState("");
+  const [loading,  setLoading] = useState(false);
+  const [expired,  setExpired] = useState(false);
+  const [countKey, setCountKey] = useState(0);
 
-  // Step 1 — request reset
   const handleSendOtp = async (e) => {
     e.preventDefault();
     setLoading(true); setError("");
@@ -86,7 +143,6 @@ export default function ForgotPassword() {
     } finally { setLoading(false); }
   };
 
-  // Step 2 — verify OTP
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
     if (otp.length < 6) return setError("Enter all 6 digits");
@@ -100,7 +156,6 @@ export default function ForgotPassword() {
     } finally { setLoading(false); }
   };
 
-  // Resend OTP
   const handleResend = async () => {
     setLoading(true); setError("");
     try {
@@ -111,7 +166,6 @@ export default function ForgotPassword() {
     } finally { setLoading(false); }
   };
 
-  // Step 3 — set new password
   const handleReset = async (e) => {
     e.preventDefault();
     if (pass.newPassword !== pass.confirm) return setError("Passwords do not match");
@@ -134,7 +188,7 @@ export default function ForgotPassword() {
     <div className="min-h-[calc(100vh-64px)] flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-md animate-slide-up">
 
-        {/* ── STEP 1: EMAIL ────────────────────────────────────── */}
+        {/* ── STEP 1: EMAIL ─────────────────────────────────────── */}
         {step === "email" && (
           <>
             <div className="text-center mb-8">
@@ -148,7 +202,8 @@ export default function ForgotPassword() {
                 <ErrorMessage message={error} />
                 <div>
                   <label className="block text-sm font-medium text-gray-400 mb-1.5">Email</label>
-                  <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setError(""); }}
+                  <input type="email" value={email}
+                    onChange={(e) => { setEmail(e.target.value); setError(""); }}
                     placeholder="you@example.com" required autoComplete="email" className="input" />
                 </div>
                 <button type="submit" disabled={loading}
@@ -166,7 +221,7 @@ export default function ForgotPassword() {
           </>
         )}
 
-        {/* ── STEP 2: OTP ──────────────────────────────────────── */}
+        {/* ── STEP 2: OTP ───────────────────────────────────────── */}
         {step === "otp" && (
           <>
             <div className="text-center mb-8">
@@ -235,12 +290,14 @@ export default function ForgotPassword() {
             <div className="card">
               <form onSubmit={handleReset} className="flex flex-col gap-4">
                 <ErrorMessage message={error} />
+
                 <div>
                   <label className="block text-sm font-medium text-gray-400 mb-1.5">New password</label>
-                  <input type="password" placeholder="••••••••"
+                  <PasswordInput
                     value={pass.newPassword}
                     onChange={(e) => { setPass((p) => ({ ...p, newPassword: e.target.value })); setError(""); }}
-                    required autoComplete="new-password" className="input" />
+                    autoComplete="new-password"
+                  />
                   {pass.newPassword.length > 0 && (
                     <div className="flex gap-3 mt-2">
                       {requirements.map((r) => (
@@ -252,16 +309,20 @@ export default function ForgotPassword() {
                     </div>
                   )}
                 </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-400 mb-1.5">Confirm password</label>
-                  <input type="password" placeholder="••••••••"
+                  <PasswordInput
                     value={pass.confirm}
                     onChange={(e) => { setPass((p) => ({ ...p, confirm: e.target.value })); setError(""); }}
-                    required autoComplete="new-password" className="input" />
+                    placeholder="••••••••"
+                    autoComplete="new-password"
+                  />
                   {pass.confirm.length > 0 && pass.newPassword !== pass.confirm && (
                     <p className="text-xs mt-1.5" style={{ color: "var(--red)" }}>Passwords don't match</p>
                   )}
                 </div>
+
                 <button type="submit"
                   disabled={loading || !requirements.every((r) => r.met) || pass.newPassword !== pass.confirm}
                   className="btn-primary w-full mt-2 disabled:opacity-50 disabled:cursor-not-allowed">
@@ -272,7 +333,7 @@ export default function ForgotPassword() {
           </>
         )}
 
-        {/* ── STEP 4: DONE ─────────────────────────────────────── */}
+        {/* ── STEP 4: DONE ──────────────────────────────────────── */}
         {step === "done" && (
           <>
             <div className="text-center mb-8">

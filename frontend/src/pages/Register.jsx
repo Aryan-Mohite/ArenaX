@@ -4,6 +4,65 @@ import { sendRegisterOtp, verifyRegisterOtp, resendRegisterOtp } from "../servic
 import { useAuth } from "../context/AuthContext";
 import { ErrorMessage } from "../components/UI";
 
+// ── Eye icons ─────────────────────────────────────────────────────────────────
+const EyeOpen = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+    <circle cx="12" cy="12" r="3"/>
+  </svg>
+);
+const EyeOff = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+    <line x1="1" y1="1" x2="23" y2="23"/>
+  </svg>
+);
+
+// ── Reusable password input with show/hide toggle ─────────────────────────────
+function PasswordInput({ name, value, onChange, placeholder = "••••••••", autoComplete = "new-password" }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div style={{ position: "relative" }}>
+      <input
+        name={name}
+        type={show ? "text" : "password"}
+        placeholder={placeholder}
+        value={value}
+        onChange={onChange}
+        required
+        autoComplete={autoComplete}
+        className="input"
+        style={{ paddingRight: "2.75rem" }}
+      />
+      <button
+        type="button"
+        onClick={() => setShow((s) => !s)}
+        style={{
+          position: "absolute",
+          right: "0.75rem",
+          top: "50%",
+          transform: "translateY(-50%)",
+          color: "var(--text-muted)",
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          padding: 0,
+          transition: "color 0.15s",
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+        onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
+        tabIndex={-1}
+        aria-label={show ? "Hide password" : "Show password"}
+      >
+        {show ? <EyeOff /> : <EyeOpen />}
+      </button>
+    </div>
+  );
+}
+
 // ── OTP input — 6 individual boxes ───────────────────────────────────────────
 function OtpInput({ value, onChange }) {
   const inputs = useRef([]);
@@ -16,17 +75,15 @@ function OtpInput({ value, onChange }) {
       if (i > 0 && !digits[i]) inputs.current[i - 1]?.focus();
       return;
     }
-    if (e.key === "ArrowLeft" && i > 0) { inputs.current[i - 1]?.focus(); return; }
+    if (e.key === "ArrowLeft"  && i > 0) { inputs.current[i - 1]?.focus(); return; }
     if (e.key === "ArrowRight" && i < 5) { inputs.current[i + 1]?.focus(); return; }
   };
-
   const handleChange = (i, e) => {
     const ch = e.target.value.replace(/\D/g, "").slice(-1);
     const next = digits.map((d, idx) => (idx === i ? ch : d));
     onChange(next.join(""));
     if (ch && i < 5) inputs.current[i + 1]?.focus();
   };
-
   const handlePaste = (e) => {
     const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
     if (pasted) { onChange(pasted.padEnd(6, "").slice(0, 6)); inputs.current[Math.min(pasted.length, 5)]?.focus(); }
@@ -60,7 +117,10 @@ function Countdown({ seconds, onExpire }) {
   const [left, setLeft] = useState(seconds);
   useEffect(() => {
     setLeft(seconds);
-    const t = setInterval(() => setLeft((s) => { if (s <= 1) { clearInterval(t); onExpire(); return 0; } return s - 1; }), 1000);
+    const t = setInterval(() => setLeft((s) => {
+      if (s <= 1) { clearInterval(t); onExpire(); return 0; }
+      return s - 1;
+    }), 1000);
     return () => clearInterval(t);
   }, [seconds]);
   const m = String(Math.floor(left / 60)).padStart(2, "0");
@@ -73,14 +133,13 @@ export default function Register() {
   const { login } = useAuth();
   const navigate  = useNavigate();
 
-  // step: "form" | "otp"
-  const [step,    setStep]    = useState("form");
-  const [form,    setForm]    = useState({ username: "", email: "", password: "" });
-  const [otp,     setOtp]     = useState("");
-  const [agreed,  setAgreed]  = useState(false);
-  const [error,   setError]   = useState("");
-  const [loading, setLoading] = useState(false);
-  const [expired, setExpired] = useState(false);
+  const [step,     setStep]    = useState("form");
+  const [form,     setForm]    = useState({ username: "", email: "", password: "" });
+  const [otp,      setOtp]     = useState("");
+  const [agreed,   setAgreed]  = useState(false);
+  const [error,    setError]   = useState("");
+  const [loading,  setLoading] = useState(false);
+  const [expired,  setExpired] = useState(false);
   const [resendOk, setResendOk] = useState(false);
 
   const handleChange = (e) => {
@@ -88,7 +147,6 @@ export default function Register() {
     setError("");
   };
 
-  // Step 1 — send OTP
   const handleSendOtp = async (e) => {
     e.preventDefault();
     if (!agreed) return setError("You must agree to the Terms & Conditions and Privacy Policy.");
@@ -103,7 +161,6 @@ export default function Register() {
     } finally { setLoading(false); }
   };
 
-  // Step 2 — verify OTP
   const handleVerify = async (e) => {
     e.preventDefault();
     if (otp.length < 6) return setError("Enter all 6 digits");
@@ -130,16 +187,16 @@ export default function Register() {
   };
 
   const requirements = [
-    { label: "8+ characters",  met: form.password.length >= 8 },
-    { label: "One uppercase",  met: /[A-Z]/.test(form.password) },
-    { label: "One number",     met: /[0-9]/.test(form.password) },
+    { label: "8+ characters", met: form.password.length >= 8 },
+    { label: "One uppercase", met: /[A-Z]/.test(form.password) },
+    { label: "One number",    met: /[0-9]/.test(form.password) },
   ];
 
   return (
     <div className="min-h-[calc(100vh-64px)] flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-md animate-slide-up">
 
-        {/* ── STEP 1: REGISTRATION FORM ─────────────────────────── */}
+        {/* ── STEP 1: REGISTRATION FORM ────────────────────────── */}
         {step === "form" && (
           <>
             <div className="text-center mb-8">
@@ -167,8 +224,12 @@ export default function Register() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-400 mb-1.5">Password</label>
-                  <input name="password" type="password" placeholder="••••••••" value={form.password}
-                    onChange={handleChange} required autoComplete="new-password" className="input" />
+                  <PasswordInput
+                    name="password"
+                    value={form.password}
+                    onChange={handleChange}
+                    autoComplete="new-password"
+                  />
                   {form.password.length > 0 && (
                     <div className="flex gap-3 mt-2">
                       {requirements.map((r) => (
@@ -225,7 +286,7 @@ export default function Register() {
           </>
         )}
 
-        {/* ── STEP 2: OTP VERIFICATION ──────────────────────────── */}
+        {/* ── STEP 2: OTP VERIFICATION ─────────────────────────── */}
         {step === "otp" && (
           <>
             <div className="text-center mb-8">
@@ -261,7 +322,6 @@ export default function Register() {
                       <Countdown seconds={600} onExpire={() => setExpired(true)} />
                     </div>
                   )}
-
                   {expired && (
                     <div className="text-xs mt-3" style={{ color: "var(--red)" }}>
                       Code expired.{" "}
