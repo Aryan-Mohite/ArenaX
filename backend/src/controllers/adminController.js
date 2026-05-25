@@ -7,7 +7,8 @@ import pool from "../config/db.js";
 // GET /api/admin/users?status=active|banned&limit=50&offset=0&q=username
 export const getAllUsers = async (req, res, next) => {
   try {
-    const { status, q, limit = 50, offset = 0 } = req.query;
+    const { status, q, limit: _rawLimit = 50, offset = 0 } = req.query;
+    const limit = Math.min(Number(_rawLimit), 100);
 
     let query = `
       SELECT user_id, username, email, status, created_at, last_login,

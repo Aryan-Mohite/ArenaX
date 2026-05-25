@@ -18,8 +18,10 @@ API.interceptors.request.use((config) => {
 API.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401) {
-      // Token expired or invalid — clear and redirect to login
+    // Only redirect to login on 401 if the user was actually logged in.
+    // Avoids kicking guests mid-registration if any auth-adjacent route
+    // returns 401 (e.g. expired OTP session).
+    if (err.response?.status === 401 && localStorage.getItem('token')) {
       localStorage.removeItem('token')
       localStorage.removeItem('user')
       window.location.href = '/login'

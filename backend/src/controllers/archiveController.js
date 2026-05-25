@@ -266,7 +266,8 @@ export const softDeleteMyAccount = async (req, res, next) => {
 // ── LIST ARCHIVES (all entity types, paginated) ───────────────────────────────
 export const listArchives = async (req, res, next) => {
   try {
-    const { entity_type, limit = 50, offset = 0 } = req.query;
+    const { entity_type, limit: _rawLimit = 50, offset = 0 } = req.query;
+    const limit = Math.min(Number(_rawLimit), 100);
     const params = [];
     let where = "";
 
@@ -359,7 +360,8 @@ export const restoreStream = async (req, res, next) => {
 // ── AUDIT LOG ─────────────────────────────────────────────────────────────────
 export const getAuditLog = async (req, res, next) => {
   try {
-    const { entity_type, from_date, to_date, limit = 100, offset = 0 } = req.query;
+    const { entity_type, from_date, to_date, limit: _rawLimit = 100, offset = 0 } = req.query;
+    const limit = Math.min(Number(_rawLimit), 100);
     const conditions = [];
     const params = [];
 

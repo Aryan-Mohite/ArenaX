@@ -24,7 +24,7 @@ export const getCommunities = async (req, res, next) => {
 export const getCommunityPosts = async (req, res, next) => {
   try {
     const { id: community_id } = req.params;
-    const { limit = 20, offset = 0 } = req.query;
+    const { limit: _lim1 = 20, offset = 0 } = req.query; const limit = Math.min(Number(_lim1), 100);
     const result = await pool.query(
       `SELECT cp.*, u.username, u.profile_picture,
               COUNT(pc.comment_id) AS comment_count
@@ -236,7 +236,7 @@ export const deleteComment = async (req, res, next) => {
 export const getFollowingPosts = async (req, res, next) => {
   try {
     const { id: community_id } = req.params;
-    const { limit = 20, offset = 0 } = req.query;
+    const { limit: _lim1 = 20, offset = 0 } = req.query; const limit = Math.min(Number(_lim1), 100);
     const userId = req.user.id;
 
     const result = await pool.query(
@@ -261,7 +261,8 @@ export const getFollowingPosts = async (req, res, next) => {
 // ─── GET ALL COMMUNITY POSTS ACROSS FAV GAMES ─────────────────────────────────
 export const getAllFavGamesPosts = async (req, res, next) => {
   try {
-    const { game_ids, limit = 30, offset = 0, following } = req.query;
+    const { game_ids, limit: _rawLimit = 30, offset = 0, following } = req.query;
+    const limit = Math.min(Number(_rawLimit), 100);
     const userId = req.user?.id;
 
     if (!game_ids) return res.json({ success: true, posts: [] });
@@ -301,7 +302,8 @@ export const getAllFavGamesPosts = async (req, res, next) => {
 // ─── GET ALL POSTS (admin only) ───────────────────────────────────────────────
 export const getAllPosts = async (req, res, next) => {
   try {
-    const { limit = 25, offset = 0 } = req.query;
+    const { limit: _rawLimit = 25, offset = 0 } = req.query;
+    const limit = Math.min(Number(_rawLimit), 100);
     const result = await pool.query(
       `SELECT cp.post_id, cp.title, cp.content, cp.created_at,
               cp.upvotes, cp.downvotes, cp.comment_count,

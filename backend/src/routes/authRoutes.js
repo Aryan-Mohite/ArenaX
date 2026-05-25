@@ -9,7 +9,13 @@ import {
   verifyResetOtp,
   resetPassword,
 } from "../controllers/authController.js";
-import { validateRegister, validateLogin, validateResetPassword } from "../utils/validators.js";
+import {
+  validateRegister,
+  validateLogin,
+  validateResetPassword,
+  validateForgotPassword,
+  validateVerifyResetOtp,
+} from "../utils/validators.js";
 import validate from "../middleware/validateMiddleware.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 
@@ -27,8 +33,8 @@ router.post("/login", validateLogin, validate, login);
 router.get("/me", authMiddleware, getMe);
 
 // ─── Forgot / reset password (3-step: send OTP → verify OTP → set password) ──
-router.post("/forgot-password",         forgotPassword);
-router.post("/forgot-password/verify",  verifyResetOtp);
+router.post("/forgot-password",         validateForgotPassword, validate, forgotPassword);
+router.post("/forgot-password/verify",  validateVerifyResetOtp, validate, verifyResetOtp);
 router.post("/forgot-password/reset",   validateResetPassword, validate, resetPassword);
 
 export default router;

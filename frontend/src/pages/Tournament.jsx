@@ -1127,18 +1127,15 @@ function TournamentList() {
           </div>
           <div className="flex sm:flex-col gap-3 shrink-0">
             {[
-              ["&#127942;", "Tournaments"],
-              ["&#128100;&#128100;", "Teams Registered"],
-              ["&#127881;", "Prize Pools"],
+              ["🏆", "Tournaments"],
+              ["👥", "Teams Registered"],
+              ["🎉", "Prize Pools"],
             ].map(([icon, label]) => (
               <div
                 key={label}
                 className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5"
               >
-                <span
-                  className="text-xl"
-                  dangerouslySetInnerHTML={{ __html: icon }}
-                />
+                <span className="text-xl">{icon}</span>
                 <span className="text-xs text-gray-400 whitespace-nowrap">
                   {label}
                 </span>

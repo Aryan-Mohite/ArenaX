@@ -66,6 +66,12 @@ export const initSocket = (httpServer) => {
     socket.on("send_message", async ({ receiverId, content }) => {
       if (!receiverId || !content?.trim()) return;
 
+      // Validate receiverId is a safe positive integer
+      const safeReceiverId = Number(receiverId);
+      if (!Number.isInteger(safeReceiverId) || safeReceiverId < 1) {
+        return socket.emit("error", { message: "Invalid recipient" });
+      }
+
       // Rate limiting
       if (isRateLimited(userId)) {
         return socket.emit("error", { message: "Sending messages too quickly — slow down" });
@@ -77,16 +83,25 @@ export const initSocket = (httpServer) => {
       }
 
       try {
+        // Verify receiver exists and is not banned before inserting
+        const receiverCheck = await pool.query(
+          "SELECT user_id FROM users WHERE user_id = $1 AND status != 'banned'",
+          [safeReceiverId]
+        );
+        if (receiverCheck.rows.length === 0) {
+          return socket.emit("error", { message: "Recipient not found" });
+        }
+
         const result = await pool.query(
           `INSERT INTO messages (sender_id, receiver_id, content)
            VALUES ($1, $2, $3) RETURNING *`,
-          [userId, receiverId, content.trim()]
+          [userId, safeReceiverId, content.trim()]
         );
 
         const message = result.rows[0];
 
         // Deliver to receiver's personal room (works across multiple sockets)
-        io.to(`user:${receiverId}`).emit("new_message", {
+        io.to(`user:${safeReceiverId}`).emit("new_message", {
           ...message,
           sender_username: socket.user.username,
         });

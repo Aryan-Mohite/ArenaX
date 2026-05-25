@@ -3,7 +3,8 @@ import pool from "../config/db.js";
 // ─── GET LIVE STREAMS ─────────────────────────────────────────────────────────
 export const getLiveStreams = async (req, res, next) => {
   try {
-    const { game_id, limit = 20, offset = 0 } = req.query;
+    const { game_id, limit: _rawLimit = 20, offset = 0 } = req.query;
+    const limit = Math.min(Number(_rawLimit), 100);
 
     let query = `
       SELECT s.*, u.username, u.profile_picture, g.game_name, g.icon AS game_icon

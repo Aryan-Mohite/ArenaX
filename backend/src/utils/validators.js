@@ -146,6 +146,27 @@ export const validateIdParam = [
     .customSanitizer(v => Number(v))
     .isInt({ min: 1 }).withMessage("ID must be a positive integer"),
 ];
+// ─── FORGOT PASSWORD ───────────────────────────────────────────────────────────
+export const validateForgotPassword = [
+  body("email")
+    .trim()
+    .notEmpty().withMessage("Email is required")
+    .isEmail().withMessage("Invalid email address")
+    .normalizeEmail(),
+];
+
+export const validateVerifyResetOtp = [
+  body("email")
+    .trim()
+    .notEmpty().withMessage("Email is required")
+    .isEmail().withMessage("Invalid email address")
+    .normalizeEmail(),
+  body("otp")
+    .notEmpty().withMessage("OTP is required")
+    .isLength({ min: 6, max: 6 }).withMessage("OTP must be exactly 6 digits")
+    .isNumeric().withMessage("OTP must contain only digits"),
+];
+
 // ─── RESET PASSWORD ────────────────────────────────────────────────────────────
 export const validateResetPassword = [
   body("email")

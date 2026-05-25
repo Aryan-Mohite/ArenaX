@@ -36,7 +36,8 @@ export const getConversation = async (req, res, next) => {
   try {
     const { user_id: otherId } = req.params;
     const myId = req.user.id;
-    const { limit = 50, offset = 0 } = req.query;
+    const { limit: _rawLimit = 50, offset = 0 } = req.query;
+    const limit = Math.min(Number(_rawLimit), 100);
 
     const result = await pool.query(
       `SELECT m.*, 

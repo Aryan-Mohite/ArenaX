@@ -120,7 +120,8 @@ export const upsertGameProfile = async (req, res, next) => {
 // ─── GET ALL USERS (admin / search) ───────────────────────────────────────────
 export const searchUsers = async (req, res, next) => {
   try {
-    const { q = "", limit = 20, offset = 0 } = req.query;
+    const { q = "", limit: _rawLimit = 20, offset = 0 } = req.query;
+    const limit = Math.min(Number(_rawLimit), 100);
 
     const result = await pool.query(
       `SELECT user_id, username, profile_picture, country, region
