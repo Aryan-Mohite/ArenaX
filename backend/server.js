@@ -9,12 +9,10 @@ const REQUIRED_ENV = ["DB_USER", "DB_HOST", "DB_NAME", "DB_PASSWORD", "JWT_SECRE
 const missing = REQUIRED_ENV.filter((k) => !process.env[k]);
 if (missing.length > 0) {
   console.error(`❌ Missing required environment variables: ${missing.join(", ")}`);
-  console.error("   Set them in your .env file or deployment environment and restart.");
   process.exit(1);
 }
 
 const PORT = process.env.PORT || 5000;
-
 const server = http.createServer(app);
 
 initSocket(server);
@@ -23,7 +21,7 @@ server.listen(PORT, () => {
   console.log(`Server running on port ${PORT} [${process.env.NODE_ENV}]`);
 });
 
-// Graceful shutdown — don't leave the DB pool hanging
+// Graceful shutdown — mysql2 pool.end() works the same as pg's
 const shutdown = (signal) => {
   console.log(`${signal} received. Shutting down gracefully...`);
   server.close(async () => {

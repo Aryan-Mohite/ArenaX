@@ -11,7 +11,7 @@ import {
   getUserActivity,
 } from "../controllers/userController.js";
 import authMiddleware from "../middleware/authMiddleware.js";
-import { validateIdParam } from "../utils/validators.js";
+import { validateIdParam, validateUpdateProfile } from "../utils/validators.js";
 import validate from "../middleware/validateMiddleware.js";
 
 const router = Router();
@@ -32,7 +32,9 @@ router.get("/:id/activity", validateIdParam, validate, getUserActivity);
 router.get("/:id/follow-status", authMiddleware, validateIdParam, validate, getFollowStatus);
 
 // PUT /api/users/me  — update own profile
-router.put("/me", authMiddleware, updateProfile);
+// FIX (high): was missing backend validation entirely. Now validates username format,
+// bio/country/region length caps, and profile_picture URL/base64 format.
+router.put("/me", authMiddleware, validateUpdateProfile, validate, updateProfile);
 
 // POST /api/users/me/game-profile  — add or update game rank/ELO
 router.post("/me/game-profile", authMiddleware, upsertGameProfile);

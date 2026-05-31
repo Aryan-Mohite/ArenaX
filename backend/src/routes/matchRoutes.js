@@ -12,7 +12,7 @@ import { body, param } from "express-validator";
 
 const router = Router();
 
-// POST /api/matches/find  — ELO-based matchmaking
+// POST /api/matches/find
 router.post(
   "/find",
   authMiddleware,
@@ -21,7 +21,8 @@ router.post(
   findMatchForUser
 );
 
-// POST /api/matches/result  — record match result + update ELO
+// POST /api/matches/result
+// FIX H1: ownership check added in controller (matchController.js)
 router.post(
   "/result",
   authMiddleware,

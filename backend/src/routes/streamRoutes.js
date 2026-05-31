@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { getLiveStreams, goLive, endStream, updateViewerCount } from "../controllers/streamController.js";
 import authMiddleware from "../middleware/authMiddleware.js";
-import { body, param } from "express-validator";
+import { validateGoLive } from "../utils/validators.js";
+import { param, body } from "express-validator";
 import validate from "../middleware/validateMiddleware.js";
 
 const router = Router();
@@ -10,14 +11,12 @@ const router = Router();
 router.get("/", getLiveStreams);
 
 // POST /api/streams/go-live
+// FIX (high): was using inline validators with no platform enum or URL protocol check.
+// Now uses validateGoLive from validators.js which adds proper constraints.
 router.post(
   "/go-live",
   authMiddleware,
-  [
-    body("game_id").notEmpty().isInt({ min: 1 }),
-    body("title").trim().notEmpty().isLength({ max: 200 }),
-    body("stream_url").optional().isURL(),
-  ],
+  validateGoLive,
   validate,
   goLive
 );

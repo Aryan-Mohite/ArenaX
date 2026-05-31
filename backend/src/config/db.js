@@ -1,29 +1,58 @@
-import pkg from "pg";
-const { Pool } = pkg;
+import mysql from "mysql2/promise";
 
-const pool = new Pool({
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  database: process.env.DB_NAME,
-  password: process.env.DB_PASSWORD,
-  port: Number(process.env.DB_PORT) || 5432,
-  // Connection pool settings
-  max: 20,                // max pool size
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-});
-
-// Verify connection on startup
-pool.connect((err, client, release) => {
-  if (err) {
-    console.error("❌ Failed to connect to PostgreSQL:", err.message);
+// Guard: catch placeholder values left from the template .env
+// so the error message is clear, not a cryptic ECONNREFUSED
+const PLACEHOLDERS = ["CHANGE_ME", "CHANGE_ME_USE_openssl_rand_hex_64", ""];
+const required = { DB_USER: process.env.DB_USER, DB_HOST: process.env.DB_HOST, DB_PASSWORD: process.env.DB_PASSWORD };
+for (const [key, val] of Object.entries(required)) {
+  if (!val || PLACEHOLDERS.some(p => val.startsWith(p))) {
+    console.error(`❌ ${key} is not set in .env — open backend/.env and fill in your real database credentials.`);
     process.exit(1);
   }
-  release();
-  console.log("✅ PostgreSQL connected successfully");
+}
+
+const pool = mysql.createPool({
+  host:     process.env.DB_HOST,
+  user:     process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  port:     Number(process.env.DB_PORT) || 3306,
+
+  waitForConnections: true,
+  connectionLimit:    20,
+  // FIX M4: queueLimit was 0 (unbounded). Now capped at 100 — excess requests
+  // fail fast instead of piling up in memory under a traffic spike.
+  queueLimit:         100,
+  connectTimeout:     10000,
+
+  timezone:           "+00:00",
+  dateStrings:        false,
+  supportBigNumbers:  true,
+  bigNumberStrings:   false,
+  enableKeepAlive:    true,
+  keepAliveInitDelay: 10000,
 });
 
-// Log unexpected pool errors (don't crash the process)
+const connectWithRetry = async (retries = 3, delayMs = 2000) => {
+  for (let i = 1; i <= retries; i++) {
+    try {
+      const conn = await pool.getConnection();
+      conn.release();
+      console.log("✅ MySQL connected successfully");
+      return;
+    } catch (err) {
+      console.error(`❌ DB connection attempt ${i}/${retries} failed: ${err.message}`);
+      if (i === retries) {
+        console.error("All DB connection attempts exhausted. Check DB_HOST, DB_USER, DB_PASSWORD in .env");
+        process.exit(1);
+      }
+      await new Promise((r) => setTimeout(r, delayMs * i));
+    }
+  }
+};
+
+connectWithRetry();
+
 pool.on("error", (err) => {
   console.error("Unexpected DB pool error:", err.message);
 });

@@ -1,97 +1,91 @@
 import pool from "../config/db.js";
+import { sanitizeFields } from "../utils/sanitize.js";
 
 // ─── GET PUBLIC PROFILE ───────────────────────────────────────────────────────
 export const getUserProfile = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const userResult = await pool.query(
+    const [userRows] = await pool.query(
       `SELECT user_id, username, profile_picture, country, region, bio, created_at
-       FROM users
-       WHERE user_id = $1 AND status = 'active'`,
+       FROM users WHERE user_id = ? AND status = 'active'`,
       [id]
     );
-
-    if (userResult.rows.length === 0) {
+    if (userRows.length === 0)
       return res.status(404).json({ success: false, message: "User not found" });
-    }
 
-    // Fetch per-game profiles for this user
-    const gameProfilesResult = await pool.query(
+    const [gameProfiles] = await pool.query(
       `SELECT ugp.rank, ugp.role, ugp.win_rate, ugp.matches_played, ugp.elo_rating,
               g.game_name, g.icon
        FROM user_game_profile ugp
        JOIN games g ON g.game_id = ugp.game_id
-       WHERE ugp.user_id = $1`,
+       WHERE ugp.user_id = ?`,
       [id]
     );
 
-    // Fetch recent achievements
-    const achievementsResult = await pool.query(
+    const [achievements] = await pool.query(
       `SELECT a.name, a.description, a.icon, ua.earned_at
        FROM user_achievements ua
        JOIN achievements a ON a.achievement_id = ua.achievement_id
-       WHERE ua.user_id = $1
-       ORDER BY ua.earned_at DESC
-       LIMIT 5`,
+       WHERE ua.user_id = ?
+       ORDER BY ua.earned_at DESC LIMIT 5`,
       [id]
     );
 
     res.json({
       success: true,
-      profile: {
-        ...userResult.rows[0],
-        game_profiles: gameProfilesResult.rows,
-        achievements: achievementsResult.rows,
-      },
+      profile: { ...userRows[0], game_profiles: gameProfiles, achievements },
     });
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 };
 
 // ─── UPDATE OWN PROFILE ───────────────────────────────────────────────────────
 export const updateProfile = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { username, bio, country, region, profile_picture } = req.body;
 
-    // Guard: reject base64 strings over ~7MB (5MB raw → ~6.7MB base64 + overhead)
-    // Anything larger means the 10mb body limit was somehow bypassed or misused
-    if (profile_picture && profile_picture.startsWith("data:") && profile_picture.length > 7_000_000) {
+    // FIX H9: sanitize user-supplied text fields before storing
+    const sanitized = sanitizeFields({ ...req.body }, ["username", "bio", "country", "region"]);
+    const { username, bio, country, region, profile_picture } = sanitized;
+
+    // FIX M2: base64 size check (kept from previous fix — char count is acceptable
+    // for base64 because each char ~= 1 byte of encoded data)
+    if (profile_picture?.startsWith("data:") && profile_picture.length > 5_000_000) {
       return res.status(413).json({
         success: false,
-        message: "Profile picture is too large. Maximum upload size is 5 MB.",
+        message: "Profile picture is too large. Maximum base64 size is ~3.75 MB.",
       });
     }
 
-    // If changing username, make sure it's not taken
+    // profile_picture URL length already capped at 500 chars by validateUpdateProfile validator
+
     if (username) {
-      const conflict = await pool.query(
-        "SELECT user_id FROM users WHERE username = $1 AND user_id != $2",
+      const [conflict] = await pool.query(
+        "SELECT user_id FROM users WHERE username = ? AND user_id != ?",
         [username, userId]
       );
-      if (conflict.rows.length > 0) {
+      if (conflict.length > 0)
         return res.status(409).json({ success: false, message: "Username is already taken" });
-      }
     }
 
-    const result = await pool.query(
+    await pool.query(
       `UPDATE users
-       SET username        = COALESCE($1, username),
-           bio             = COALESCE($2, bio),
-           country         = COALESCE($3, country),
-           region          = COALESCE($4, region),
-           profile_picture = COALESCE($5, profile_picture)
-       WHERE user_id = $6
-       RETURNING user_id, username, email, bio, country, region, profile_picture`,
-      [username, bio, country, region, profile_picture, userId]
+       SET username        = COALESCE(?, username),
+           bio             = COALESCE(?, bio),
+           country         = COALESCE(?, country),
+           region          = COALESCE(?, region),
+           profile_picture = COALESCE(?, profile_picture)
+       WHERE user_id = ?`,
+      [username || null, bio || null, country || null, region || null, profile_picture || null, userId]
     );
 
-    res.json({ success: true, user: result.rows[0] });
-  } catch (err) {
-    next(err);
-  }
+    const [updated] = await pool.query(
+      "SELECT user_id, username, email, bio, country, region, profile_picture FROM users WHERE user_id = ?",
+      [userId]
+    );
+
+    res.json({ success: true, user: updated[0] });
+  } catch (err) { next(err); }
 };
 
 // ─── UPSERT GAME PROFILE ──────────────────────────────────────────────────────
@@ -100,68 +94,62 @@ export const upsertGameProfile = async (req, res, next) => {
     const userId = req.user.id;
     const { game_id, rank, role, elo_rating } = req.body;
 
-    const result = await pool.query(
-      `INSERT INTO user_game_profile (user_id, game_id, rank, role, elo_rating)
-       VALUES ($1, $2, $3, $4, $5)
-       ON CONFLICT (user_id, game_id) DO UPDATE
-         SET rank       = EXCLUDED.rank,
-             role       = EXCLUDED.role,
-             elo_rating = EXCLUDED.elo_rating
-       RETURNING *`,
+    await pool.query(
+      `INSERT INTO user_game_profile (user_id, game_id, \`rank\`, \`role\`, elo_rating)
+       VALUES (?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         \`rank\`     = VALUES(\`rank\`),
+         \`role\`     = VALUES(\`role\`),
+         elo_rating = VALUES(elo_rating)`,
       [userId, game_id, rank, role, elo_rating || 1000]
     );
 
-    res.json({ success: true, game_profile: result.rows[0] });
-  } catch (err) {
-    next(err);
-  }
+    const [profile] = await pool.query(
+      "SELECT * FROM user_game_profile WHERE user_id = ? AND game_id = ?",
+      [userId, game_id]
+    );
+
+    res.json({ success: true, game_profile: profile[0] });
+  } catch (err) { next(err); }
 };
 
-// ─── GET ALL USERS (admin / search) ───────────────────────────────────────────
+// ─── SEARCH USERS ─────────────────────────────────────────────────────────────
 export const searchUsers = async (req, res, next) => {
   try {
     const { q = "", limit: _rawLimit = 20, offset = 0 } = req.query;
     const limit = Math.min(Number(_rawLimit), 100);
 
-    const result = await pool.query(
+    const [rows] = await pool.query(
       `SELECT user_id, username, profile_picture, country, region
        FROM users
-       WHERE status = 'active'
-         AND (username ILIKE $1 OR country ILIKE $1)
+       WHERE status = 'active' AND username LIKE ?
        ORDER BY username
-       LIMIT $2 OFFSET $3`,
-      [`%${q}%`, Number(limit), Number(offset)]
+       LIMIT ? OFFSET ?`,
+      [`%${q}%`, limit, Number(offset)]
     );
 
-    res.json({ success: true, users: result.rows });
-  } catch (err) {
-    next(err);
-  }
+    res.json({ success: true, users: rows });
+  } catch (err) { next(err); }
 };
 
 // ─── FOLLOW USER ──────────────────────────────────────────────────────────────
 export const followUser = async (req, res, next) => {
   try {
-    const followerId = req.user.id;
+    const followerId  = req.user.id;
     const { id: followingId } = req.params;
 
-    if (String(followerId) === String(followingId)) {
+    if (String(followerId) === String(followingId))
       return res.status(400).json({ success: false, message: "Cannot follow yourself" });
-    }
 
-    // Verify the target user actually exists and is active
-    const targetCheck = await pool.query(
-      "SELECT user_id FROM users WHERE user_id = $1 AND status = 'active'",
+    const [target] = await pool.query(
+      "SELECT user_id FROM users WHERE user_id = ? AND status = 'active'",
       [followingId]
     );
-    if (targetCheck.rows.length === 0) {
+    if (target.length === 0)
       return res.status(404).json({ success: false, message: "User not found" });
-    }
 
-    // Upsert to avoid duplicate errors
     await pool.query(
-      `INSERT INTO user_follows (follower_id, following_id)
-       VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+      "INSERT IGNORE INTO user_follows (follower_id, following_id) VALUES (?, ?)",
       [followerId, followingId]
     );
 
@@ -172,11 +160,11 @@ export const followUser = async (req, res, next) => {
 // ─── UNFOLLOW USER ────────────────────────────────────────────────────────────
 export const unfollowUser = async (req, res, next) => {
   try {
-    const followerId = req.user.id;
+    const followerId  = req.user.id;
     const { id: followingId } = req.params;
 
     await pool.query(
-      `DELETE FROM user_follows WHERE follower_id = $1 AND following_id = $2`,
+      "DELETE FROM user_follows WHERE follower_id = ? AND following_id = ?",
       [followerId, followingId]
     );
 
@@ -184,71 +172,76 @@ export const unfollowUser = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-// ─── GET FOLLOW STATS + community post count for current user ─────────────────
+// ─── GET MY FOLLOW STATS ──────────────────────────────────────────────────────
 export const getMyFollowStats = async (req, res, next) => {
   try {
     const userId = req.user.id;
 
-    const [followers, following, posts] = await Promise.all([
-      pool.query(`SELECT COUNT(*) FROM user_follows WHERE following_id = $1`, [userId]),
-      pool.query(`SELECT COUNT(*) FROM user_follows WHERE follower_id = $1`, [userId]),
-      pool.query(`SELECT COUNT(*) FROM community_posts WHERE user_id = $1`, [userId]),
+    const [[followers], [following], [posts]] = await Promise.all([
+      pool.query("SELECT COUNT(*) AS count FROM user_follows WHERE following_id = ?", [userId]),
+      pool.query("SELECT COUNT(*) AS count FROM user_follows WHERE follower_id = ?",  [userId]),
+      pool.query("SELECT COUNT(*) AS count FROM community_posts WHERE user_id = ?",   [userId]),
     ]);
 
     res.json({
       success: true,
       stats: {
-        followers: Number(followers.rows[0].count),
-        following: Number(following.rows[0].count),
-        community_posts: Number(posts.rows[0].count),
+        followers:       Number(followers[0].count),
+        following:       Number(following[0].count),
+        community_posts: Number(posts[0].count),
       },
     });
   } catch (err) { next(err); }
 };
 
-// ─── CHECK IF CURRENT USER FOLLOWS target ─────────────────────────────────────
+// ─── CHECK FOLLOW STATUS ──────────────────────────────────────────────────────
 export const getFollowStatus = async (req, res, next) => {
   try {
-    const followerId = req.user.id;
+    const followerId  = req.user.id;
     const { id: followingId } = req.params;
 
-    const result = await pool.query(
-      `SELECT 1 FROM user_follows WHERE follower_id = $1 AND following_id = $2`,
-      [followerId, followingId]
-    );
-
-    const targetStats = await pool.query(
-      `SELECT
-         (SELECT COUNT(*) FROM user_follows WHERE following_id = $1) AS followers,
-         (SELECT COUNT(*) FROM user_follows WHERE follower_id = $1) AS following,
-         (SELECT COUNT(*) FROM community_posts WHERE user_id = $1) AS community_posts`,
-      [followingId]
-    );
+    const [[statusRows], [statsRows]] = await Promise.all([
+      pool.query(
+        "SELECT 1 FROM user_follows WHERE follower_id = ? AND following_id = ?",
+        [followerId, followingId]
+      ),
+      pool.query(
+        `SELECT
+           (SELECT COUNT(*) FROM user_follows    WHERE following_id = ?) AS followers,
+           (SELECT COUNT(*) FROM user_follows    WHERE follower_id  = ?) AS following,
+           (SELECT COUNT(*) FROM community_posts WHERE user_id      = ?) AS community_posts`,
+        [followingId, followingId, followingId]
+      ),
+    ]);
 
     res.json({
       success: true,
-      following: result.rows.length > 0,
-      ...targetStats.rows[0],
+      following: statusRows.length > 0,
+      ...statsRows[0],
     });
   } catch (err) { next(err); }
 };
 
-// ─── GET USER ACTIVITY (community posts + team finder posts) ──────────────────
+// ─── GET USER ACTIVITY ────────────────────────────────────────────────────────
 export const getUserActivity = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const [communityPosts, teamFinderPosts, gameProfiles, teams] = await Promise.all([
+    const [
+      [communityPosts],
+      [teamFinderPosts],
+      [gameProfiles],
+      [teams],
+    ] = await Promise.all([
       pool.query(
-        `SELECT cp.post_id, cp.title, cp.content, cp.image_url, cp.upvotes, cp.downvotes,
-                cp.comment_count, cp.created_at,
+        `SELECT cp.post_id, cp.title, cp.content, cp.image_url,
+                cp.upvotes, cp.downvotes, cp.comment_count, cp.created_at,
                 c.name AS community_name, g.game_name
          FROM community_posts cp
          JOIN communities c ON c.community_id = cp.community_id
          LEFT JOIN games g ON g.game_id = c.game_id
-         WHERE cp.user_id = $1
-         ORDER BY cp.created_at DESC
-         LIMIT 20`,
+         WHERE cp.user_id = ?
+         ORDER BY cp.created_at DESC LIMIT 20`,
         [id]
       ),
       pool.query(
@@ -257,9 +250,8 @@ export const getUserActivity = async (req, res, next) => {
                 g.game_name
          FROM team_finder_posts tfp
          LEFT JOIN games g ON g.game_id = tfp.game_id
-         WHERE tfp.user_id = $1
-         ORDER BY tfp.created_at DESC
-         LIMIT 20`,
+         WHERE tfp.user_id = ?
+         ORDER BY tfp.created_at DESC LIMIT 20`,
         [id]
       ),
       pool.query(
@@ -267,19 +259,19 @@ export const getUserActivity = async (req, res, next) => {
                 g.game_name, g.icon
          FROM user_game_profile ugp
          JOIN games g ON g.game_id = ugp.game_id
-         WHERE ugp.user_id = $1`,
+         WHERE ugp.user_id = ?`,
         [id]
       ),
       pool.query(
         `SELECT t.team_id, t.team_name, t.region, t.description, t.created_at,
                 g.game_name, g.icon AS game_icon,
                 tm.role AS member_role,
-                COUNT(tm2.user_id) FILTER (WHERE tm2.status = 'active') AS member_count
+                SUM(CASE WHEN tm2.status = 'active' THEN 1 ELSE 0 END) AS member_count
          FROM team_members tm
          JOIN teams t ON t.team_id = tm.team_id
          LEFT JOIN games g ON g.game_id = t.game_id
          LEFT JOIN team_members tm2 ON tm2.team_id = t.team_id
-         WHERE tm.user_id = $1 AND tm.status = 'active'
+         WHERE tm.user_id = ? AND tm.status = 'active'
          GROUP BY t.team_id, g.game_name, g.icon, tm.role
          ORDER BY tm.joined_at DESC`,
         [id]
@@ -288,12 +280,10 @@ export const getUserActivity = async (req, res, next) => {
 
     res.json({
       success: true,
-      community_posts: communityPosts.rows,
-      team_finder_posts: teamFinderPosts.rows,
-      game_profiles: gameProfiles.rows,
-      teams: teams.rows,
+      community_posts:   communityPosts,
+      team_finder_posts: teamFinderPosts,
+      game_profiles:     gameProfiles,
+      teams,
     });
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 };

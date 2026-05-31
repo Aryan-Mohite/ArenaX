@@ -3,9 +3,10 @@ import pool from "../config/db.js";
 
 /**
  * Protects routes by verifying the Bearer JWT in Authorization header.
- * Also checks that the user_id in the token still exists in the DB —
- * prevents stale tokens (e.g. after a DB wipe) from causing FK errors downstream.
- * On success, attaches decoded payload to req.user.
+ *
+ * FIX (medium): Changed WHERE status != 'banned' → status = 'active'.
+ * Previously, deleted accounts (status = 'deleted') could still authenticate
+ * because 'deleted' != 'banned' is true. Now only explicitly active users pass.
  */
 const authMiddleware = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -22,17 +23,17 @@ const authMiddleware = async (req, res, next) => {
   try {
     const decoded = verifyToken(token);
 
-    // Guard: make sure this user_id still exists in the DB.
-    // Catches stale tokens after a DB reset / migration without spamming FK errors.
-    const userCheck = await pool.query(
-      "SELECT user_id FROM users WHERE user_id = $1 AND status != 'banned'",
+    // FIX: was "status != 'banned'" — deleted, suspended, or any non-active
+    // user could still authenticate. Now only status = 'active' passes.
+    const [rows] = await pool.query(
+      "SELECT user_id FROM users WHERE user_id = ? AND status = 'active'",
       [decoded.id]
     );
 
-    if (userCheck.rows.length === 0) {
+    if (rows.length === 0) {
       return res.status(401).json({
         success: false,
-        message: "Session expired — please log in again",
+        message: "Session expired or account inactive — please log in again",
       });
     }
 

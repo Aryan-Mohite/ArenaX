@@ -5,7 +5,7 @@ import {
   createTournament,
   registerForTournament,
   updateTournamentStatus,
-  deleteTournament,
+  // FIX M1: deleteTournament removed — archive-aware version lives in archiveRoutes.js
 } from "../controllers/tournamentController.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 import { validateCreateTournament, validateIdParam } from "../utils/validators.js";
@@ -20,10 +20,10 @@ router.get("/", getTournaments);
 // GET /api/tournaments/:id
 router.get("/:id", validateIdParam, validate, getTournamentById);
 
-// POST /api/tournaments  — create (auth required)
+// POST /api/tournaments
 router.post("/", authMiddleware, validateCreateTournament, validate, createTournament);
 
-// POST /api/tournaments/:id/register  — register a team (auth required)
+// POST /api/tournaments/:id/register
 router.post(
   "/:id/register",
   authMiddleware,
@@ -33,7 +33,7 @@ router.post(
   registerForTournament
 );
 
-// PATCH /api/tournaments/:id/status  — update status (auth required)
+// PATCH /api/tournaments/:id/status
 router.patch(
   "/:id/status",
   authMiddleware,
@@ -43,7 +43,6 @@ router.patch(
   updateTournamentStatus
 );
 
-// DELETE /api/tournaments/:id — organizer or admin only
-router.delete("/:id", authMiddleware, validateIdParam, validate, deleteTournament);
+// FIX M1: DELETE /api/tournaments/:id removed — use DELETE /api/archive/tournaments/:id instead
 
 export default router;

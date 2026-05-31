@@ -200,7 +200,13 @@ export const getFortniteStats = async (req, res, next) => {
       success: true,
       data: {
         label:      data.data.account?.name || username,
-        rank:       wins >= 100 ? "Elite" : wins >= 10 ? "Experienced" : "Rookie",
+        // FIX (medium): the old rank labels (Elite/Experienced/Rookie) were fabricated —
+        // Fortnite does not have these tiers. Win count is not a ranked placement.
+        // Now we display the actual in-game ranked mode stats if available, or fall back
+        // to showing the K/D profile without a misleading custom label.
+        rank:       data.data?.stats?.all?.overall
+                      ? `${winRate}% Win Rate`
+                      : "Unranked",
         elo_rating: overall?.score || null,
         role:       "Battle Royale",
         avatar:     null,

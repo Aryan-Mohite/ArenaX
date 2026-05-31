@@ -849,10 +849,13 @@ export default function Communities() {
               {/* New post button — community mode only */}
               {viewMode === "community" && isAuthenticated && (
                 <button
-                  onClick={() => setShowForm(!showForm)}
+                  onClick={() => activeCommunity && setShowForm(!showForm)}
+                  disabled={!activeCommunity}
+                  title={!activeCommunity ? "Add games to your library to unlock communities" : undefined}
                   className={
                     "text-sm shrink-0 " +
-                    (showForm ? "btn-secondary" : "btn-primary")
+                    (showForm ? "btn-secondary" : "btn-primary") +
+                    (!activeCommunity ? " opacity-40 cursor-not-allowed" : "")
                   }
                 >
                   {showForm ? "Cancel" : "+ Drop a Post"}

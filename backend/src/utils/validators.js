@@ -24,6 +24,26 @@ export const validateLogin = [
   body("password").notEmpty(),
 ];
 
+export const validateVerifyRegisterOtp = [
+  body("email")
+    .trim()
+    .notEmpty().withMessage("Email is required")
+    .isEmail().withMessage("Invalid email address")
+    .normalizeEmail(),
+  body("otp")
+    .notEmpty().withMessage("OTP is required")
+    .isLength({ min: 6, max: 6 }).withMessage("OTP must be exactly 6 digits")
+    .isNumeric().withMessage("OTP must contain only digits"),
+];
+
+export const validateResendOtp = [
+  body("email")
+    .trim()
+    .notEmpty().withMessage("Email is required")
+    .isEmail().withMessage("Invalid email address")
+    .normalizeEmail(),
+];
+
 // ─── TOURNAMENTS ───────────────────────────────────────────────────────────────
 export const validateCreateTournament = [
   body("name")
@@ -48,11 +68,11 @@ export const validateCreateTournament = [
     .isISO8601({ strict: false }),
   body("prize_pool")
     .optional({ nullable: true, checkFalsy: true })
-    .customSanitizer(v => Number(v))
+    .customSanitizer((v) => Number(v))
     .isFloat({ min: 0 }).withMessage("prize_pool must be a positive number"),
   body("entry_fee")
     .optional({ nullable: true, checkFalsy: true })
-    .customSanitizer(v => Number(v))
+    .customSanitizer((v) => Number(v))
     .isFloat({ min: 0 }).withMessage("entry_fee must be a positive number"),
   body("region")
     .optional({ nullable: true, checkFalsy: true })
@@ -138,14 +158,82 @@ export const validateCommunityPost = [
     .trim()
     .notEmpty().withMessage("Content is required")
     .isLength({ max: 10000 }),
+  body("image_url")
+    .optional({ nullable: true, checkFalsy: true })
+    .isURL({ protocols: ["https"], require_protocol: true })
+    .withMessage("image_url must be a valid https URL"),
+];
+
+export const validateComment = [
+  body("content")
+    .trim()
+    .notEmpty().withMessage("Comment cannot be empty")
+    .isLength({ max: 2000 }).withMessage("Comment must be under 2000 characters"),
+];
+
+// ─── STREAM ────────────────────────────────────────────────────────────────────
+export const validateGoLive = [
+  body("game_id")
+    .notEmpty().withMessage("game_id is required")
+    .isInt({ min: 1 }).withMessage("game_id must be a positive integer"),
+  body("title")
+    .trim()
+    .notEmpty().withMessage("Stream title is required")
+    .isLength({ min: 1, max: 150 }).withMessage("Title must be under 150 characters"),
+  body("platform")
+    .optional()
+    .isIn(["twitch", "youtube", "kick", "facebook", "platform"])
+    .withMessage("Invalid platform"),
+  body("stream_url")
+    .optional({ nullable: true, checkFalsy: true })
+    .isURL({ protocols: ["http", "https"], require_protocol: true })
+    .withMessage("stream_url must be a valid http/https URL"),
+];
+
+// ─── USER PROFILE UPDATE ───────────────────────────────────────────────────────
+export const validateUpdateProfile = [
+  body("username")
+    .optional()
+    .trim()
+    .isLength({ min: 3, max: 30 }).withMessage("Username must be 3–30 characters")
+    .matches(/^[a-zA-Z0-9_]+$/).withMessage("Username can only contain letters, numbers, and underscores"),
+  body("bio")
+    .optional({ nullable: true, checkFalsy: true })
+    .isLength({ max: 500 }).withMessage("Bio must be under 500 characters"),
+  body("country")
+    .optional({ nullable: true, checkFalsy: true })
+    .trim()
+    .isLength({ max: 100 }).withMessage("Country must be under 100 characters"),
+  body("region")
+    .optional({ nullable: true, checkFalsy: true })
+    .trim()
+    .isLength({ max: 50 }).withMessage("Region must be under 50 characters"),
+  // FIX M2: Added max length cap for URL-type profile pictures.
+  // Previously only base64 data URIs were size-checked (in the controller).
+  // A very long https:// URL bypassed that check entirely.
+  body("profile_picture")
+    .optional({ nullable: true, checkFalsy: true })
+    .custom((v) => {
+      if (!v) return true;
+      if (v.startsWith("data:image/")) return true; // base64 — size checked in controller
+      try {
+        const url = new URL(v);
+        if (url.protocol !== "https:") throw new Error();
+        if (v.length > 500) throw new Error("URL too long");
+        return true;
+      } catch {
+        throw new Error("profile_picture must be a valid https URL (max 500 chars) or base64 image data");
+      }
+    }),
 ];
 
 // ─── PARAM VALIDATORS ──────────────────────────────────────────────────────────
 export const validateIdParam = [
   param("id")
-    .customSanitizer(v => Number(v))
+    .customSanitizer((v) => Number(v))
     .isInt({ min: 1 }).withMessage("ID must be a positive integer"),
 ];
+
 // ─── FORGOT PASSWORD ───────────────────────────────────────────────────────────
 export const validateForgotPassword = [
   body("email")

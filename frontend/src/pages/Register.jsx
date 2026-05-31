@@ -3,67 +3,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { sendRegisterOtp, verifyRegisterOtp, resendRegisterOtp } from "../services/authService";
 import { useAuth } from "../context/AuthContext";
 import { ErrorMessage } from "../components/UI";
+import PasswordInput from "../components/PasswordInput"; // FIX M12
 
 // ── Eye icons ─────────────────────────────────────────────────────────────────
-const EyeOpen = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-    <circle cx="12" cy="12" r="3"/>
-  </svg>
-);
-const EyeOff = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-    <line x1="1" y1="1" x2="23" y2="23"/>
-  </svg>
-);
-
-// ── Reusable password input with show/hide toggle ─────────────────────────────
-function PasswordInput({ name, value, onChange, placeholder = "••••••••", autoComplete = "new-password" }) {
-  const [show, setShow] = useState(false);
-  return (
-    <div style={{ position: "relative" }}>
-      <input
-        name={name}
-        type={show ? "text" : "password"}
-        placeholder={placeholder}
-        value={value}
-        onChange={onChange}
-        required
-        autoComplete={autoComplete}
-        className="input"
-        style={{ paddingRight: "2.75rem" }}
-      />
-      <button
-        type="button"
-        onClick={() => setShow((s) => !s)}
-        style={{
-          position: "absolute",
-          right: "0.75rem",
-          top: "50%",
-          transform: "translateY(-50%)",
-          color: "var(--text-muted)",
-          background: "none",
-          border: "none",
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          padding: 0,
-          transition: "color 0.15s",
-        }}
-        onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
-        onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
-        tabIndex={-1}
-        aria-label={show ? "Hide password" : "Show password"}
-      >
-        {show ? <EyeOff /> : <EyeOpen />}
-      </button>
-    </div>
-  );
-}
-
-// ── OTP input — 6 individual boxes ───────────────────────────────────────────
 function OtpInput({ value, onChange }) {
   const inputs = useRef([]);
   const digits = value.split("").concat(Array(6).fill("")).slice(0, 6);
@@ -112,9 +54,12 @@ function OtpInput({ value, onChange }) {
   );
 }
 
-// ── Countdown timer ───────────────────────────────────────────────────────────
-function Countdown({ seconds, onExpire }) {
+// FIX (medium): accepts a `countKey` prop so the parent can force a full remount
+// (and timer reset) when a new OTP is sent. Without this, resending a code left
+// the old timer ticking while showing "code expires in X" incorrectly.
+function Countdown({ seconds, onExpire, countKey }) {
   const [left, setLeft] = useState(seconds);
+
   useEffect(() => {
     setLeft(seconds);
     const t = setInterval(() => setLeft((s) => {
@@ -122,25 +67,30 @@ function Countdown({ seconds, onExpire }) {
       return s - 1;
     }), 1000);
     return () => clearInterval(t);
-  }, [seconds]);
+  // countKey in deps causes full re-run whenever a new code is sent
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seconds, countKey]);
+
   const m = String(Math.floor(left / 60)).padStart(2, "0");
   const s = String(left % 60).padStart(2, "0");
   return <span style={{ color: left < 60 ? "var(--red)" : "var(--text-secondary)" }}>{m}:{s}</span>;
 }
 
-// ── Main component ────────────────────────────────────────────────────────────
 export default function Register() {
   const { login } = useAuth();
   const navigate  = useNavigate();
 
-  const [step,     setStep]    = useState("form");
-  const [form,     setForm]    = useState({ username: "", email: "", password: "" });
-  const [otp,      setOtp]     = useState("");
-  const [agreed,   setAgreed]  = useState(false);
-  const [error,    setError]   = useState("");
-  const [loading,  setLoading] = useState(false);
-  const [expired,  setExpired] = useState(false);
+  const [step,     setStep]     = useState("form");
+  const [form,     setForm]     = useState({ username: "", email: "", password: "" });
+  const [otp,      setOtp]      = useState("");
+  const [agreed,   setAgreed]   = useState(false);
+  const [error,    setError]    = useState("");
+  const [loading,  setLoading]  = useState(false);
+  const [expired,  setExpired]  = useState(false);
   const [resendOk, setResendOk] = useState(false);
+  // FIX (medium): countKey increments on each resend, causing Countdown to remount
+  // and restart from 600s with the new code's expiry window.
+  const [countKey, setCountKey] = useState(0);
 
   const handleChange = (e) => {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
@@ -155,6 +105,7 @@ export default function Register() {
       await sendRegisterOtp(form);
       setStep("otp");
       setExpired(false);
+      setCountKey(0);
     } catch (err) {
       const errs = err.response?.data?.errors;
       setError(errs ? errs[0]?.message : err.response?.data?.message || "Failed to send code");
@@ -179,7 +130,11 @@ export default function Register() {
     setLoading(true); setError(""); setResendOk(false);
     try {
       await resendRegisterOtp({ email: form.email });
-      setExpired(false); setOtp(""); setResendOk(true);
+      setExpired(false);
+      setOtp("");
+      setResendOk(true);
+      // FIX: increment countKey to force Countdown remount with fresh 600s window
+      setCountKey((k) => k + 1);
       setTimeout(() => setResendOk(false), 4000);
     } catch (err) {
       setError(err.response?.data?.message || "Failed to resend");
@@ -196,7 +151,6 @@ export default function Register() {
     <div className="min-h-[calc(100vh-64px)] flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-md animate-slide-up">
 
-        {/* ── STEP 1: REGISTRATION FORM ────────────────────────── */}
         {step === "form" && (
           <>
             <div className="text-center mb-8">
@@ -242,7 +196,6 @@ export default function Register() {
                   )}
                 </div>
 
-                {/* Terms checkbox */}
                 <label className="flex items-start gap-3 cursor-pointer mt-1">
                   <div className="relative flex-shrink-0 mt-0.5">
                     <input type="checkbox" checked={agreed}
@@ -286,7 +239,6 @@ export default function Register() {
           </>
         )}
 
-        {/* ── STEP 2: OTP VERIFICATION ─────────────────────────── */}
         {step === "otp" && (
           <>
             <div className="text-center mb-8">
@@ -319,7 +271,8 @@ export default function Register() {
                   {!expired && (
                     <div className="text-xs mt-3" style={{ color: "var(--text-secondary)" }}>
                       Code expires in{" "}
-                      <Countdown seconds={600} onExpire={() => setExpired(true)} />
+                      {/* FIX: key={countKey} forces full remount so timer restarts when resend is called */}
+                      <Countdown key={countKey} countKey={countKey} seconds={600} onExpire={() => setExpired(true)} />
                     </div>
                   )}
                   {expired && (

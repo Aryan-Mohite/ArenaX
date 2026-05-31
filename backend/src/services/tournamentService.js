@@ -1,4 +1,5 @@
 import pool from "../config/db.js";
+import crypto from "crypto";
 
 /**
  * Calculate prize distribution across placements.
@@ -22,55 +23,57 @@ export const calculatePrizeDistribution = (prizePool, placements = 3) => {
 
 /**
  * Generate single-elimination bracket matches for a list of team IDs.
- * Inserts all first-round matches into the DB.
- *
- * @param {number} tournamentId
- * @param {number[]} teamIds
+ * FIX M11: Math.random()-based sort produces a statistically biased shuffle.
+ * Replaced with Fisher-Yates using crypto.randomInt for a fair, uniform distribution.
  */
 export const generateBracket = async (tournamentId, teamIds) => {
-  const client = await pool.connect();
+  const conn = await pool.getConnection();
 
   try {
-    await client.query("BEGIN");
+    await conn.beginTransaction();
 
-    // Shuffle teams for seeding
-    const shuffled = [...teamIds].sort(() => Math.random() - 0.5);
+    // FIX M11: Fisher-Yates shuffle with crypto.randomInt (uniform, unbiased)
+    const shuffled = [...teamIds];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = crypto.randomInt(0, i + 1);
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
 
-    // Pair teams: [0 vs 1, 2 vs 3, ...]
     const matches = [];
     for (let i = 0; i < shuffled.length - 1; i += 2) {
-      const result = await client.query(
+      const [result] = await conn.query(
         `INSERT INTO matches (tournament_id, team1_id, team2_id, status)
-         VALUES ($1, $2, $3, 'scheduled')
-         RETURNING *`,
+         VALUES (?, ?, ?, 'scheduled')`,
         [tournamentId, shuffled[i], shuffled[i + 1]]
       );
-      matches.push(result.rows[0]);
+      const [rows] = await conn.query(
+        `SELECT * FROM matches WHERE match_id = ?`,
+        [result.insertId]
+      );
+      matches.push(rows[0]);
     }
 
-    // If odd number of teams, last team gets a bye (no opponent this round)
     if (shuffled.length % 2 !== 0) {
       const byeTeam = shuffled[shuffled.length - 1];
-      await client.query(
+      await conn.query(
         `INSERT INTO matches (tournament_id, team1_id, team2_id, status, winner_team_id)
-         VALUES ($1, $2, NULL, 'bye', $2)`,
-        [tournamentId, byeTeam]
+         VALUES (?, ?, NULL, 'bye', ?)`,
+        [tournamentId, byeTeam, byeTeam]
       );
     }
 
-    // Update tournament status to ongoing
-    await client.query(
-      "UPDATE tournaments SET status = 'ongoing' WHERE tournament_id = $1",
+    await conn.query(
+      "UPDATE tournaments SET status = 'ongoing' WHERE tournament_id = ?",
       [tournamentId]
     );
 
-    await client.query("COMMIT");
+    await conn.commit();
     return matches;
   } catch (err) {
-    await client.query("ROLLBACK");
+    await conn.rollback();
     throw err;
   } finally {
-    client.release();
+    conn.release();
   }
 };
 
@@ -78,29 +81,33 @@ export const generateBracket = async (tournamentId, teamIds) => {
  * Record a match result and update bracket.
  */
 export const recordMatchResult = async (matchId, winnerTeamId, score) => {
-  const client = await pool.connect();
+  const conn = await pool.getConnection();
 
   try {
-    await client.query("BEGIN");
+    await conn.beginTransaction();
 
-    const matchResult = await client.query(
+    const [result] = await conn.query(
       `UPDATE matches
-       SET winner_team_id = $1, score = $2, status = 'completed'
-       WHERE match_id = $3
-       RETURNING *`,
+       SET winner_team_id = ?, score = ?, status = 'completed'
+       WHERE match_id = ?`,
       [winnerTeamId, score, matchId]
     );
 
-    if (matchResult.rows.length === 0) {
+    if (result.affectedRows === 0) {
       throw new Error("Match not found");
     }
 
-    await client.query("COMMIT");
-    return matchResult.rows[0];
+    const [rows] = await conn.query(
+      `SELECT * FROM matches WHERE match_id = ?`,
+      [matchId]
+    );
+
+    await conn.commit();
+    return rows[0];
   } catch (err) {
-    await client.query("ROLLBACK");
+    await conn.rollback();
     throw err;
   } finally {
-    client.release();
+    conn.release();
   }
 };

@@ -25,7 +25,17 @@ const apiFetch = async (path, opts = {}) => {
       ...(opts.headers ?? {}),
     },
   });
-  const data = await res.json();
+
+  // Guard against empty/non-JSON bodies (e.g. browser-aborted requests mid-navigation,
+  // or unexpected server responses). Without this, res.json() throws a cryptic
+  // "Unexpected end of JSON input" SyntaxError that swallows the real error.
+  let data;
+  try {
+    data = await res.json();
+  } catch {
+    throw new Error(`Server returned an empty or invalid response (HTTP ${res.status})`);
+  }
+
   if (!res.ok) throw new Error(data.message ?? "Request failed");
   return data;
 };
