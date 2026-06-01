@@ -10,13 +10,17 @@ export const generateOtp = () => {
 
 /**
  * Timing-safe comparison for OTP strings.
- * Prevents timing-based attacks that could let an attacker enumerate valid OTPs.
+ *
+ * FIX (medium): removed the padEnd(6, "0") hack. Previously, inputs shorter
+ * than 6 chars were padded which silently altered the comparison value.
+ * Now we return false immediately if lengths don't match, keeping
+ * the timing-safe guarantee while being correct.
  */
 export const compareOtp = (input, stored) => {
   if (!input || !stored) return false;
-  const a = Buffer.from(String(input).padEnd(6, "0"));
-  const b = Buffer.from(String(stored).padEnd(6, "0"));
-  // buffers must be same length for timingSafeEqual
-  if (a.length !== b.length) return false;
-  return crypto.timingSafeEqual(a, b);
+  const a = String(input);
+  const b = String(stored);
+  // Both must be exactly 6 digits; any deviation is an invalid input
+  if (a.length !== 6 || b.length !== 6) return false;
+  return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
 };

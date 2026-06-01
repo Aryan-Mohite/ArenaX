@@ -1,33 +1,31 @@
-import axios from 'axios'
+import axios from "axios";
 
-// In dev, Vite proxy rewrites /api → localhost:5000.
-// In production, set VITE_API_URL=https://yourbackend.com/api in your .env
 const API = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api',
-  headers: { 'Content-Type': 'application/json' },
-})
+  baseURL: import.meta.env.VITE_API_URL || "/api",
+  headers: { "Content-Type": "application/json" },
+});
 
-// Attach JWT on every request
+// ─── REQUEST: attach JWT ──────────────────────────────────────────────────────
 API.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token')
-  if (token) config.headers.Authorization = `Bearer ${token}`
-  return config
-})
+  const token = localStorage.getItem("token");
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
 
-// Global response error handling
+// ─── RESPONSE: global error handling ─────────────────────────────────────────
+// FIX M8: Instead of silently redirecting on 401 (which looked like a crash to
+// users mid-action), we now dispatch a custom event that AuthContext listens to.
+// AuthContext shows a "Session expired" toast before clearing state and redirecting.
+// This gives users feedback instead of a jarring, unexplained logout.
 API.interceptors.response.use(
   (res) => res,
   (err) => {
-    // Only redirect to login on 401 if the user was actually logged in.
-    // Avoids kicking guests mid-registration if any auth-adjacent route
-    // returns 401 (e.g. expired OTP session).
-    if (err.response?.status === 401 && localStorage.getItem('token')) {
-      localStorage.removeItem('token')
-      localStorage.removeItem('user')
-      window.location.href = '/login'
+    if (err.response?.status === 401 && localStorage.getItem("token")) {
+      // Dispatch a named event — AuthContext handles the toast + logout + redirect
+      window.dispatchEvent(new CustomEvent("arenaX:session-expired"));
     }
-    return Promise.reject(err)
+    return Promise.reject(err);
   }
-)
+);
 
-export default API
+export default API;

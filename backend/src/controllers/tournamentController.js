@@ -1,6 +1,6 @@
 import pool from "../config/db.js";
 
-// ─── GET ALL TOURNAMENTS (with filters) ───────────────────────────────────────
+// ─── GET ALL TOURNAMENTS ──────────────────────────────────────────────────────
 export const getTournaments = async (req, res, next) => {
   try {
     const { game_id, region, status, limit: _rawLimit = 20, offset = 0 } = req.query;
@@ -16,19 +16,15 @@ export const getTournaments = async (req, res, next) => {
     `;
     const params = [];
 
-    if (game_id) { params.push(game_id);  query += ` AND t.game_id = $${params.length}`; }
-    if (region)  { params.push(region);   query += ` AND t.region ILIKE $${params.length}`; }
-    if (status)  { params.push(status);   query += ` AND t.status = $${params.length}`; }
+    if (game_id) { params.push(game_id); query += " AND t.game_id = ?"; }
+    if (region)  { params.push(region);  query += " AND t.region LIKE ?"; }
+    if (status)  { params.push(status);  query += " AND t.status = ?"; }
 
-    params.push(Number(limit), Number(offset));
-    query += `
-      GROUP BY t.tournament_id, g.game_name, g.icon
-      ORDER BY t.start_date ASC
-      LIMIT $${params.length - 1} OFFSET $${params.length}
-    `;
+    params.push(limit, Number(offset));
+    query += " GROUP BY t.tournament_id, g.game_name, g.icon ORDER BY t.start_date ASC LIMIT ? OFFSET ?";
 
-    const result = await pool.query(query, params);
-    res.json({ success: true, tournaments: result.rows });
+    const [rows] = await pool.query(query, params);
+    res.json({ success: true, tournaments: rows });
   } catch (err) { next(err); }
 };
 
@@ -37,45 +33,39 @@ export const getTournamentById = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const tournamentResult = await pool.query(
+    const [tournamentRows] = await pool.query(
       `SELECT t.*, g.game_name, g.icon AS game_icon
        FROM tournaments t
        JOIN games g ON g.game_id = t.game_id
-       WHERE t.tournament_id = $1`,
+       WHERE t.tournament_id = ?`,
       [id]
     );
-
-    if (tournamentResult.rows.length === 0) {
+    if (tournamentRows.length === 0)
       return res.status(404).json({ success: false, message: "Tournament not found" });
-    }
 
-    const teamsResult = await pool.query(
+    const [teams] = await pool.query(
       `SELECT te.team_id, te.team_name, te.logo, tr.registered_at, tr.status
        FROM tournament_registrations tr
        JOIN teams te ON te.team_id = tr.team_id
-       WHERE tr.tournament_id = $1`,
+       WHERE tr.tournament_id = ?`,
       [id]
     );
 
-    const matchesResult = await pool.query(
+    const [matches] = await pool.query(
       `SELECT m.*, t1.team_name AS team1_name, t2.team_name AS team2_name,
               w.team_name AS winner_name
        FROM matches m
        JOIN teams t1 ON t1.team_id = m.team1_id
        JOIN teams t2 ON t2.team_id = m.team2_id
        LEFT JOIN teams w ON w.team_id = m.winner_team_id
-       WHERE m.tournament_id = $1
+       WHERE m.tournament_id = ?
        ORDER BY m.match_date ASC`,
       [id]
     );
 
     res.json({
       success: true,
-      tournament: {
-        ...tournamentResult.rows[0],
-        registered_teams: teamsResult.rows,
-        matches: matchesResult.rows,
-      },
+      tournament: { ...tournamentRows[0], registered_teams: teams, matches },
     });
   } catch (err) { next(err); }
 };
@@ -84,85 +74,103 @@ export const getTournamentById = async (req, res, next) => {
 export const createTournament = async (req, res, next) => {
   try {
     const {
-      name, game_id, prize_pool, entry_fee, region,
-      format, start_date, end_date, registration_deadline,
-      // New organizer fields
+      name, game_id, prize_pool, entry_fee, region, format,
+      start_date, end_date, registration_deadline,
       image_url, description, organizer_name, location, join_link,
+      max_teams,
     } = req.body;
 
     const userId = req.user?.id || null;
 
-    const game = await pool.query("SELECT game_id FROM games WHERE game_id = $1", [game_id]);
-    if (game.rows.length === 0) {
+    const [game] = await pool.query("SELECT game_id FROM games WHERE game_id = ?", [game_id]);
+    if (game.length === 0)
       return res.status(404).json({ success: false, message: "Game not found" });
-    }
 
-    const result = await pool.query(
+    const [result] = await pool.query(
       `INSERT INTO tournaments
          (name, game_id, prize_pool, entry_fee, region, format,
           start_date, end_date, registration_deadline, status,
-          image_url, description, organizer_name, location, join_link, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'upcoming',$10,$11,$12,$13,$14,$15)
-       RETURNING *`,
+          image_url, description, organizer_name, location, join_link, created_by, max_teams)
+       VALUES (?,?,?,?,?,?,?,?,?,'upcoming',?,?,?,?,?,?,?)`,
       [
         name, game_id, prize_pool || 0, entry_fee || 0, region || null, format,
         start_date, end_date, registration_deadline || null,
         image_url || null, description || null,
         organizer_name || null, location || null, join_link || null,
-        userId,
+        userId, max_teams || null,
       ]
     );
 
-    res.status(201).json({ success: true, tournament: result.rows[0] });
+    const [tournament] = await pool.query(
+      "SELECT * FROM tournaments WHERE tournament_id = ?",
+      [result.insertId]
+    );
+
+    res.status(201).json({ success: true, tournament: tournament[0] });
   } catch (err) { next(err); }
 };
 
 // ─── REGISTER TEAM FOR TOURNAMENT ─────────────────────────────────────────────
+// FIX (medium): added max_teams cap check. Previously unlimited teams could register.
 export const registerForTournament = async (req, res, next) => {
   try {
     const { id: tournament_id } = req.params;
     const { team_id } = req.body;
     const userId = req.user.id;
 
-    const tournament = await pool.query(
-      "SELECT * FROM tournaments WHERE tournament_id = $1",
+    const [tRows] = await pool.query(
+      "SELECT * FROM tournaments WHERE tournament_id = ?",
       [tournament_id]
     );
-    if (tournament.rows.length === 0) {
+    if (tRows.length === 0)
       return res.status(404).json({ success: false, message: "Tournament not found" });
-    }
-    if (tournament.rows[0].status !== "upcoming") {
+
+    const t = tRows[0];
+    if (t.status !== "upcoming")
       return res.status(400).json({ success: false, message: "Tournament registration is closed" });
-    }
 
-    const t = tournament.rows[0];
-    if (t.registration_deadline && new Date() > new Date(t.registration_deadline)) {
+    if (t.registration_deadline && new Date() > new Date(t.registration_deadline))
       return res.status(400).json({ success: false, message: "Registration deadline has passed" });
-    }
 
-    const membership = await pool.query(
-      "SELECT * FROM team_members WHERE team_id = $1 AND user_id = $2 AND status = 'active'",
+    const [membership] = await pool.query(
+      "SELECT * FROM team_members WHERE team_id = ? AND user_id = ? AND status = 'active'",
       [team_id, userId]
     );
-    if (membership.rows.length === 0) {
+    if (membership.length === 0)
       return res.status(403).json({ success: false, message: "You are not a member of this team" });
-    }
 
-    const existing = await pool.query(
-      "SELECT * FROM tournament_registrations WHERE tournament_id = $1 AND team_id = $2",
+    const [existing] = await pool.query(
+      "SELECT * FROM tournament_registrations WHERE tournament_id = ? AND team_id = ?",
       [tournament_id, team_id]
     );
-    if (existing.rows.length > 0) {
+    if (existing.length > 0)
       return res.status(409).json({ success: false, message: "Team is already registered" });
+
+    // FIX: enforce max_teams cap if the tournament has one set
+    if (t.max_teams) {
+      const [[countRow]] = await pool.query(
+        "SELECT COUNT(*) AS current_count FROM tournament_registrations WHERE tournament_id = ?",
+        [tournament_id]
+      );
+      if (Number(countRow.current_count) >= t.max_teams) {
+        return res.status(409).json({
+          success: false,
+          message: `Tournament is full (max ${t.max_teams} teams)`,
+        });
+      }
     }
 
-    const result = await pool.query(
-      `INSERT INTO tournament_registrations (tournament_id, team_id, status)
-       VALUES ($1, $2, 'pending') RETURNING *`,
+    const [result] = await pool.query(
+      "INSERT INTO tournament_registrations (tournament_id, team_id, status) VALUES (?, ?, 'pending')",
       [tournament_id, team_id]
     );
 
-    res.status(201).json({ success: true, registration: result.rows[0] });
+    const [registration] = await pool.query(
+      "SELECT * FROM tournament_registrations WHERE registration_id = ?",
+      [result.insertId]
+    );
+
+    res.status(201).json({ success: true, registration: registration[0] });
   } catch (err) { next(err); }
 };
 
@@ -174,51 +182,47 @@ export const updateTournamentStatus = async (req, res, next) => {
     const userId = req.user.id;
 
     const validStatuses = ["upcoming", "ongoing", "completed", "cancelled"];
-    if (!validStatuses.includes(status)) {
+    if (!validStatuses.includes(status))
       return res.status(400).json({ success: false, message: "Invalid status value" });
-    }
 
-    // Only the organizer (created_by) or an admin can change tournament status
-    const existing = await pool.query(
-      "SELECT tournament_id, created_by FROM tournaments WHERE tournament_id = $1",
+    const [existing] = await pool.query(
+      "SELECT tournament_id, created_by FROM tournaments WHERE tournament_id = ?",
       [id]
     );
-    if (existing.rows.length === 0) {
+    if (existing.length === 0)
       return res.status(404).json({ success: false, message: "Tournament not found" });
-    }
-    if (existing.rows[0].created_by !== userId && !req.user.isAdmin) {
+    if (existing[0].created_by !== userId && !req.user.isAdmin)
       return res.status(403).json({ success: false, message: "Only the organizer or an admin can update tournament status" });
-    }
 
-    const result = await pool.query(
-      "UPDATE tournaments SET status = $1 WHERE tournament_id = $2 RETURNING *",
-      [status, id]
+    await pool.query("UPDATE tournaments SET status = ? WHERE tournament_id = ?", [status, id]);
+
+    const [updated] = await pool.query(
+      "SELECT * FROM tournaments WHERE tournament_id = ?",
+      [id]
     );
 
-    res.json({ success: true, tournament: result.rows[0] });
+    res.json({ success: true, tournament: updated[0] });
   } catch (err) { next(err); }
 };
 
-// ─── DELETE TOURNAMENT (organizer or admin) ───────────────────────────────────
+// ─── DELETE TOURNAMENT ────────────────────────────────────────────────────────
 export const deleteTournament = async (req, res, next) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
-    const isAdmin = req.user.isAdmin === true;
 
-    // Fetch the tournament first to check ownership
-    const existing = await pool.query(
-      "SELECT tournament_id, created_by, status FROM tournaments WHERE tournament_id = $1",
+    const [rows] = await pool.query(
+      "SELECT tournament_id, created_by FROM tournaments WHERE tournament_id = ?",
       [id]
     );
-    if (existing.rows.length === 0) {
+    if (rows.length === 0)
       return res.status(404).json({ success: false, message: "Tournament not found" });
-    }
-    if (existing.rows[0].created_by !== userId && !isAdmin) {
-      return res.status(403).json({ success: false, message: "Only the organizer or an admin can delete this tournament" });
-    }
 
-    await pool.query("DELETE FROM tournaments WHERE tournament_id = $1", [id]);
-    res.json({ success: true, message: isAdmin ? "Tournament removed by admin" : "Tournament deleted" });
+    if (rows[0].created_by !== userId && !req.user.isAdmin)
+      return res.status(403).json({ success: false, message: "Only the organizer or an admin can delete this tournament" });
+
+    await pool.query("DELETE FROM tournaments WHERE tournament_id = ?", [id]);
+
+    res.json({ success: true, message: "Tournament deleted successfully" });
   } catch (err) { next(err); }
 };

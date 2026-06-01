@@ -1,17 +1,13 @@
 /**
  * archiveRoutes.js
- * Place at: src/routes/archiveRoutes.js
- *
- * Uses the same authMiddleware default import pattern as all other route files.
- * Admin check is done inline (req.user.isAdmin) — no separate middleware needed.
- *
- * Register in src/app.js:
- *   import archiveRoutes from "./routes/archiveRoutes.js";
- *   app.use("/api/archive", archiveRoutes);
+ * FIX C2: Replaced unsafe inline isAdmin (JWT-trusted) with requireAdmin middleware
+ *         that does a live DB check against ADMIN_EMAILS — consistent with all other
+ *         admin routes in the system.
  */
 
 import { Router } from "express";
 import authMiddleware from "../middleware/authMiddleware.js";
+import requireAdmin   from "../middleware/requireAdmin.js";
 import {
   deleteTournament,
   deleteTeam,
@@ -30,20 +26,8 @@ import {
 
 const router = Router();
 
-// ─── Inline admin guard (no separate middleware file needed) ──────────────────
-const isAdmin = (req, res, next) => {
-  if (!req.user?.isAdmin)
-    return res.status(403).json({ success: false, message: "Admin access required" });
-  next();
-};
-
 // =============================================================================
-// Archive-aware DELETE routes
-// These REPLACE the existing DELETE routes in tournament/team/stream/community/
-// teamfinder/user route files. You can either:
-//   A) Keep them here and remove the old DELETE routes from the other files, OR
-//   B) Move just the handler imports into the existing route files.
-// Option A (keeping here) is simpler.
+// Archive-aware DELETE routes (replace originals in tournament/team/etc. routes)
 // =============================================================================
 
 router.delete("/tournaments/:id",      authMiddleware, deleteTournament);
@@ -55,14 +39,15 @@ router.delete("/users/me",             authMiddleware, softDeleteMyAccount);
 
 // =============================================================================
 // Admin — archive management
+// FIX C2: requireAdmin performs live DB lookup (ADMIN_EMAILS check) — not JWT-trusted
 // =============================================================================
 
-router.get("/admin/archives",                         authMiddleware, isAdmin, listArchives);
-router.get("/admin/archives/audit",                   authMiddleware, isAdmin, getAuditLog);
-router.get("/admin/archives/:entity/:id",             authMiddleware, isAdmin, getArchivedItem);
-router.post("/admin/archives/restore/tournament/:id", authMiddleware, isAdmin, restoreTournament);
-router.post("/admin/archives/restore/team/:id",       authMiddleware, isAdmin, restoreTeam);
-router.post("/admin/archives/restore/stream/:id",     authMiddleware, isAdmin, restoreStream);
-router.delete("/admin/archives/purge",                authMiddleware, isAdmin, purgeOldArchives);
+router.get("/admin/archives",                         authMiddleware, requireAdmin, listArchives);
+router.get("/admin/archives/audit",                   authMiddleware, requireAdmin, getAuditLog);
+router.get("/admin/archives/:entity/:id",             authMiddleware, requireAdmin, getArchivedItem);
+router.post("/admin/archives/restore/tournament/:id", authMiddleware, requireAdmin, restoreTournament);
+router.post("/admin/archives/restore/team/:id",       authMiddleware, requireAdmin, restoreTeam);
+router.post("/admin/archives/restore/stream/:id",     authMiddleware, requireAdmin, restoreStream);
+router.delete("/admin/archives/purge",                authMiddleware, requireAdmin, purgeOldArchives);
 
 export default router;

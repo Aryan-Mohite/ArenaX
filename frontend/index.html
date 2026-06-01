@@ -5,6 +5,34 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ArenaX — eSports Platform</title>
+
+    <!-- SEO / Social — FIX M7 -->
+    <meta name="description" content="ArenaX is your all-in-one esports platform — compete in tournaments, find teammates, follow live streams, and track your game stats." />
+    <meta name="theme-color" content="#ff4655" />
+
+    <!-- Open Graph -->
+    <meta property="og:type"        content="website" />
+    <meta property="og:title"       content="ArenaX — eSports Platform" />
+    <meta property="og:description" content="Compete in tournaments, find teammates, follow live streams, and track your game stats." />
+    <meta property="og:image"       content="/icons.svg" />
+    <meta property="og:url"         content="https://arenaX.gg" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card"        content="summary_large_image" />
+    <meta name="twitter:title"       content="ArenaX — eSports Platform" />
+    <meta name="twitter:description" content="Compete in tournaments, find teammates, follow live streams, and track your game stats." />
+    <meta name="twitter:image"       content="/icons.svg" />
+
+    <!--
+      FIX H8: Google Fonts moved to self-hosted (see public/fonts/).
+      External CDN was render-blocking, violated strict CSP, and leaked user IPs to Google.
+      Self-host woff2 files and reference them from index.css with @font-face.
+      TODO: Download Rajdhani (500,600,700) and Inter (300,400,500,600) woff2 from
+            https://gwfh.mranftl.com/fonts and place in public/fonts/
+            Then add @font-face rules to src/index.css.
+
+      TEMPORARY (dev only) — remove before production:
+    -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />

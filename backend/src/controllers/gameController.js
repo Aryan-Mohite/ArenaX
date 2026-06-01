@@ -8,26 +8,19 @@ export const getGames = async (req, res, next) => {
     let query = "SELECT * FROM games WHERE status = 'active'";
     const params = [];
 
-    if (genre) {
-      params.push(`%${genre}%`);
-      query += ` AND genre ILIKE $${params.length}`;
-    }
-    if (q) {
-      params.push(`%${q}%`);
-      query += ` AND game_name ILIKE $${params.length}`;
-    }
-    if (platform) {
-      params.push(`%${platform}%`);
-      query += ` AND platforms ILIKE $${params.length}`;
-    }
+    // ILIKE → LIKE  (utf8mb4_unicode_ci collation is case-insensitive by default)
+    if (genre)    { params.push(`%${genre}%`);    query += " AND genre LIKE ?"; }
+    if (q)        { params.push(`%${q}%`);        query += " AND game_name LIKE ?"; }
+    if (platform) { params.push(`%${platform}%`); query += " AND platforms LIKE ?"; }
 
-    query += " ORDER BY rating DESC NULLS LAST, game_name ASC";
+    // ORDER BY rating DESC NULLS LAST →
+    //   rating IS NULL ASC  (0 for non-null first, 1 for null last)
+    //   then rating DESC
+    query += " ORDER BY rating IS NULL ASC, rating DESC, game_name ASC";
 
-    const result = await pool.query(query, params);
-    res.json({ success: true, games: result.rows });
-  } catch (err) {
-    next(err);
-  }
+    const [rows] = await pool.query(query, params);
+    res.json({ success: true, games: rows });
+  } catch (err) { next(err); }
 };
 
 // ─── GET SINGLE GAME ──────────────────────────────────────────────────────────
@@ -35,56 +28,51 @@ export const getGameById = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const gameResult = await pool.query(
-      "SELECT * FROM games WHERE game_id = $1 AND status = 'active'",
+    const [gameRows] = await pool.query(
+      "SELECT * FROM games WHERE game_id = ? AND status = 'active'",
       [id]
     );
-    if (gameResult.rows.length === 0) {
+    if (gameRows.length === 0)
       return res.status(404).json({ success: false, message: "Game not found" });
-    }
 
-    const tournamentsResult = await pool.query(
+    const [tournaments] = await pool.query(
       `SELECT tournament_id, name, prize_pool, region, start_date, format, status
        FROM tournaments
-       WHERE game_id = $1 AND status IN ('upcoming','ongoing')
+       WHERE game_id = ? AND status IN ('upcoming','ongoing')
        ORDER BY start_date ASC LIMIT 5`,
       [id]
     );
 
-    const communityResult = await pool.query(
-      "SELECT * FROM communities WHERE game_id = $1 LIMIT 1",
+    const [communities] = await pool.query(
+      "SELECT * FROM communities WHERE game_id = ? LIMIT 1",
       [id]
     );
 
     res.json({
       success: true,
       game: {
-        ...gameResult.rows[0],
-        upcoming_tournaments: tournamentsResult.rows,
-        community: communityResult.rows[0] || null,
+        ...gameRows[0],
+        upcoming_tournaments: tournaments,
+        community: communities[0] || null,
       },
     });
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 };
 
 // ─── GET MY FAVOURITE GAMES ───────────────────────────────────────────────────
 export const getMyGames = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const result = await pool.query(
+    const [rows] = await pool.query(
       `SELECT g.*, ugp.rank, ugp.elo_rating, ugp.win_rate, ugp.matches_played, ugp.role
        FROM user_game_profile ugp
        JOIN games g ON g.game_id = ugp.game_id
-       WHERE ugp.user_id = $1
+       WHERE ugp.user_id = ?
        ORDER BY g.game_name ASC`,
       [userId]
     );
-    res.json({ success: true, games: result.rows });
-  } catch (err) {
-    next(err);
-  }
+    res.json({ success: true, games: rows });
+  } catch (err) { next(err); }
 };
 
 // ─── ADD GAME TO FAVOURITES ───────────────────────────────────────────────────
@@ -93,30 +81,32 @@ export const addFavouriteGame = async (req, res, next) => {
     const userId = req.user.id;
     const { game_id, rank, role } = req.body;
 
-    const game = await pool.query(
-      "SELECT game_id FROM games WHERE game_id = $1 AND status = 'active'",
+    const [game] = await pool.query(
+      "SELECT game_id FROM games WHERE game_id = ? AND status = 'active'",
       [game_id]
     );
-    if (game.rows.length === 0) {
+    if (game.length === 0)
       return res.status(404).json({ success: false, message: "Game not found" });
-    }
 
-    const result = await pool.query(
-      `INSERT INTO user_game_profile (user_id, game_id, rank, role, elo_rating)
-       VALUES ($1, $2, $3, $4, 1000)
-       ON CONFLICT (user_id, game_id) DO NOTHING
-       RETURNING *`,
+    // INSERT IGNORE replaces ON CONFLICT DO NOTHING
+    // NOTE: `rank` and `role` are reserved words in MySQL 8.0 — must be backtick-quoted
+    const [result] = await pool.query(
+      `INSERT IGNORE INTO user_game_profile (user_id, game_id, \`rank\`, \`role\`, elo_rating)
+       VALUES (?, ?, ?, ?, 1000)`,
       [userId, game_id, rank || null, role || null]
     );
 
-    if (result.rows.length === 0) {
+    if (result.affectedRows === 0)
       return res.status(409).json({ success: false, message: "Game already in your list" });
-    }
 
-    res.status(201).json({ success: true, game_profile: result.rows[0] });
-  } catch (err) {
-    next(err);
-  }
+    // Fetch the new row (RETURNING not available in MySQL)
+    const [profile] = await pool.query(
+      "SELECT * FROM user_game_profile WHERE user_id = ? AND game_id = ?",
+      [userId, game_id]
+    );
+
+    res.status(201).json({ success: true, game_profile: profile[0] });
+  } catch (err) { next(err); }
 };
 
 // ─── REMOVE GAME FROM FAVOURITES ─────────────────────────────────────────────
@@ -125,85 +115,75 @@ export const removeFavouriteGame = async (req, res, next) => {
     const userId = req.user.id;
     const { game_id } = req.params;
 
-    const result = await pool.query(
-      "DELETE FROM user_game_profile WHERE user_id = $1 AND game_id = $2 RETURNING *",
+    const [result] = await pool.query(
+      "DELETE FROM user_game_profile WHERE user_id = ? AND game_id = ?",
       [userId, game_id]
     );
 
-    if (result.rows.length === 0) {
+    if (result.affectedRows === 0)
       return res.status(404).json({ success: false, message: "Game not in your list" });
-    }
 
     res.json({ success: true, message: "Game removed from favourites" });
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 };
 
 // ─── SYNC GAMES FROM LOCAL JSON ───────────────────────────────────────────────
-// POST /api/games/sync
-// Reads data/games.json, upserts all games, and auto-creates communities.
 export const syncGamesFromJson = async (req, res, next) => {
   try {
     const games = loadGamesFromJson();
 
-    let inserted = 0;
-    let updated  = 0;
-    let skipped  = 0;
-    let communitiesCreated = 0;
+    let inserted = 0, updated = 0, skipped = 0, communitiesCreated = 0;
 
     for (const g of games) {
-      if (!g.game_name || !g.game_name.trim()) {
+      if (!g.game_name?.trim()) {
         console.warn("[sync] Skipping game with null/empty game_name", g);
         skipped++;
         continue;
       }
 
-      // Upsert game
-      const result = await pool.query(
+      // ON CONFLICT DO UPDATE → ON DUPLICATE KEY UPDATE
+      // MySQL returns affectedRows=1 for INSERT, 2 for UPDATE via ON DUPLICATE KEY
+      const [result] = await pool.query(
         `INSERT INTO games
            (game_name, genre, developer, release_year, cover_image, icon, status,
             rating, platforms, description, slug, screenshots)
-         VALUES ($1,$2,$3,$4,$5,$5,'active',$6,$7,$8,$9,$10)
-         ON CONFLICT (game_name) DO UPDATE SET
-           genre        = EXCLUDED.genre,
-           developer    = COALESCE(EXCLUDED.developer, games.developer),
-           release_year = COALESCE(EXCLUDED.release_year, games.release_year),
-           cover_image  = COALESCE(EXCLUDED.cover_image, games.cover_image),
-           icon         = COALESCE(EXCLUDED.cover_image, games.icon),
-           rating       = EXCLUDED.rating,
-           platforms    = EXCLUDED.platforms,
-           description  = EXCLUDED.description,
-           slug         = EXCLUDED.slug,
-           screenshots  = EXCLUDED.screenshots
-         RETURNING game_id, (xmax = 0) AS is_insert`,
+         VALUES (?,?,?,?,?,?,'active',?,?,?,?,?)
+         ON DUPLICATE KEY UPDATE
+           genre        = VALUES(genre),
+           developer    = COALESCE(VALUES(developer),  developer),
+           release_year = COALESCE(VALUES(release_year), release_year),
+           cover_image  = COALESCE(VALUES(cover_image),  cover_image),
+           icon         = COALESCE(VALUES(icon),        icon),
+           rating       = VALUES(rating),
+           platforms    = VALUES(platforms),
+           description  = VALUES(description),
+           slug         = VALUES(slug),
+           screenshots  = VALUES(screenshots)`,
         [
-          g.game_name,
-          g.genre,
-          g.developer,
-          g.release_year,
-          g.cover_image,
-          g.rating,
-          g.platforms,
-          g.description,
-          g.slug,
-          g.screenshots || [],
+          g.game_name, g.genre, g.developer, g.release_year,
+          g.cover_image, g.cover_image,
+          g.rating, g.platforms, g.description, g.slug,
+          JSON.stringify(g.screenshots || []),
         ]
       );
 
-      const { game_id, is_insert } = result.rows[0];
-      if (is_insert) inserted++;
-      else updated++;
+      // affectedRows: 1 = inserted, 2 = updated, 0 = identical (no change)
+      const isInsert = result.affectedRows === 1;
+      if (isInsert) inserted++; else updated++;
+
+      // game_id: insertId is populated for INSERT; for UPDATE LAST_INSERT_ID() holds it
+      const game_id = result.insertId ||
+        (await pool.query("SELECT game_id FROM games WHERE game_name = ?", [g.game_name]))[0][0]?.game_id;
 
       // Auto-create community if none exists
-      const existingCom = await pool.query(
-        "SELECT community_id FROM communities WHERE game_id = $1 LIMIT 1",
+      const [existingCom] = await pool.query(
+        "SELECT community_id FROM communities WHERE game_id = ? LIMIT 1",
         [game_id]
       );
 
-      if (existingCom.rows.length === 0) {
+      if (existingCom.length === 0) {
         await pool.query(
-          `INSERT INTO communities (game_id, name, description) VALUES ($1, $2, $3)`,
+          "INSERT INTO communities (game_id, name, description) VALUES (?, ?, ?)",
           [
             game_id,
             `${g.game_name} Community`,
@@ -215,39 +195,28 @@ export const syncGamesFromJson = async (req, res, next) => {
       }
     }
 
-    // ── Hard-delete games no longer in JSON ───────────────────────────────────
-    // Deletes the game row and cascades to: communities, community_posts,
-    // post_comments, user_game_profile, tournaments — anything with
-    // ON DELETE CASCADE on their game_id FK.
+    // Hard-delete games no longer in JSON
+    // != ALL($1::text[]) → NOT IN (?)
+    // mysql2 expands an array param inside NOT IN (?) correctly
     const activeNames = games
-      .filter((g) => g.game_name && g.game_name.trim())
+      .filter((g) => g.game_name?.trim())
       .map((g) => g.game_name.trim());
 
-    const deleteResult = await pool.query(
-      `DELETE FROM games
-       WHERE game_name != ALL($1::text[])
-       RETURNING game_name`,
-      [activeNames]
-    );
-    const deleted = deleteResult.rows.length;
-    if (deleted > 0) {
-      console.log(
-        `[sync] Hard-deleted ${deleted} game(s):`,
-        deleteResult.rows.map((r) => r.game_name).join(", ")
+    let deleted = 0;
+    if (activeNames.length > 0) {
+      // Pass array directly — mysql2 expands it for IN / NOT IN
+      const [deleteResult] = await pool.query(
+        "DELETE FROM games WHERE game_name NOT IN (?)",
+        [activeNames]
       );
+      deleted = deleteResult.affectedRows;
+      if (deleted > 0) console.log(`[sync] Hard-deleted ${deleted} game(s)`);
     }
 
     res.json({
       success: true,
       message: `Sync complete: ${inserted} inserted, ${updated} updated, ${skipped} skipped, ${deleted} deleted. ${communitiesCreated} communities auto-created.`,
-      total: games.length,
-      inserted,
-      updated,
-      skipped,
-      deleted,
-      communitiesCreated,
+      total: games.length, inserted, updated, skipped, deleted, communitiesCreated,
     });
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 };

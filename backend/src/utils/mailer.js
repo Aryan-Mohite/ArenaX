@@ -1,28 +1,47 @@
 import nodemailer from "nodemailer";
 
 /**
- * Creates a reusable nodemailer transporter.
- * Supports any SMTP provider (Gmail, SendGrid, Mailgun, etc.)
- * Configure via environment variables — see .env.example
+ * mailer.js
+ *
+ * FIX: Transporter is now created lazily on first use, not at module load time.
+ *
+ * Previously, createTransporter() was called immediately when the module was
+ * imported. If SMTP_HOST/USER/PASS are missing or set to placeholder values
+ * (e.g. "CHANGE_ME"), the throw inside createTransporter() would propagate up
+ * and crash EVERY request — including login — because Node caches failed module
+ * initialisation. The server appeared to start fine but all routes crashed with
+ * a 500 because the mailer import chain was broken.
+ *
+ * Fix: build the transporter inside each send function (or lazily on first call)
+ * so a missing SMTP config only breaks email routes, not the whole app.
  */
-const createTransporter = () => {
+
+const getTransporter = () => {
   const host = process.env.SMTP_HOST;
   const port = parseInt(process.env.SMTP_PORT || "587");
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
 
-  if (!host || !user || !pass) {
+  if (!host || !user || !pass ||
+      host === "CHANGE_ME" || user === "CHANGE_ME" || pass === "CHANGE_ME") {
     throw new Error(
-      "Email not configured. Set SMTP_HOST, SMTP_USER, SMTP_PASS in .env"
+      "Email is not configured. Set SMTP_HOST, SMTP_USER, and SMTP_PASS in your .env file."
     );
   }
 
   return nodemailer.createTransport({
     host,
     port,
-    secure: port === 465,          // true for 465, false for 587/25
+    secure: port === 465,
     auth: { user, pass },
   });
+};
+
+// Lazy singleton — created once on first email send, then reused
+let _transporter = null;
+const transporter = () => {
+  if (!_transporter) _transporter = getTransporter();
+  return _transporter;
 };
 
 const FROM = (name = "ArenaX") =>
@@ -30,8 +49,7 @@ const FROM = (name = "ArenaX") =>
 
 // ─── OTP EMAIL ────────────────────────────────────────────────────────────────
 export const sendOtpEmail = async (to, otp) => {
-  const transporter = createTransporter();
-  await transporter.sendMail({
+  await transporter().sendMail({
     from: FROM("ArenaX — Verify Email"),
     to,
     subject: "Your ArenaX verification code",
@@ -60,8 +78,7 @@ export const sendOtpEmail = async (to, otp) => {
 
 // ─── PASSWORD RESET EMAIL ──────────────────────────────────────────────────────
 export const sendPasswordResetEmail = async (to, otp) => {
-  const transporter = createTransporter();
-  await transporter.sendMail({
+  await transporter().sendMail({
     from: FROM("ArenaX — Password Reset"),
     to,
     subject: "Reset your ArenaX password",
