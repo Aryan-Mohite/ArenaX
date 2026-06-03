@@ -25,7 +25,7 @@ const app = express();
 app.set("trust proxy", 1);
 
 // ─── SECURITY HEADERS (Helmet) ────────────────────────────────────────────────
-// FIX M5: Explicit CSP instead of Helmet default.
+// Explicit CSP instead of Helmet default.
 // Default Helmet CSP blocks: inline React scripts, Google Fonts, Socket.io WS.
 // Configured to allow exactly what ArenaX needs and nothing more.
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || "http://localhost:5173")
@@ -93,8 +93,11 @@ app.use("/api/auth", authLimiter);
 app.use("/api", apiLimiter);
 
 // ─── BODY PARSING ─────────────────────────────────────────────────────────────
-app.use(express.json({ limit: "1mb" }));
-app.use(express.urlencoded({ extended: true, limit: "1mb" }));
+// FIX MINOR-1: limit raised from 1mb → 5mb.
+// The old 1mb limit silently rejected base64 profile pictures (up to ~3.75 MB)
+// with a 413 before the request ever reached the controller size-check.
+app.use(express.json({ limit: "5mb" }));
+app.use(express.urlencoded({ extended: true, limit: "5mb" }));
 
 // ─── HEALTH CHECK ─────────────────────────────────────────────────────────────
 app.get("/health", (_req, res) => res.json({ status: "ok" }));

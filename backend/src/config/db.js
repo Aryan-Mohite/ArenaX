@@ -1,16 +1,5 @@
 import mysql from "mysql2/promise";
 
-// Guard: catch placeholder values left from the template .env
-// so the error message is clear, not a cryptic ECONNREFUSED
-const PLACEHOLDERS = ["CHANGE_ME", "CHANGE_ME_USE_openssl_rand_hex_64", ""];
-const required = { DB_USER: process.env.DB_USER, DB_HOST: process.env.DB_HOST, DB_PASSWORD: process.env.DB_PASSWORD };
-for (const [key, val] of Object.entries(required)) {
-  if (!val || PLACEHOLDERS.some(p => val.startsWith(p))) {
-    console.error(`❌ ${key} is not set in .env — open backend/.env and fill in your real database credentials.`);
-    process.exit(1);
-  }
-}
-
 const pool = mysql.createPool({
   host:     process.env.DB_HOST,
   user:     process.env.DB_USER,
@@ -20,8 +9,6 @@ const pool = mysql.createPool({
 
   waitForConnections: true,
   connectionLimit:    20,
-  // FIX M4: queueLimit was 0 (unbounded). Now capped at 100 — excess requests
-  // fail fast instead of piling up in memory under a traffic spike.
   queueLimit:         100,
   connectTimeout:     10000,
 
@@ -31,8 +18,47 @@ const pool = mysql.createPool({
   bigNumberStrings:   false,
   enableKeepAlive:    true,
   keepAliveInitDelay: 10000,
+
+  typeCast(field, next) {
+    if (field.type === "TINY" && field.length === 1) {
+      return field.string() === "1";
+    }
+    return next();
+  },
 });
 
+// ─── AUTH STATUS CACHE ────────────────────────────────────────────────────────
+const AUTH_CACHE_TTL_MS = 60_000;
+
+const authCache = new Map();
+
+export function isAuthCacheHit(userId) {
+  const entry = authCache.get(userId);
+  if (!entry) return false;
+  if (Date.now() > entry.expiresAt) {
+    authCache.delete(userId);
+    return false;
+  }
+  return true;
+}
+
+export function setAuthCache(userId) {
+  authCache.set(userId, { expiresAt: Date.now() + AUTH_CACHE_TTL_MS });
+}
+
+export function invalidateAuthCache(userId) {
+  authCache.delete(userId);
+}
+
+// Sweep expired entries every 5 minutes to prevent unbounded memory growth.
+setInterval(() => {
+  const now = Date.now();
+  for (const [uid, entry] of authCache) {
+    if (now > entry.expiresAt) authCache.delete(uid);
+  }
+}, 5 * 60_000);
+
+// ─── CONNECTION WITH RETRY ────────────────────────────────────────────────────
 const connectWithRetry = async (retries = 3, delayMs = 2000) => {
   for (let i = 1; i <= retries; i++) {
     try {

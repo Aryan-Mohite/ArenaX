@@ -57,8 +57,8 @@ SET FOREIGN_KEY_CHECKS = 0;
 
 CREATE TABLE IF NOT EXISTS users (
     user_id         INT AUTO_INCREMENT  PRIMARY KEY,
-    username        VARCHAR(50)         UNIQUE NOT NULL,
-    email           VARCHAR(100)        UNIQUE NOT NULL,
+    username        VARCHAR(60)         UNIQUE NOT NULL,
+    email           VARCHAR(120)        UNIQUE NOT NULL,
     password_hash   TEXT                NOT NULL,
     profile_picture TEXT,
     country         VARCHAR(50),
@@ -757,8 +757,8 @@ CREATE INDEX idx_arch_matches_at         ON archive_matches(archived_at);
 CREATE TABLE IF NOT EXISTS deleted_users_log (
     log_id        INT AUTO_INCREMENT  PRIMARY KEY,
     user_id       INT                 NOT NULL,
-    username      VARCHAR(50),
-    email         VARCHAR(100),
+    username      VARCHAR(60),
+    email         VARCHAR(120),
     country       VARCHAR(50),
     deleted_at    DATETIME            NOT NULL DEFAULT CURRENT_TIMESTAMP,
     deleted_by    INT,
@@ -1309,3 +1309,16 @@ ALTER TABLE pending_verifications
   
 ALTER TABLE password_resets
   ADD COLUMN verified_at DATETIME NULL DEFAULT NULL AFTER verified;
+
+-- =============================================================================
+-- MIGRATION v3.3 — BUG-5 FIX: expand username/email columns to prevent
+-- overflow when soft-delete appends "_deleted_<id>" suffix.
+-- Run these on any existing database (safe — IF the column is currently narrower).
+-- =============================================================================
+ALTER TABLE users
+  MODIFY COLUMN username VARCHAR(60)  NOT NULL,
+  MODIFY COLUMN email    VARCHAR(120) NOT NULL;
+
+ALTER TABLE deleted_users_log
+  MODIFY COLUMN username VARCHAR(60),
+  MODIFY COLUMN email    VARCHAR(120);

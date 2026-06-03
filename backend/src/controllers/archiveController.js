@@ -8,11 +8,12 @@
  *  • client.query("ROLLBACK")→ conn.rollback()
  *  • $1,$2…                 → ?
  *  • result.rows            → rows  (destructured from [rows] = await pool.query())
- *  • SELECT fn_restore_*()  → CALL fn_restore_*()
+ *  • SELECT fn_restore_*()  → CALL fn_restore_*(…)
  *  • SELECT * FROM fn_purge_old_archives() → CALL fn_purge_old_archives()
  */
 
 import pool from "../config/db.js";
+import { invalidateAuthCache } from "../config/db.js";
 
 // =============================================================================
 // Helpers
@@ -216,12 +217,16 @@ export const softDeleteMyAccount = async (req, res, next) => {
 
     await conn.beginTransaction();
 
-    // MySQL does not support RETURNING — do UPDATE then SELECT
+    // FIX BUG-5: username VARCHAR(50) + "_deleted_" + id could overflow.
+    // LEFT() caps the base so the total never exceeds the column width.
+    // username: max 50 chars → LEFT(username, 40) + "_deleted_" (9) + id (≤10) = 59 — fits in VARCHAR(60).
+    // email: max 100 chars → LEFT(email, 80) + "_deleted_" (9) + id (≤10) = 99 — fits in VARCHAR(120).
+    // (Schema column widths are expanded to VARCHAR(60)/VARCHAR(120) — see arenaX_schema_mysql.sql)
     await conn.query(
       `UPDATE users
        SET status   = 'deleted',
-           username = CONCAT(username, '_deleted_', user_id),
-           email    = CONCAT(email,    '_deleted_', user_id)
+           username = CONCAT(LEFT(username, 40), '_deleted_', user_id),
+           email    = CONCAT(LEFT(email,    80), '_deleted_', user_id)
        WHERE user_id = ?`,
       [userId]
     );
@@ -244,6 +249,11 @@ export const softDeleteMyAccount = async (req, res, next) => {
     );
 
     await conn.commit();
+
+    // FIX LAG-3: evict from auth cache immediately so the now-deleted user
+    // cannot make further authenticated requests within the cache TTL window.
+    invalidateAuthCache(userId);
+
     res.json({ success: true, message: "Account deactivated. Your data is retained for 365 days." });
   } catch (err) {
     await conn.rollback();
@@ -317,7 +327,6 @@ export const getArchivedItem = async (req, res, next) => {
 };
 
 // ── RESTORE TOURNAMENT ────────────────────────────────────────────────────────
-// CALL replaces SELECT fn_restore_tournament() (PostgreSQL function call syntax)
 export const restoreTournament = async (req, res, next) => {
   try {
     await pool.query("CALL fn_restore_tournament(?, ?)", [req.params.id, req.user.id]);
@@ -377,9 +386,7 @@ export const getAuditLog = async (req, res, next) => {
 // MySQL stored procedure returns a result set; mysql2 returns [[rows], fields]
 export const purgeOldArchives = async (req, res, next) => {
   try {
-    // CALL returns an array of result sets; the first is our temp table result
     const [resultSets] = await pool.query("CALL fn_purge_old_archives()");
-    // resultSets[0] contains the rows from SELECT * FROM _purge_results
     const purged = Array.isArray(resultSets[0]) ? resultSets[0] : resultSets;
     res.json({ success: true, purged });
   } catch (err) { next(err); }

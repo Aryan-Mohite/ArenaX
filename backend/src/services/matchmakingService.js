@@ -14,8 +14,13 @@ export const calculateElo = (winnerElo, loserElo) => {
 };
 
 // ─── FIND MATCH ───────────────────────────────────────────────────────────────
+// FIX LAG-2: The old implementation looped over 3 ELO windows sequentially,
+// awaiting each DB query before trying the next. Total latency = 3× round-trip
+// when no match was found (the common early-on case).
+//
+// Fix: fire all three window queries in parallel with Promise.all, then return
+// the result from the narrowest window that found someone (closest ELO wins).
 export const findMatch = async (userId, gameId) => {
-  // $1,$2 → ?
   const [profileRows] = await pool.query(
     "SELECT elo_rating FROM user_game_profile WHERE user_id = ? AND game_id = ?",
     [userId, gameId]
@@ -25,11 +30,10 @@ export const findMatch = async (userId, gameId) => {
     throw new Error("You do not have a game profile for this game. Set your rank first.");
 
   const userElo = profileRows[0].elo_rating || 1000;
-  const windows = [ELO_WINDOW, ELO_WINDOW * 2, ELO_WINDOW_MAX];
 
-  for (const window of windows) {
-    const [rows] = await pool.query(
-      `SELECT ugp.user_id, ugp.elo_rating, ugp.rank, ugp.role, u.username, u.profile_picture
+  const matchQuery = (window) =>
+    pool.query(
+      `SELECT ugp.user_id, ugp.elo_rating, ugp.\`rank\`, ugp.\`role\`, u.username, u.profile_picture
        FROM user_game_profile ugp
        JOIN users u ON u.user_id = ugp.user_id
        WHERE ugp.game_id = ?
@@ -41,6 +45,15 @@ export const findMatch = async (userId, gameId) => {
       [gameId, userId, userElo, window, userElo]
     );
 
+  // Run all three window sizes in parallel — fastest response regardless of
+  // which window produces a result. Return the narrowest match found.
+  const [[rows200], [rows400], [rows600]] = await Promise.all([
+    matchQuery(ELO_WINDOW),
+    matchQuery(ELO_WINDOW * 2),
+    matchQuery(ELO_WINDOW_MAX),
+  ]);
+
+  for (const rows of [rows200, rows400, rows600]) {
     if (rows.length > 0)
       return { ...rows[0], elo_difference: Math.abs(rows[0].elo_rating - userElo) };
   }
@@ -50,7 +63,6 @@ export const findMatch = async (userId, gameId) => {
 
 // ─── UPDATE ELO AFTER MATCH ───────────────────────────────────────────────────
 export const updateEloAfterMatch = async (winnerId, loserId, gameId) => {
-  // pool.connect() → pool.getConnection()
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();

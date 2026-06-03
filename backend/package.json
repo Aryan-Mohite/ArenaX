@@ -4,27 +4,27 @@
   "description": "eSports platform backend API",
   "main": "server.js",
   "type": "module",
-  "scripts": {
-    "dev": "nodemon server.js",
-    "start": "node server.js"
-  },
+"scripts": {
+  "dev": "nodemon --env-file=.env server.js",
+  "start": "node --env-file=.env server.js"
+},
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
+    "dotenv": "^16.6.1",
     "express": "^4.19.2",
     "express-rate-limit": "^8.5.2",
     "express-validator": "^7.2.0",
     "helmet": "^8.2.0",
     "jsonwebtoken": "^9.0.2",
-    "mysql2": "^3.9.0",
+    "mysql2": "^3.22.4",
     "nodemailer": "^8.0.7",
+    "sanitize-html": "^2.13.0",
     "socket.io": "^4.7.5",
-    "uuid": "^10.0.0",
-    "sanitize-html": "^2.13.0"
+    "uuid": "^10.0.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.4"

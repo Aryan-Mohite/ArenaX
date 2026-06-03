@@ -5,13 +5,13 @@ import { sanitizeFields } from "../utils/sanitize.js";
 export const getCommunities = async (req, res, next) => {
   try {
     const [rows] = await pool.query(
-      `SELECT c.community_id, c.name, c.description, c.banner_url,
-              g.game_name, g.icon AS game_icon,
+      `SELECT c.community_id, c.game_id, c.name, c.description,
+              g.game_name, g.icon AS game_icon, g.icon,
               COUNT(DISTINCT cp.post_id) AS post_count
        FROM communities c
        LEFT JOIN games g ON g.game_id = c.game_id
        LEFT JOIN community_posts cp ON cp.community_id = c.community_id
-       GROUP BY c.community_id, g.game_name, g.icon
+       GROUP BY c.community_id, c.game_id, c.name, c.description, g.game_name, g.icon
        ORDER BY post_count DESC`
     );
     res.json({ success: true, communities: rows });
@@ -28,7 +28,7 @@ export const getCommunityPosts = async (req, res, next) => {
     const [rows] = await pool.query(
       `SELECT cp.post_id, cp.title, cp.content, cp.image_url,
               cp.upvotes, cp.downvotes, cp.comment_count, cp.created_at,
-              u.username, u.profile_picture,
+              u.user_id, u.username, u.profile_picture,
               g.game_name
        FROM community_posts cp
        JOIN users u ON u.user_id = cp.user_id
@@ -68,7 +68,7 @@ export const createPost = async (req, res, next) => {
     );
 
     const [newPost] = await pool.query(
-      `SELECT cp.*, u.username, u.profile_picture
+      `SELECT cp.*, u.user_id, u.username, u.profile_picture
        FROM community_posts cp
        JOIN users u ON u.user_id = cp.user_id
        WHERE cp.post_id = ?`,
@@ -85,7 +85,7 @@ export const getPost = async (req, res, next) => {
     const { post_id } = req.params;
 
     const [postRows] = await pool.query(
-      `SELECT cp.*, u.username, u.profile_picture, g.game_name
+      `SELECT cp.*, u.user_id, u.username, u.profile_picture, g.game_name
        FROM community_posts cp
        JOIN users u ON u.user_id = cp.user_id
        LEFT JOIN communities c ON c.community_id = cp.community_id
@@ -132,13 +132,12 @@ export const addComment = async (req, res, next) => {
       [post_id, userId, content]
     );
 
-    await pool.query(
-      "UPDATE community_posts SET comment_count = comment_count + 1 WHERE post_id = ?",
-      [post_id]
-    );
+    // NOTE: comment_count is maintained by DB triggers (trg_increment_comment_count /
+    // trg_decrement_comment_count). Do NOT update it manually here — that would
+    // double-count every comment. The triggers fire on INSERT/DELETE in post_comments.
 
     const [newComment] = await pool.query(
-      `SELECT pc.*, u.username, u.profile_picture
+      `SELECT pc.*, u.user_id, u.username, u.profile_picture
        FROM post_comments pc
        JOIN users u ON u.user_id = pc.user_id
        WHERE pc.comment_id = ?`,
@@ -156,13 +155,19 @@ export const votePost = async (req, res, next) => {
     const userId = req.user.id;
     const { vote } = req.body; // "up" | "down"
 
-    const voteType = vote === "up" ? "upvote" : "downvote";
+    // FIX: vote_type values must be 'up' or 'down' to satisfy the DB CHECK constraint:
+    //   CONSTRAINT chk_pv_vote_type CHECK (vote_type IN ('up', 'down'))
+    // Previously was using 'upvote'/'downvote' which violated this constraint and
+    // caused every vote INSERT/UPDATE to fail with an SQL error.
+    const voteType = vote === "up" ? "up" : "down";
     const voteCol  = vote === "up" ? "upvotes" : "downvotes";
 
     const [existing] = await pool.query(
       "SELECT vote_id, vote_type FROM post_votes WHERE post_id = ? AND user_id = ?",
       [post_id, userId]
     );
+
+    let updatedPost;
 
     if (existing.length > 0) {
       if (existing[0].vote_type === voteType) {
@@ -172,7 +177,12 @@ export const votePost = async (req, res, next) => {
           `UPDATE community_posts SET ${voteCol} = GREATEST(0, ${voteCol} - 1) WHERE post_id = ?`,
           [post_id]
         );
-        return res.json({ success: true, voted: false });
+        const [[post]] = await pool.query(
+          "SELECT upvotes, downvotes FROM community_posts WHERE post_id = ?",
+          [post_id]
+        );
+        // FIX: return updated vote counts and cleared userVote so the frontend can update the UI
+        return res.json({ success: true, voted: false, userVote: null, votes: post });
       } else {
         // Switch vote
         const oldCol = vote === "up" ? "downvotes" : "upvotes";
@@ -184,7 +194,12 @@ export const votePost = async (req, res, next) => {
            WHERE post_id = ?`,
           [post_id]
         );
-        return res.json({ success: true, voted: true, vote });
+        const [[post]] = await pool.query(
+          "SELECT upvotes, downvotes FROM community_posts WHERE post_id = ?",
+          [post_id]
+        );
+        // FIX: return updated counts and new userVote for UI state
+        return res.json({ success: true, voted: true, vote, userVote: vote, votes: post });
       }
     }
 
@@ -197,7 +212,13 @@ export const votePost = async (req, res, next) => {
       [post_id]
     );
 
-    res.json({ success: true, voted: true, vote });
+    const [[post]] = await pool.query(
+      "SELECT upvotes, downvotes FROM community_posts WHERE post_id = ?",
+      [post_id]
+    );
+
+    // FIX: return updated counts and userVote for UI state
+    res.json({ success: true, voted: true, vote, userVote: vote, votes: post });
   } catch (err) { next(err); }
 };
 
@@ -256,25 +277,51 @@ export const getAllFavGamesPosts = async (req, res, next) => {
       return res.json({ success: true, posts: rows });
     }
 
-    // Default: posts from communities matching user's fav games (or all if no auth)
+    // FIX: When a user is logged in, show posts from their fav game communities.
+    // When not logged in OR they have no fav games, fall back to all posts.
+    // Previously the frontend filtered by game_ids param, but the backend ignored it.
+    // Now the backend does the filtering itself based on user_game_profile.
     let rows;
     if (userId) {
-      [rows] = await pool.query(
-        `SELECT cp.post_id, cp.title, cp.content, cp.image_url,
-                cp.upvotes, cp.downvotes, cp.comment_count, cp.created_at,
-                u.user_id, u.username, u.profile_picture,
-                c.name AS community_name, g.game_name
-         FROM community_posts cp
-         JOIN users u ON u.user_id = cp.user_id
-         LEFT JOIN communities c ON c.community_id = cp.community_id
-         LEFT JOIN games g ON g.game_id = c.game_id
-         WHERE c.game_id IN (
-           SELECT game_id FROM user_game_profile WHERE user_id = ?
-         )
-         ORDER BY cp.created_at DESC
-         LIMIT ? OFFSET ?`,
-        [userId, limit, Number(offset)]
+      // Check if user has any fav games first
+      const [favGames] = await pool.query(
+        "SELECT game_id FROM user_game_profile WHERE user_id = ?",
+        [userId]
       );
+
+      if (favGames.length > 0) {
+        [rows] = await pool.query(
+          `SELECT cp.post_id, cp.title, cp.content, cp.image_url,
+                  cp.upvotes, cp.downvotes, cp.comment_count, cp.created_at,
+                  u.user_id, u.username, u.profile_picture,
+                  c.name AS community_name, g.game_name
+           FROM community_posts cp
+           JOIN users u ON u.user_id = cp.user_id
+           LEFT JOIN communities c ON c.community_id = cp.community_id
+           LEFT JOIN games g ON g.game_id = c.game_id
+           WHERE c.game_id IN (
+             SELECT game_id FROM user_game_profile WHERE user_id = ?
+           )
+           ORDER BY cp.created_at DESC
+           LIMIT ? OFFSET ?`,
+          [userId, limit, Number(offset)]
+        );
+      } else {
+        // Authenticated but no games selected — show all posts
+        [rows] = await pool.query(
+          `SELECT cp.post_id, cp.title, cp.content, cp.image_url,
+                  cp.upvotes, cp.downvotes, cp.comment_count, cp.created_at,
+                  u.user_id, u.username, u.profile_picture,
+                  c.name AS community_name, g.game_name
+           FROM community_posts cp
+           JOIN users u ON u.user_id = cp.user_id
+           LEFT JOIN communities c ON c.community_id = cp.community_id
+           LEFT JOIN games g ON g.game_id = c.game_id
+           ORDER BY cp.created_at DESC
+           LIMIT ? OFFSET ?`,
+          [limit, Number(offset)]
+        );
+      }
     } else {
       [rows] = await pool.query(
         `SELECT cp.post_id, cp.title, cp.content, cp.image_url,
@@ -337,10 +384,8 @@ export const deleteComment = async (req, res, next) => {
       return res.status(403).json({ success: false, message: "Not authorised to delete this comment" });
 
     await pool.query("DELETE FROM post_comments WHERE comment_id = ?", [comment_id]);
-    await pool.query(
-      "UPDATE community_posts SET comment_count = GREATEST(0, comment_count - 1) WHERE post_id = ?",
-      [rows[0].post_id]
-    );
+    // NOTE: comment_count is decremented by the trg_decrement_comment_count DB trigger.
+    // Do NOT update it manually here — that would double-decrement.
 
     res.json({ success: true, message: "Comment deleted" });
   } catch (err) { next(err); }

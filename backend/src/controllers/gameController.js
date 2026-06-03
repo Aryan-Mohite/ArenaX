@@ -64,7 +64,7 @@ export const getMyGames = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const [rows] = await pool.query(
-      `SELECT g.*, ugp.rank, ugp.elo_rating, ugp.win_rate, ugp.matches_played, ugp.role
+      `SELECT g.*, ugp.\`rank\`, ugp.elo_rating, ugp.win_rate, ugp.matches_played, ugp.\`role\`
        FROM user_game_profile ugp
        JOIN games g ON g.game_id = ugp.game_id
        WHERE ugp.user_id = ?
@@ -161,7 +161,7 @@ export const syncGamesFromJson = async (req, res, next) => {
            screenshots  = VALUES(screenshots)`,
         [
           g.game_name, g.genre, g.developer, g.release_year,
-          g.cover_image, g.cover_image,
+          g.cover_image, g.cover_image,   // icon falls back to cover_image (no icon field in JSON)
           g.rating, g.platforms, g.description, g.slug,
           JSON.stringify(g.screenshots || []),
         ]
@@ -171,9 +171,21 @@ export const syncGamesFromJson = async (req, res, next) => {
       const isInsert = result.affectedRows === 1;
       if (isInsert) inserted++; else updated++;
 
-      // game_id: insertId is populated for INSERT; for UPDATE LAST_INSERT_ID() holds it
-      const game_id = result.insertId ||
-        (await pool.query("SELECT game_id FROM games WHERE game_name = ?", [g.game_name]))[0][0]?.game_id;
+      // FIX BUG-1: The old code used result.insertId which is 0 when ON DUPLICATE KEY
+      // UPDATE fires and nothing changed, making game_id undefined and corrupting the
+      // subsequent community INSERT (WHERE game_id = undefined).
+      // Fix: always do a fresh SELECT to get the canonical game_id.
+      const [idRows] = await pool.query(
+        "SELECT game_id FROM games WHERE game_name = ?",
+        [g.game_name.trim()]
+      );
+      const game_id = idRows[0]?.game_id;
+
+      if (!game_id) {
+        console.warn(`[sync] Could not resolve game_id for "${g.game_name}" — skipping community check`);
+        skipped++;
+        continue;
+      }
 
       // Auto-create community if none exists
       const [existingCom] = await pool.query(
@@ -196,7 +208,6 @@ export const syncGamesFromJson = async (req, res, next) => {
     }
 
     // Hard-delete games no longer in JSON
-    // != ALL($1::text[]) → NOT IN (?)
     // mysql2 expands an array param inside NOT IN (?) correctly
     const activeNames = games
       .filter((g) => g.game_name?.trim())
@@ -204,7 +215,6 @@ export const syncGamesFromJson = async (req, res, next) => {
 
     let deleted = 0;
     if (activeNames.length > 0) {
-      // Pass array directly — mysql2 expands it for IN / NOT IN
       const [deleteResult] = await pool.query(
         "DELETE FROM games WHERE game_name NOT IN (?)",
         [activeNames]

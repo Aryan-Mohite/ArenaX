@@ -1,4 +1,5 @@
 import pool from "../config/db.js";
+import { invalidateAuthCache } from "../config/db.js";
 
 // ─── GET ALL USERS ────────────────────────────────────────────────────────────
 export const getAllUsers = async (req, res, next) => {
@@ -49,6 +50,10 @@ export const banUser = async (req, res, next) => {
       return res.status(400).json({ success: false, message: "User is already banned" });
 
     await pool.query("UPDATE users SET status = 'banned' WHERE user_id = ?", [id]);
+
+    // FIX LAG-3: evict from auth cache immediately so the banned user
+    // cannot make further authenticated requests within the 60-second cache window.
+    invalidateAuthCache(Number(id));
 
     res.json({ success: true, message: `User @${target[0].username} has been banned`, reason });
   } catch (err) { next(err); }

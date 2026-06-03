@@ -622,7 +622,6 @@ export default function Communities() {
         const list = comRes.data.communities || [];
         setCommunities(list);
         try {
-          const { getMyGames } = await import("../services/gameService");
           const gamesRes = await getMyGames();
           const myGameIds = (gamesRes.data.games || []).map((g) => g.game_id);
           setFavGameIds(myGameIds);
@@ -652,15 +651,13 @@ export default function Communities() {
       return;
     }
     setLoadingPosts(true);
-    import("../services/communityService").then(({ getAllFavGamesPosts }) => {
-      getAllFavGamesPosts({
+    getAllFavGamesPosts({
         game_ids: favGameIds.join(","),
         following: postFilter === "following" ? "true" : "false",
       })
         .then((res) => setAllGamesPosts(res.data.posts || []))
         .catch(() => setAllGamesPosts([]))
         .finally(() => setLoadingPosts(false));
-    });
   }, [viewMode, favGameIds, postFilter]);
 
   // Vote handler — one vote per user; clicking same vote toggles it off, opposite vote switches
