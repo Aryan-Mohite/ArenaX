@@ -4,6 +4,7 @@ import {
   getTournaments,
   getTournamentById,
   createTournament,
+  deleteTournament,
 } from "../services/tournamentService";
 import { PageLoader, ErrorMessage } from "../components/UI";
 import { useAuth } from "../context/AuthContext";
@@ -71,9 +72,7 @@ const EMPTY_FORM = {
   join_link: "",
 };
 
-function OrganizerPostModal({
-  games, onClose, onCreated
-}) {
+function OrganizerPostModal({ games, onClose, onCreated }) {
   const { theme } = useTheme();
   const ts = themeStyles(theme);
   const isLight = theme === "light";
@@ -513,13 +512,35 @@ function OrganizerPostModal({
 }
 
 // ── Rich Tournament Card ──────────────────────────────────────────────────────
-function TournamentCard({
-  tournament
-}) {
+function TournamentCard({ tournament, onDelete }) {
   const { theme } = useTheme();
   const ts = themeStyles(theme);
   const isLight = theme === "light";
   const [copied, setCopied] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      return;
+    }
+    setDeleting(true);
+    try {
+      await onDelete(tournament.tournament_id);
+    } finally {
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  };
+
+  const handleDeleteCancel = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setConfirmDelete(false);
+  };
 
   const {
     tournament_id,
@@ -543,7 +564,9 @@ function TournamentCard({
     e.stopPropagation();
     const url = `${window.location.origin}/tournament/${tournament_id}`;
     if (navigator.share) {
-      navigator.share({ title: name, text: `Check out this tournament: ${name}`, url }).catch(() => {});
+      navigator
+        .share({ title: name, text: `Check out this tournament: ${name}`, url })
+        .catch(() => {});
     } else {
       navigator.clipboard.writeText(url).then(() => {
         setCopied(true);
@@ -594,7 +617,7 @@ function TournamentCard({
             background: "linear-gradient(to top, #1a2340 0%, transparent 60%)",
           }}
         />
-        {/* Status badge + share button top-right */}
+        {/* Status badge + share + delete buttons top-right */}
         <div className="absolute top-3 right-3 flex items-center gap-1.5">
           <button
             onClick={handleShare}
@@ -602,16 +625,83 @@ function TournamentCard({
             className="flex items-center justify-center w-7 h-7 rounded-md bg-black/40 backdrop-blur-sm hover:bg-red/30 border border-white/10 hover:border-red/40 text-gray-300 hover:text-white transition-all duration-200"
           >
             {copied ? (
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-green-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12"/>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="w-3.5 h-3.5 text-green-400"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="20 6 9 17 4 12" />
               </svg>
             ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
-                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="w-3.5 h-3.5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="18" cy="5" r="3" />
+                <circle cx="6" cy="12" r="3" />
+                <circle cx="18" cy="19" r="3" />
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
               </svg>
             )}
           </button>
+          {onDelete &&
+            (confirmDelete ? (
+              <div
+                className="flex items-center gap-1"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  title="Confirm delete"
+                  className="flex items-center justify-center h-7 px-2 rounded-md bg-red/80 backdrop-blur-sm border border-red/60 text-white text-xs font-semibold hover:bg-red transition-all duration-200 disabled:opacity-50"
+                >
+                  {deleting ? "…" : "Delete?"}
+                </button>
+                <button
+                  onClick={handleDeleteCancel}
+                  title="Cancel"
+                  className="flex items-center justify-center w-7 h-7 rounded-md bg-black/40 backdrop-blur-sm border border-white/10 text-gray-300 hover:text-white transition-all duration-200"
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleDelete}
+                title="Delete tournament"
+                className="flex items-center justify-center w-7 h-7 rounded-md bg-black/40 backdrop-blur-sm hover:bg-red/30 border border-white/10 hover:border-red/40 text-gray-400 hover:text-red transition-all duration-200"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="w-3.5 h-3.5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+                  <path d="M10 11v6" />
+                  <path d="M14 11v6" />
+                  <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
+                </svg>
+              </button>
+            ))}
           <StatusBadge status={status} />
         </div>
         {/* Prize pool badge */}
@@ -1000,7 +1090,7 @@ function TournamentList() {
   const ts = themeStyles(theme);
   const isLight = theme === "light";
 
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [tournaments, setTournaments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ status: "", region: "" });
@@ -1038,6 +1128,19 @@ function TournamentList() {
     setTournaments((prev) => [{ ...t, registered_teams: 0 }, ...prev]);
     showToast("Tournament posted successfully!");
   };
+
+  const handleDelete = async (id) => {
+    try {
+      await deleteTournament(id);
+      setTournaments((prev) => prev.filter((t) => t.tournament_id !== id));
+      showToast("Tournament deleted.");
+    } catch (err) {
+      showToast(err.response?.data?.message || "Failed to delete tournament.");
+    }
+  };
+
+  const canDelete = (t) =>
+    user && (String(t.created_by) === String(user.id) || user.isAdmin);
 
   const featured =
     tournaments.find((t) => t.status === "ongoing") || tournaments[0];
@@ -1216,7 +1319,11 @@ function TournamentList() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
           {tournaments.map((t) => (
-            <TournamentCard key={t.tournament_id} tournament={t} />
+            <TournamentCard
+              key={t.tournament_id}
+              tournament={t}
+              onDelete={canDelete(t) ? handleDelete : undefined}
+            />
           ))}
         </div>
       )}

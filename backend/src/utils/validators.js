@@ -153,7 +153,7 @@ export const validateCommunityPost = [
   body("title")
     .trim()
     .notEmpty().withMessage("Title is required")
-    .isLength({ min: 3, max: 200 }),
+    .isLength({ min: 1, max: 200 }),
   body("content")
     .trim()
     .notEmpty().withMessage("Content is required")

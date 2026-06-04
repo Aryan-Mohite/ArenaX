@@ -1322,3 +1322,6 @@ ALTER TABLE users
 ALTER TABLE deleted_users_log
   MODIFY COLUMN username VARCHAR(60),
   MODIFY COLUMN email    VARCHAR(120);
+
+ALTER TABLE tournaments
+ADD COLUMN max_teams INT DEFAULT NULL;
