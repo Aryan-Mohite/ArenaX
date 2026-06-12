@@ -1,0 +1,1420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ArenaX — Project Documentation</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f1117;--bg2:#161b27;--bg3:#1e2535;--bg4:#252d3e;
+  --border:#2a3448;--border2:#3a4560;
+  --text:#e2e8f0;--text2:#94a3b8;--text3:#64748b;
+  --red:#ef4444;--red-dim:#7f1d1d;
+  --orange:#f97316;--orange-dim:#7c2d12;
+  --blue:#3b82f6;--blue-dim:#1e3a5f;
+  --green:#22c55e;--green-dim:#14532d;
+  --purple:#a855f7;--purple-dim:#3b0764;
+  --teal:#14b8a6;--teal-dim:#134e4a;
+  --yellow:#eab308;--yellow-dim:#713f12;
+  --pink:#ec4899;--pink-dim:#831843;
+  --accent:#ef4444;
+  --radius:8px;
+  --font:'Inter',system-ui,sans-serif;
+  --mono:'JetBrains Mono','Fira Code',monospace;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--font);line-height:1.6;font-size:14px}
+a{color:var(--blue);text-decoration:none}
+h1{font-size:28px;font-weight:700;letter-spacing:-0.5px}
+h2{font-size:20px;font-weight:600;letter-spacing:-0.3px}
+h3{font-size:16px;font-weight:600}
+h4{font-size:14px;font-weight:600}
+
+/* Layout */
+.layout{display:flex;min-height:100vh}
+.sidebar{width:260px;background:var(--bg2);border-right:1px solid var(--border);padding:20px 0;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;z-index:100;flex-shrink:0}
+.main{margin-left:260px;flex:1;padding:0 32px 80px;max-width:960px}
+
+/* Sidebar */
+.sidebar-logo{padding:0 20px 20px;border-bottom:1px solid var(--border);margin-bottom:16px}
+.sidebar-logo .logo{display:flex;align-items:center;gap:10px}
+.sidebar-logo .logo-x{width:32px;height:32px;background:var(--red);border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;color:#fff}
+.sidebar-logo .logo-name{font-weight:700;font-size:16px;color:var(--text)}
+.sidebar-logo .logo-sub{font-size:11px;color:var(--text3);margin-top:2px}
+
+.nav-section{padding:8px 20px 4px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-top:8px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 20px;cursor:pointer;transition:background .15s;border-left:2px solid transparent;font-size:13px;color:var(--text2)}
+.nav-item:hover{background:var(--bg3);color:var(--text)}
+.nav-item.active{background:var(--bg3);color:var(--accent);border-left-color:var(--accent)}
+.nav-item .num{width:20px;height:20px;border-radius:4px;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--text3);flex-shrink:0}
+.nav-item.active .num{background:var(--red-dim);color:var(--red)}
+
+/* Sections */
+.section{display:none;padding-top:32px}
+.section.active{display:block}
+.section-header{margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid var(--border)}
+.section-badge{display:inline-flex;align-items:center;gap:6px;background:var(--red-dim);color:var(--red);padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px}
+
+/* Cards */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:20px}
+.stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;text-align:center}
+.stat-card .val{font-size:24px;font-weight:700;color:var(--text);display:block}
+.stat-card .lbl{font-size:11px;color:var(--text3);margin-top:4px;text-transform:uppercase;letter-spacing:.5px}
+
+/* Tags/badges */
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;margin:2px}
+.badge-red{background:var(--red-dim);color:var(--red)}
+.badge-blue{background:var(--blue-dim);color:var(--blue)}
+.badge-green{background:var(--green-dim);color:var(--green)}
+.badge-orange{background:var(--orange-dim);color:var(--orange)}
+.badge-purple{background:var(--purple-dim);color:var(--purple)}
+.badge-teal{background:var(--teal-dim);color:var(--teal)}
+.badge-yellow{background:var(--yellow-dim);color:var(--yellow)}
+.badge-pink{background:var(--pink-dim);color:var(--pink)}
+.badge-gray{background:var(--bg4);color:var(--text2)}
+
+/* Method badges */
+.method{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;margin-right:6px;font-family:var(--mono)}
+.GET{background:#14532d;color:#4ade80}
+.POST{background:#1e3a5f;color:#60a5fa}
+.PUT{background:#713f12;color:#fbbf24}
+.PATCH{background:#3b0764;color:#c084fc}
+.DELETE{background:#7f1d1d;color:#f87171}
+
+/* Route rows */
+.route-row{display:flex;align-items:flex-start;gap:12px;padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px}
+.route-row:last-child{border-bottom:none}
+.route-row:hover{background:var(--bg3)}
+.route-path{font-family:var(--mono);color:var(--text);flex:1}
+.route-desc{color:var(--text2);font-size:12px;margin-top:2px}
+.route-auth{font-size:10px;color:var(--text3);white-space:nowrap}
+
+/* Timeline */
+.timeline{position:relative;padding-left:32px}
+.timeline::before{content:'';position:absolute;left:8px;top:8px;bottom:8px;width:1px;background:var(--border)}
+.tl-item{position:relative;margin-bottom:24px}
+.tl-dot{position:absolute;left:-28px;top:4px;width:14px;height:14px;border-radius:50%;border:2px solid;display:flex;align-items:center;justify-content:center}
+.tl-dot-done{background:var(--green-dim);border-color:var(--green)}
+.tl-dot-active{background:var(--orange-dim);border-color:var(--orange);box-shadow:0 0 8px var(--orange)}
+.tl-dot-todo{background:var(--bg3);border-color:var(--border2)}
+.tl-title{font-weight:600;font-size:14px;margin-bottom:4px}
+.tl-body{color:var(--text2);font-size:13px;line-height:1.5}
+.tl-tags{margin-top:6px}
+
+/* Code */
+pre{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;overflow-x:auto;font-family:var(--mono);font-size:12px;color:var(--text);margin:10px 0;line-height:1.6}
+code{font-family:var(--mono);font-size:12px;background:var(--bg4);padding:1px 5px;border-radius:3px;color:var(--orange)}
+
+/* Tables */
+table{width:100%;border-collapse:collapse;font-size:13px;margin:12px 0}
+th{background:var(--bg3);color:var(--text2);font-weight:600;padding:8px 12px;text-align:left;border:1px solid var(--border);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+td{padding:8px 12px;border:1px solid var(--border);color:var(--text);vertical-align:top}
+tr:hover td{background:var(--bg3)}
+
+/* Flow diagrams (SVG-like using divs) */
+.flow-box{background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:8px 14px;display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:500;white-space:nowrap}
+.flow-arrow{color:var(--text3);font-size:18px;margin:0 4px}
+.flow-row{display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin:8px 0}
+
+/* Architecture */
+.arch-layer{border-radius:var(--radius);margin-bottom:12px;overflow:hidden}
+.arch-layer-header{padding:8px 16px;font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.8px;display:flex;align-items:center;gap:8px}
+.arch-layer-body{padding:12px 16px;display:flex;flex-wrap:wrap;gap:8px}
+.arch-box{background:rgba(255,255,255,.05);border-radius:5px;padding:6px 12px;font-size:12px;font-weight:500;border:1px solid rgba(255,255,255,.08)}
+
+/* Folder tree */
+.folder-tree{font-family:var(--mono);font-size:12px;color:var(--text);line-height:1.8;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+.folder-tree .dir{color:var(--blue)}
+.folder-tree .file-js{color:var(--yellow)}
+.folder-tree .file-jsx{color:var(--teal)}
+.folder-tree .file-sql{color:var(--purple)}
+.folder-tree .file-json{color:var(--orange)}
+.folder-tree .file-env{color:var(--red)}
+.folder-tree .file-md{color:var(--text2)}
+.folder-tree .comment{color:var(--text3)}
+
+/* DB table */
+.db-table{border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;overflow:hidden}
+.db-table-header{background:var(--bg3);padding:8px 14px;font-weight:700;font-size:12px;display:flex;align-items:center;gap:8px;color:var(--text)}
+.db-table-header .icon{width:8px;height:8px;border-radius:50%}
+.db-field{display:flex;align-items:center;padding:6px 14px;border-top:1px solid var(--border);font-size:12px;gap:8px}
+.db-field:hover{background:var(--bg3)}
+.db-field .fname{font-family:var(--mono);color:var(--text);flex:1}
+.db-field .ftype{color:var(--blue);font-family:var(--mono);font-size:11px}
+.db-field .fkey{font-size:10px}
+.db-field .fdesc{color:var(--text3);font-size:11px;margin-left:auto}
+
+/* Socket events */
+.socket-event{background:var(--bg3);border-radius:6px;margin-bottom:8px;overflow:hidden}
+.socket-event-header{padding:8px 14px;display:flex;align-items:center;gap:10px;cursor:pointer}
+.socket-event-header:hover{background:var(--bg4)}
+.socket-dir{width:54px;text-align:center;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700}
+.dir-in{background:#1e3a5f;color:#60a5fa}
+.dir-out{background:#14532d;color:#4ade80}
+.dir-bi{background:#3b0764;color:#c084fc}
+.socket-name{font-family:var(--mono);font-size:13px;color:var(--orange);flex:1}
+.socket-desc{color:var(--text2);font-size:12px}
+
+/* Progress bar */
+.progress-bar{height:6px;background:var(--bg4);border-radius:3px;overflow:hidden;margin-top:6px}
+.progress-fill{height:100%;border-radius:3px;transition:width .5s}
+
+/* Tabs */
+.tabs{display:flex;gap:2px;margin-bottom:20px;background:var(--bg3);padding:4px;border-radius:var(--radius);width:fit-content}
+.tab{padding:6px 16px;border-radius:6px;cursor:pointer;font-size:13px;color:var(--text2);font-weight:500;transition:all .15s}
+.tab.active{background:var(--bg);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.4)}
+.tab:hover:not(.active){color:var(--text)}
+
+/* Misc */
+.divider{border:none;border-top:1px solid var(--border);margin:24px 0}
+.muted{color:var(--text2)}
+.small{font-size:12px}
+.mono{font-family:var(--mono)}
+.gap-sm{gap:8px}
+.flex{display:flex;align-items:center}
+.flex-wrap{display:flex;flex-wrap:wrap;align-items:center}
+.mb-4{margin-bottom:4px}
+.mb-8{margin-bottom:8px}
+.mb-12{margin-bottom:12px}
+.mb-16{margin-bottom:16px}
+.mb-20{margin-bottom:20px}
+.mt-8{margin-top:8px}
+.mt-12{margin-top:12px}
+.mr-8{margin-right:8px}
+p{margin-bottom:10px;color:var(--text2);line-height:1.7}
+ul,ol{padding-left:20px;color:var(--text2);margin-bottom:10px}
+li{margin-bottom:4px;font-size:13px}
+strong{color:var(--text);font-weight:600}
+
+/* Mobile */
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%)}
+  .main{margin-left:0}
+}
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+<!-- ═══════════════════════════════ SIDEBAR ═══════════════════════════════ -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo">
+      <div class="logo-x">X</div>
+      <div>
+        <div class="logo-name">ArenaX</div>
+        <div class="logo-sub">Project Documentation</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="nav-section">Overview</div>
+  <div class="nav-item active" onclick="show('roadmap',this)"><span class="num">1</span>Project Roadmap</div>
+  <div class="nav-item" onclick="show('planning',this)"><span class="num">2</span>Planning Document</div>
+
+  <div class="nav-section">Architecture</div>
+  <div class="nav-item" onclick="show('arch',this)"><span class="num">3</span>Architecture Diagram</div>
+  <div class="nav-item" onclick="show('folders',this)"><span class="num">4</span>Folder Structure</div>
+  <div class="nav-item" onclick="show('flow',this)"><span class="num">5</span>DB + Frontend + Backend</div>
+
+  <div class="nav-section">Backend</div>
+  <div class="nav-item" onclick="show('socket',this)"><span class="num">6</span>Socket.IO Architecture</div>
+  <div class="nav-item" onclick="show('backend',this)"><span class="num">7</span>Backend Structure</div>
+  <div class="nav-item" onclick="show('api',this)"><span class="num">8</span>API Routes Overview</div>
+</aside>
+
+<!-- ════════════════════════════════ MAIN ════════════════════════════════ -->
+<main class="main">
+
+<!-- ════════ SECTION 1 — ROADMAP ════════ -->
+<section id="roadmap" class="section active">
+  <div class="section-header">
+    <div class="section-badge">📍 Section 1</div>
+    <h1>Project Roadmap</h1>
+    <p class="mt-8">Full development lifecycle of ArenaX — from initial setup to production deployment.</p>
+  </div>
+
+  <div class="card-grid">
+    <div class="stat-card"><span class="val" style="color:var(--green)">✓ Done</span><span class="lbl">Core Platform</span></div>
+    <div class="stat-card"><span class="val" style="color:var(--orange)">⚡ Active</span><span class="lbl">Deployment</span></div>
+    <div class="stat-card"><span class="val" style="color:var(--text3)">○ Planned</span><span class="lbl">Scale &amp; Polish</span></div>
+    <div class="stat-card"><span class="val">13</span><span class="lbl">API Modules</span></div>
+  </div>
+
+  <!-- Phase 1 -->
+  <div class="card mb-16">
+    <h3 class="mb-12">🟢 Phase 1 — Foundation (Completed)</h3>
+    <div class="timeline">
+      <div class="tl-item">
+        <div class="tl-dot tl-dot-done"></div>
+        <div class="tl-title">Project Setup</div>
+        <div class="tl-body">React + Vite frontend, Express backend, MySQL database. ESM modules throughout. Environment config with required var guard.</div>
+        <div class="tl-tags"><span class="badge badge-blue">Vite 5</span><span class="badge badge-blue">Express 4</span><span class="badge badge-teal">MySQL 8</span></div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot tl-dot-done"></div>
+        <div class="tl-title">Authentication System</div>
+        <div class="tl-body">2-step OTP email registration. JWT-based sessions. Forgot-password 3-step flow (send OTP → verify → reset). bcrypt password hashing.</div>
+        <div class="tl-tags"><span class="badge badge-green">OTP Email</span><span class="badge badge-green">JWT</span><span class="badge badge-green">bcrypt</span></div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot tl-dot-done"></div>
+        <div class="tl-title">User Profiles &amp; Social</div>
+        <div class="tl-body">Profile with avatar (base64), bio, country, region. Follow/unfollow system. Per-game rank &amp; ELO profiles. User search.</div>
+        <div class="tl-tags"><span class="badge badge-purple">Social Graph</span><span class="badge badge-purple">ELO System</span></div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot tl-dot-done"></div>
+        <div class="tl-title">Games Catalogue</div>
+        <div class="tl-body">15+ games seeded from games.json. Filter by genre, platform, search. Favourite games. Stats integration for PC titles via external APIs.</div>
+        <div class="tl-tags"><span class="badge badge-yellow">15+ Games</span><span class="badge badge-yellow">Live Stats APIs</span></div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot tl-dot-done"></div>
+        <div class="tl-title">PostgreSQL → MySQL Migration</div>
+        <div class="tl-body">Full schema rewrite, driver swap (pg → mysql2), reserved word fixes (rank, role backtick-quoted), query syntax updates across all controllers.</div>
+        <div class="tl-tags"><span class="badge badge-red">Critical Migration</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Phase 2 -->
+  <div class="card mb-16">
+    <h3 class="mb-12">🟢 Phase 2 — Core Features (Completed)</h3>
+    <div class="timeline">
+      <div class="tl-item">
+        <div class="tl-dot tl-dot-done"></div>
+        <div class="tl-title">Teams System</div>
+        <div class="tl-body">Create &amp; manage teams. Captain/member/sub roles. Invite system with accept/decline. Kick members. Leave team. Full CRUD with ownership checks.</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot tl-dot-done"></div>
+        <div class="tl-title">Team Finder</div>
+        <div class="tl-body">Post LFG listings with rank requirements, region, deadline. Apply with message. Draft-accept → final-accept 2-step flow. My applications view.</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot tl-dot-done"></div>
+        <div class="tl-title">Tournaments</div>
+        <div class="tl-body">Create tournaments with format, prize pool, region, team-size. Register teams. Status lifecycle: upcoming → ongoing → completed. Real-time bracket via Socket.IO.</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot tl-dot-done"></div>
+        <div class="tl-title">Communities</div>
+        <div class="tl-body">Community posts per game. Comments. Up/down voting. Following feed. Favourite-games aggregated feed. HTML sanitization on all content.</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot tl-dot-done"></div>
+        <div class="tl-title">Real-time Messaging &amp; Streams</div>
+        <div class="tl-body">Socket.IO direct messages persisted to DB. Inbox view. Live stream rooms with viewer join/leave events, stream chat with rate limiting.</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot tl-dot-done"></div>
+        <div class="tl-title">Matchmaking</div>
+        <div class="tl-body">ELO-based matching with 3 window sizes queried in parallel. K=32 Elo calculation. Match result submission with ownership check. Player stats tracking.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Phase 3 -->
+  <div class="card mb-16">
+    <h3 class="mb-12">🟢 Phase 3 — Security &amp; Admin (Completed)</h3>
+    <div class="timeline">
+      <div class="tl-item">
+        <div class="tl-dot tl-dot-done"></div>
+        <div class="tl-title">Security Audit &amp; Hardening</div>
+        <div class="tl-body">Helmet CSP, CORS origin whitelist, rate limiting (10 req/15min auth, 120 req/min API). Auth cache (60s TTL) reducing DB load. JWT admin trust removed — live DB check.</div>
+        <div class="tl-tags"><span class="badge badge-red">Security</span><span class="badge badge-red">Helmet</span><span class="badge badge-red">Rate Limit</span></div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot tl-dot-done"></div>
+        <div class="tl-title">Admin Dashboard</div>
+        <div class="tl-body">User management: list, ban, unban, force-rename. Platform stats. Content moderation via archive routes. All admin routes double-gated (authMiddleware + requireAdmin).</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot tl-dot-done"></div>
+        <div class="tl-title">Archive / Soft-Delete System</div>
+        <div class="tl-body">Soft-delete for tournaments, teams, streams, community posts, team-finder posts, user accounts. MySQL triggers snapshot data to archive tables. Restore capability. Audit log. Purge old archives.</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot tl-dot-done"></div>
+        <div class="tl-title">Theme System &amp; UI Polish</div>
+        <div class="tl-body">Dark/light theme toggle via ThemeContext. Custom cursor. Animated Loader. GameRadar canvas. Responsive Navbar with social icons. T&amp;C and Privacy Policy pages.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Phase 4 -->
+  <div class="card mb-16">
+    <h3 class="mb-12">🟡 Phase 4 — Deployment (Active)</h3>
+    <div class="timeline">
+      <div class="tl-item">
+        <div class="tl-dot tl-dot-active"></div>
+        <div class="tl-title">Hostinger Shared Hosting Setup</div>
+        <div class="tl-body">DEPLOY.md created. PM2 process manager config. Nginx reverse proxy. .htaccess for SPA routing. Environment secrets setup.</div>
+        <div class="tl-tags"><span class="badge badge-orange">In Progress</span></div>
+        <div class="progress-bar mt-8"><div class="progress-fill" style="width:70%;background:var(--orange)"></div></div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot tl-dot-active"></div>
+        <div class="tl-title">Profile Picture Migration</div>
+        <div class="tl-body">Current: base64 in TEXT column (dangerous at scale). Target: object storage (Cloudflare R2 / S3). Migration path documented in schema comments.</div>
+        <div class="tl-tags"><span class="badge badge-orange">Pending</span><span class="badge badge-red">Critical for prod</span></div>
+        <div class="progress-bar mt-8"><div class="progress-fill" style="width:20%;background:var(--orange)"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Phase 5 -->
+  <div class="card">
+    <h3 class="mb-12">⚪ Phase 5 — Scale &amp; Enhancement (Planned)</h3>
+    <div class="timeline">
+      <div class="tl-item">
+        <div class="tl-dot tl-dot-todo"></div>
+        <div class="tl-title">Redis Caching Layer</div>
+        <div class="tl-body">Session store, tournament bracket cache, leaderboard caching. Replace in-memory auth cache with Redis for multi-instance support.</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot tl-dot-todo"></div>
+        <div class="tl-title">AI/Agentic Features</div>
+        <div class="tl-body">Smart team recommendations, auto-seeded tournament brackets, stats-based performance insights. Potential hackathon integration.</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot tl-dot-todo"></div>
+        <div class="tl-title">Notifications System</div>
+        <div class="tl-body">Schema already has notifications table. Push notifications via Socket.IO for invites, match results, community replies.</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot tl-dot-todo"></div>
+        <div class="tl-title">Mobile App</div>
+        <div class="tl-body">React Native client consuming the same REST + Socket.IO API. Shared auth flow.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ SECTION 2 — PLANNING ════════ -->
+<section id="planning" class="section">
+  <div class="section-header">
+    <div class="section-badge">📋 Section 2</div>
+    <h1>Planning Document</h1>
+    <p class="mt-8">Tech stack decisions, system constraints, and design principles guiding ArenaX.</p>
+  </div>
+
+  <div class="card mb-16">
+    <h3 class="mb-16">Tech Stack</h3>
+    <table>
+      <tr><th>Layer</th><th>Technology</th><th>Version</th><th>Why</th></tr>
+      <tr><td><strong>Frontend Framework</strong></td><td><span class="badge badge-teal">React</span></td><td>18.3.1</td><td>Component model fits complex SPA; hooks for auth/theme state</td></tr>
+      <tr><td><strong>Frontend Build</strong></td><td><span class="badge badge-yellow">Vite</span></td><td>5.4</td><td>Fast HMR; ESM-native; proxy for API during dev</td></tr>
+      <tr><td><strong>Styling</strong></td><td><span class="badge badge-teal">Tailwind CSS</span></td><td>3.4</td><td>Utility-first; dark/light theming via CSS vars</td></tr>
+      <tr><td><strong>HTTP Client</strong></td><td><span class="badge badge-blue">Axios</span></td><td>1.7</td><td>Interceptors for JWT attach + session-expiry handling</td></tr>
+      <tr><td><strong>Routing</strong></td><td><span class="badge badge-blue">React Router</span></td><td>6.30</td><td>Client-side routing with ProtectedRoute &amp; AdminRoute guards</td></tr>
+      <tr><td><strong>Backend Runtime</strong></td><td><span class="badge badge-green">Node.js</span></td><td>≥18</td><td>ESM module support; async/await; shared ecosystem</td></tr>
+      <tr><td><strong>Backend Framework</strong></td><td><span class="badge badge-green">Express</span></td><td>4.19</td><td>Minimal, well-understood; easy middleware composition</td></tr>
+      <tr><td><strong>Database</strong></td><td><span class="badge badge-orange">MySQL 8</span></td><td>8.0+</td><td>Migrated from PostgreSQL; window functions; InnoDB transactions</td></tr>
+      <tr><td><strong>DB Driver</strong></td><td><span class="badge badge-orange">mysql2/promise</span></td><td>3.22</td><td>Promise-based; connection pooling; prepared statements</td></tr>
+      <tr><td><strong>Real-time</strong></td><td><span class="badge badge-purple">Socket.IO</span></td><td>4.7.5</td><td>Room-based messaging; auth middleware; auto-reconnect</td></tr>
+      <tr><td><strong>Auth</strong></td><td><span class="badge badge-red">JWT + bcrypt</span></td><td>—</td><td>Stateless tokens; secure password hashing</td></tr>
+      <tr><td><strong>Email</strong></td><td><span class="badge badge-blue">Nodemailer</span></td><td>8.0</td><td>OTP delivery for registration and password reset</td></tr>
+      <tr><td><strong>Security</strong></td><td><span class="badge badge-red">Helmet + express-rate-limit</span></td><td>—</td><td>CSP, CORS, rate limiting</td></tr>
+      <tr><td><strong>Validation</strong></td><td><span class="badge badge-gray">express-validator</span></td><td>7.2</td><td>Declarative input validation on all write routes</td></tr>
+      <tr><td><strong>Sanitization</strong></td><td><span class="badge badge-gray">sanitize-html</span></td><td>2.13</td><td>Strips dangerous HTML from user content (posts, bios)</td></tr>
+      <tr><td><strong>Process Manager</strong></td><td><span class="badge badge-gray">PM2</span></td><td>—</td><td>Production process management, restart on crash</td></tr>
+    </table>
+  </div>
+
+  <div class="card mb-16">
+    <h3 class="mb-16">Design Principles</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div style="background:var(--bg3);border-radius:var(--radius);padding:14px">
+        <div class="mb-8"><span class="badge badge-red">Security-First</span></div>
+        <p style="font-size:12px;margin:0">Admin role verified against DB on every request — never trusted from JWT payload. Auth cache invalidated instantly on ban/delete.</p>
+      </div>
+      <div style="background:var(--bg3);border-radius:var(--radius);padding:14px">
+        <div class="mb-8"><span class="badge badge-blue">Soft-Delete Everywhere</span></div>
+        <p style="font-size:12px;margin:0">No hard deletes on content or accounts. Triggers snapshot to archive tables. Restore capability for admins. Audit log for compliance.</p>
+      </div>
+      <div style="background:var(--bg3);border-radius:var(--radius);padding:14px">
+        <div class="mb-8"><span class="badge badge-green">Validation at Every Layer</span></div>
+        <p style="font-size:12px;margin:0">express-validator on all routes. Ownership checks in controllers. Input sanitization before DB write. No raw user content reaches DB unsanitized.</p>
+      </div>
+      <div style="background:var(--bg3);border-radius:var(--radius);padding:14px">
+        <div class="mb-8"><span class="badge badge-purple">Real-time Where It Matters</span></div>
+        <p style="font-size:12px;margin:0">Socket.IO for DMs, stream chat, tournament brackets, matchmaking queue, and presence — not for everything. REST for all non-realtime operations.</p>
+      </div>
+      <div style="background:var(--bg3);border-radius:var(--radius);padding:14px">
+        <div class="mb-8"><span class="badge badge-orange">Performance Conscious</span></div>
+        <p style="font-size:12px;margin:0">60s in-memory auth cache reduces DB hit ~95%. Matchmaking uses 3 parallel ELO queries instead of sequential. Connection pool with keepAlive.</p>
+      </div>
+      <div style="background:var(--bg3);border-radius:var(--radius);padding:14px">
+        <div class="mb-8"><span class="badge badge-teal">Production Ready</span></div>
+        <p style="font-size:12px;margin:0">Graceful shutdown handler (SIGTERM/SIGINT). Required ENV guard at startup. Retry-with-backoff DB connect. PM2 + Nginx + DEPLOY.md all prepared.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-16">
+    <h3 class="mb-12">Security Decisions Log</h3>
+    <table>
+      <tr><th>Issue</th><th>Risk</th><th>Resolution</th></tr>
+      <tr><td>JWT trusted for isAdmin</td><td><span class="badge badge-red">Critical</span></td><td>requireAdmin does live DB + ADMIN_EMAILS check on every request</td></tr>
+      <tr><td>Socket.IO no auth</td><td><span class="badge badge-red">Critical</span></td><td>io.use() middleware verifies JWT + DB active check before any event</td></tr>
+      <tr><td>Exposed credentials in repo</td><td><span class="badge badge-red">Critical</span></td><td>.env.example created; .env in .gitignore; secrets moved to env vars</td></tr>
+      <tr><td>Silent 401 redirect</td><td><span class="badge badge-orange">Medium</span></td><td>arenaX:session-expired custom event → toast + 3s delay + logout</td></tr>
+      <tr><td>Auth DB hit per request</td><td><span class="badge badge-yellow">Perf</span></td><td>60s in-memory auth cache; instant eviction on ban/delete</td></tr>
+      <tr><td>Base64 images in TEXT col</td><td><span class="badge badge-orange">Medium</span></td><td>Migration path to object storage documented; pending before prod</td></tr>
+      <tr><td>Admin check from fake JWT</td><td><span class="badge badge-red">Critical</span></td><td>FIX C2: archive admin routes use requireAdmin (live DB) not inline check</td></tr>
+      <tr><td>Unsanitized HTML posts</td><td><span class="badge badge-orange">Medium</span></td><td>sanitize-html on all user-generated content before DB write</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3 class="mb-12">Database Design Principles</h3>
+    <ul>
+      <li><strong>InnoDB engine</strong> on all tables — foreign keys, transactions, row-level locking</li>
+      <li><strong>utf8mb4_unicode_ci</strong> — supports full emoji and Unicode (required for esports usernames)</li>
+      <li><strong>Soft-delete pattern</strong> — status columns (active/banned/deleted) + archive tables via triggers</li>
+      <li><strong>Reserved word quoting</strong> — <code>rank</code>, <code>role</code> backtick-quoted everywhere (MySQL 8 reserved)</li>
+      <li><strong>Composite indexes</strong> on all FK pairs and common filter combos (status+deadline, user+game)</li>
+      <li><strong>JSON columns</strong> for screenshots array (games table) — avoids a separate screenshots table</li>
+      <li><strong>Archive system</strong> — 6 archive tables + archive_config + audit_log + stored procedure for purge</li>
+      <li><strong>Constraint naming</strong> — all FK and check constraints explicitly named (fk_*, chk_*) for clarity</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ════════ SECTION 3 — ARCHITECTURE ════════ -->
+<section id="arch" class="section">
+  <div class="section-header">
+    <div class="section-badge">🏗️ Section 3</div>
+    <h1>Architecture Diagram</h1>
+    <p class="mt-8">Full system topology — client, API server, real-time layer, database, and external services.</p>
+  </div>
+
+  <!-- Client Layer -->
+  <div class="arch-layer mb-12" style="border:1px solid var(--teal-dim)">
+    <div class="arch-layer-header" style="background:var(--teal-dim);color:var(--teal)">
+      🖥️ CLIENT LAYER &nbsp;<span style="font-weight:400;font-size:11px;color:var(--text3)">React 18 / Vite / Tailwind</span>
+    </div>
+    <div class="arch-layer-body">
+      <div class="arch-box" style="border-color:var(--teal)">AuthContext (JWT + localStorage)</div>
+      <div class="arch-box" style="border-color:var(--teal)">ThemeContext (dark/light)</div>
+      <div class="arch-box">Axios API instance (interceptors)</div>
+      <div class="arch-box">socket.io-client</div>
+      <div class="arch-box">React Router v6 (ProtectedRoute / AdminRoute)</div>
+    </div>
+  </div>
+
+  <!-- Pages Layer -->
+  <div class="arch-layer mb-12" style="border:1px solid var(--border)">
+    <div class="arch-layer-header" style="background:var(--bg3);color:var(--text2)">
+      📄 PAGES / VIEWS &nbsp;<span style="font-weight:400;font-size:11px;color:var(--text3)">13 pages, 2 admin panels</span>
+    </div>
+    <div class="arch-layer-body">
+      <div class="arch-box">Home</div><div class="arch-box">Games</div><div class="arch-box">Tournament</div>
+      <div class="arch-box">TeamFinder</div><div class="arch-box">Communities</div><div class="arch-box">Stream</div>
+      <div class="arch-box">Profile</div><div class="arch-box">UserProfile</div><div class="arch-box">Login / Register</div>
+      <div class="arch-box">ForgotPassword</div><div class="arch-box" style="border-color:var(--red)">AdminDashboard</div>
+      <div class="arch-box" style="border-color:var(--red)">AdminArchiveDashboard</div>
+    </div>
+  </div>
+
+  <!-- Transport -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+    <div class="arch-layer" style="border:1px solid var(--blue-dim)">
+      <div class="arch-layer-header" style="background:var(--blue-dim);color:var(--blue)">🌐 REST — /api/*</div>
+      <div class="arch-layer-body" style="font-size:12px;color:var(--text2)">
+        Axios → HTTP/HTTPS<br>Bearer JWT header<br>JSON request/response<br>Rate limited (Helmet+RL)
+      </div>
+    </div>
+    <div class="arch-layer" style="border:1px solid var(--purple-dim)">
+      <div class="arch-layer-header" style="background:var(--purple-dim);color:var(--purple)">⚡ WebSocket — Socket.IO</div>
+      <div class="arch-layer-body" style="font-size:12px;color:var(--text2)">
+        Persistent WS connection<br>JWT auth handshake<br>Room-based (user:id, stream:id...)<br>Rate limited (60 events/min)
+      </div>
+    </div>
+  </div>
+
+  <!-- Server Layer -->
+  <div class="arch-layer mb-12" style="border:1px solid var(--orange-dim)">
+    <div class="arch-layer-header" style="background:var(--orange-dim);color:var(--orange)">
+      ⚙️ EXPRESS SERVER &nbsp;<span style="font-weight:400;font-size:11px;color:var(--text3)">server.js → app.js + socket.js</span>
+    </div>
+    <div class="arch-layer-body">
+      <div class="arch-box" style="border-color:var(--orange)">Helmet (CSP)</div>
+      <div class="arch-box" style="border-color:var(--orange)">CORS whitelist</div>
+      <div class="arch-box" style="border-color:var(--orange)">Rate Limiters</div>
+      <div class="arch-box" style="border-color:var(--orange)">authMiddleware (+ cache)</div>
+      <div class="arch-box" style="border-color:var(--red)">requireAdmin (live DB)</div>
+      <div class="arch-box">express-validator</div>
+      <div class="arch-box">sanitize-html</div>
+      <div class="arch-box">errorHandler</div>
+    </div>
+  </div>
+
+  <!-- Controllers + Services -->
+  <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:12px">
+    <div class="arch-layer" style="border:1px solid var(--border)">
+      <div class="arch-layer-header" style="background:var(--bg3);color:var(--text2)">📦 CONTROLLERS (13 modules)</div>
+      <div class="arch-layer-body">
+        <div class="arch-box">auth</div><div class="arch-box">user</div><div class="arch-box">game</div>
+        <div class="arch-box">team</div><div class="arch-box">teamFinder</div><div class="arch-box">tournament</div>
+        <div class="arch-box">community</div><div class="arch-box">message</div><div class="arch-box">stream</div>
+        <div class="arch-box">match</div><div class="arch-box">stats</div><div class="arch-box">archive</div>
+        <div class="arch-box">admin</div>
+      </div>
+    </div>
+    <div class="arch-layer" style="border:1px solid var(--border)">
+      <div class="arch-layer-header" style="background:var(--bg3);color:var(--text2)">🔧 SERVICES</div>
+      <div class="arch-layer-body" style="flex-direction:column;gap:6px">
+        <div class="arch-box">matchmakingService (ELO)</div>
+        <div class="arch-box">tournamentService (brackets)</div>
+        <div class="arch-box">gameDataService (JSON seed)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Utils -->
+  <div class="arch-layer mb-12" style="border:1px solid var(--border)">
+    <div class="arch-layer-header" style="background:var(--bg3);color:var(--text2)">🛠 UTILS</div>
+    <div class="arch-layer-body">
+      <div class="arch-box">jwt.js (sign/verify)</div>
+      <div class="arch-box">mailer.js (nodemailer OTP)</div>
+      <div class="arch-box">otp.js (6-digit generator)</div>
+      <div class="arch-box">sanitize.js (strip HTML)</div>
+      <div class="arch-box">validators.js (express-validator schemas)</div>
+    </div>
+  </div>
+
+  <!-- Data Layer -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+    <div class="arch-layer" style="border:1px solid var(--yellow-dim)">
+      <div class="arch-layer-header" style="background:var(--yellow-dim);color:var(--yellow)">🗄️ MYSQL 8 DATABASE</div>
+      <div class="arch-layer-body" style="flex-direction:column;gap:4px;font-size:12px;color:var(--text2)">
+        <div>29+ tables · InnoDB · utf8mb4</div>
+        <div>Triggers (6 archive triggers)</div>
+        <div>Stored procedure (purge)</div>
+        <div>Connection pool (20 connections)</div>
+        <div>60s in-memory auth cache</div>
+      </div>
+    </div>
+    <div class="arch-layer" style="border:1px solid var(--border)">
+      <div class="arch-layer-header" style="background:var(--bg3);color:var(--text2)">📡 EXTERNAL SERVICES</div>
+      <div class="arch-layer-body" style="flex-direction:column;gap:6px">
+        <div class="arch-box" style="border-color:var(--blue)">SMTP (email OTP)</div>
+        <div class="arch-box" style="border-color:var(--green)">Valorant API (stats)</div>
+        <div class="arch-box" style="border-color:var(--green)">Steam API (CS2 stats)</div>
+        <div class="arch-box" style="border-color:var(--green)">Riot API (LoL/Apex)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Infra -->
+  <div class="arch-layer" style="border:1px solid var(--border)">
+    <div class="arch-layer-header" style="background:var(--bg3);color:var(--text2)">🚀 DEPLOYMENT — Hostinger Shared</div>
+    <div class="arch-layer-body">
+      <div class="arch-box">Nginx (reverse proxy)</div>
+      <div class="arch-box">PM2 (process manager)</div>
+      <div class="arch-box">.htaccess (SPA fallback)</div>
+      <div class="arch-box">.env (secrets)</div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ SECTION 4 — FOLDER STRUCTURE ════════ -->
+<section id="folders" class="section">
+  <div class="section-header">
+    <div class="section-badge">📁 Section 4</div>
+    <h1>Folder Structure</h1>
+    <p class="mt-8">Annotated directory tree for the full monorepo.</p>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <!-- Backend -->
+    <div>
+      <h3 class="mb-12">Backend <span class="badge badge-green">Node.js / Express</span></h3>
+      <div class="folder-tree">
+<span class="dir">backend/</span>
+├── <span class="file-js">server.js</span>         <span class="comment"># Entry; http.Server + initSocket</span>
+├── <span class="file-env">.env</span>              <span class="comment"># Secrets (gitignored)</span>
+├── <span class="file-env">.env.example</span>      <span class="comment"># Template for devs</span>
+├── <span class="file-json">package.json</span>
+│
+├── <span class="dir">database/</span>
+│   └── <span class="file-sql">arenaX_schema_mysql.sql</span>
+│                        <span class="comment"># Full schema v3.2, triggers,</span>
+│                        <span class="comment"># archive tables, stored procs</span>
+│
+├── <span class="dir">data/</span>
+│   └── <span class="file-json">games.json</span>     <span class="comment"># Seed data for 15+ games</span>
+│
+└── <span class="dir">src/</span>
+    ├── <span class="file-js">app.js</span>         <span class="comment"># Express app; all routes + middleware</span>
+    ├── <span class="file-js">socket.js</span>      <span class="comment"># Socket.IO init; all event handlers</span>
+    │
+    ├── <span class="dir">config/</span>
+    │   ├── <span class="file-js">db.js</span>      <span class="comment"># mysql2 pool + auth cache</span>
+    │   └── <span class="file-js">env.js</span>     <span class="comment"># dotenv load</span>
+    │
+    ├── <span class="dir">controllers/</span>   <span class="comment"># 13 controllers</span>
+    │   ├── <span class="file-js">authController.js</span>
+    │   ├── <span class="file-js">userController.js</span>
+    │   ├── <span class="file-js">gameController.js</span>
+    │   ├── <span class="file-js">teamController.js</span>
+    │   ├── <span class="file-js">teamFinderController.js</span>
+    │   ├── <span class="file-js">tournamentController.js</span>
+    │   ├── <span class="file-js">communityController.js</span>
+    │   ├── <span class="file-js">messageController.js</span>
+    │   ├── <span class="file-js">streamController.js</span>
+    │   ├── <span class="file-js">matchController.js</span>
+    │   ├── <span class="file-js">statsController.js</span>
+    │   ├── <span class="file-js">archiveController.js</span>
+    │   └── <span class="file-js">adminController.js</span>
+    │
+    ├── <span class="dir">routes/</span>        <span class="comment"># 13 route files (1:1 with controllers)</span>
+    │   ├── <span class="file-js">authRoutes.js</span>
+    │   ├── <span class="file-js">userRoutes.js</span>
+    │   ├── <span class="file-js">gameRoutes.js</span>
+    │   ├── <span class="file-js">teamRoutes.js</span>
+    │   ├── <span class="file-js">teamFinderRoutes.js</span>
+    │   ├── <span class="file-js">tournamentRoutes.js</span>
+    │   ├── <span class="file-js">communityRoutes.js</span>
+    │   ├── <span class="file-js">messageRoutes.js</span>
+    │   ├── <span class="file-js">streamRoutes.js</span>
+    │   ├── <span class="file-js">matchRoutes.js</span>
+    │   ├── <span class="file-js">statsRoutes.js</span>
+    │   ├── <span class="file-js">archiveRoutes.js</span>
+    │   └── <span class="file-js">adminRoutes.js</span>
+    │
+    ├── <span class="dir">middleware/</span>
+    │   ├── <span class="file-js">authMiddleware.js</span>  <span class="comment"># JWT verify + auth cache</span>
+    │   ├── <span class="file-js">requireAdmin.js</span>    <span class="comment"># Live DB admin check</span>
+    │   ├── <span class="file-js">errorMiddleware.js</span> <span class="comment"># Global error handler</span>
+    │   └── <span class="file-js">validateMiddleware.js</span> <span class="comment"># express-validator runner</span>
+    │
+    ├── <span class="dir">services/</span>
+    │   ├── <span class="file-js">matchmakingService.js</span>  <span class="comment"># ELO + parallel match find</span>
+    │   ├── <span class="file-js">tournamentService.js</span>   <span class="comment"># Bracket generation</span>
+    │   └── <span class="file-js">gameDataService.js</span>     <span class="comment"># games.json seed loader</span>
+    │
+    └── <span class="dir">utils/</span>
+        ├── <span class="file-js">jwt.js</span>         <span class="comment"># sign / verifyToken</span>
+        ├── <span class="file-js">mailer.js</span>      <span class="comment"># nodemailer OTP email</span>
+        ├── <span class="file-js">otp.js</span>         <span class="comment"># 6-digit OTP generator</span>
+        ├── <span class="file-js">sanitize.js</span>    <span class="comment"># HTML sanitizer wrapper</span>
+        └── <span class="file-js">validators.js</span>  <span class="comment"># All express-validator schemas</span>
+      </div>
+    </div>
+
+    <!-- Frontend -->
+    <div>
+      <h3 class="mb-12">Frontend <span class="badge badge-teal">React + Vite</span></h3>
+      <div class="folder-tree">
+<span class="dir">frontend/</span>
+├── <span class="file-js">vite.config.js</span>     <span class="comment"># API proxy /api → :5000</span>
+├── <span class="file-js">tailwind.config.js</span>
+├── <span class="file-js">postcss.config.js</span>
+├── <span class="file-json">package.json</span>
+├── index.html
+│
+└── <span class="dir">src/</span>
+    ├── <span class="file-jsx">main.jsx</span>       <span class="comment"># ReactDOM.createRoot; wrap AuthProvider</span>
+    ├── <span class="file-jsx">App.jsx</span>        <span class="comment"># BrowserRouter; all Routes defined here</span>
+    ├── <span class="file-js">index.css</span>      <span class="comment"># Global styles; CSS variables; Tailwind</span>
+    │
+    ├── <span class="dir">api/</span>
+    │   └── <span class="file-js">api.js</span>     <span class="comment"># Axios instance; JWT interceptor;</span>
+    │                    <span class="comment"># session-expiry event dispatch</span>
+    │
+    ├── <span class="dir">context/</span>
+    │   ├── <span class="file-jsx">AuthContext.jsx</span>  <span class="comment"># user, token, login/logout</span>
+    │   │                        <span class="comment"># session-expiry toast + redirect</span>
+    │   └── <span class="file-jsx">ThemeContext.jsx</span> <span class="comment"># dark/light toggle</span>
+    │
+    ├── <span class="dir">components/</span>       <span class="comment"># Shared UI components</span>
+    │   ├── <span class="file-jsx">Navbar.jsx</span>
+    │   ├── <span class="file-jsx">Footer.jsx</span>
+    │   ├── <span class="file-jsx">Loader.jsx</span>
+    │   ├── <span class="file-jsx">CustomCursor.jsx</span>
+    │   ├── <span class="file-jsx">GameCard.jsx</span>
+    │   ├── <span class="file-jsx">TournamentCard.jsx</span>
+    │   ├── <span class="file-jsx">TeamFinderCard.jsx</span>
+    │   ├── <span class="file-jsx">PlayerProfileModal.jsx</span>
+    │   ├── <span class="file-jsx">PasswordInput.jsx</span>
+    │   ├── <span class="file-jsx">ProtectedRoute.jsx</span> <span class="comment"># Redirect to /login if !auth</span>
+    │   ├── <span class="file-jsx">AdminRoute.jsx</span>      <span class="comment"># Redirect if !isAdmin</span>
+    │   └── <span class="file-jsx">UI.jsx</span>             <span class="comment"># Reusable primitives</span>
+    │
+    ├── <span class="dir">pages/</span>
+    │   ├── <span class="file-jsx">Home.jsx</span>          <span class="comment"># Hero; GameRadar canvas; featured</span>
+    │   ├── <span class="file-jsx">Games.jsx</span>
+    │   ├── <span class="file-jsx">Tournament.jsx</span>    <span class="comment"># List + detail (/tournament/:id)</span>
+    │   ├── <span class="file-jsx">TeamFinder.jsx</span>
+    │   ├── <span class="file-jsx">Communities.jsx</span>
+    │   ├── <span class="file-jsx">Stream.jsx</span>
+    │   ├── <span class="file-jsx">Profile.jsx</span>       <span class="comment"># Own profile (protected)</span>
+    │   ├── <span class="file-jsx">UserProfile.jsx</span>   <span class="comment"># Public profile /users/:id</span>
+    │   ├── <span class="file-jsx">Login.jsx</span>
+    │   ├── <span class="file-jsx">Register.jsx</span>      <span class="comment"># 2-step OTP flow</span>
+    │   ├── <span class="file-jsx">ForgotPassword.jsx</span><span class="comment"># 3-step reset flow</span>
+    │   ├── <span class="file-jsx">About.jsx</span>
+    │   ├── <span class="file-jsx">TermsAndConditions.jsx</span>
+    │   ├── <span class="file-jsx">PrivacyPolicy.jsx</span>
+    │   └── <span class="dir">admin/</span>
+    │       ├── <span class="file-jsx">AdminDashboard.jsx</span>
+    │       └── <span class="file-jsx">AdminArchiveDashboard.jsx</span>
+    │
+    ├── <span class="dir">services/</span>          <span class="comment"># API call wrappers per domain</span>
+    │   ├── <span class="file-js">authService.js</span>
+    │   ├── <span class="file-js">userService.js</span>
+    │   ├── <span class="file-js">gameService.js</span>
+    │   ├── <span class="file-js">teamService.js</span>
+    │   ├── <span class="file-js">teamFinderService.js</span>
+    │   ├── <span class="file-js">tournamentService.js</span>
+    │   ├── <span class="file-js">communityService.js</span>
+    │   └── <span class="file-js">streamService.js</span>
+    │
+    ├── <span class="dir">hooks/</span>
+    │   └── <span class="file-js">useImageUpload.js</span>  <span class="comment"># Base64 image upload helper</span>
+    │
+    └── <span class="dir">utils/</span>
+        └── <span class="file-js">themeStyles.js</span>     <span class="comment"># Theme-aware style helpers</span>
+      </div>
+
+      <h3 class="mb-12 mt-12">Deploy &amp; Docs</h3>
+      <div class="folder-tree">
+<span class="dir">deploy/</span>
+└── <span class="file-md">DEPLOY.md</span>  <span class="comment"># Hostinger setup guide</span>
+
+<span class="dir">docs/</span>      <span class="comment"># (reserved for future docs)</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ SECTION 5 — DB + FRONTEND + BACKEND FLOW ════════ -->
+<section id="flow" class="section">
+  <div class="section-header">
+    <div class="section-badge">🔄 Section 5</div>
+    <h1>Database + Frontend + Backend Flow</h1>
+    <p class="mt-8">How a request travels from browser to database and back — with the full middleware chain.</p>
+  </div>
+
+  <!-- Auth Flow -->
+  <div class="card mb-16">
+    <h3 class="mb-12">Registration Flow (OTP 2-Step)</h3>
+    <div class="flow-row">
+      <div class="flow-box" style="border-color:var(--teal)">Register.jsx</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">POST /api/auth/register/send-otp</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">validateRegister → validate</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">authController.sendRegisterOtp</div>
+    </div>
+    <div class="flow-row" style="margin-left:40px">
+      <div class="flow-arrow">→</div>
+      <div class="flow-box" style="border-color:var(--yellow)">pending_verifications (DB)</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box" style="border-color:var(--blue)">mailer.js sends OTP email</div>
+    </div>
+    <div class="flow-row" style="margin-top:8px">
+      <div class="flow-box" style="border-color:var(--teal)">OTP input</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">POST /api/auth/register/verify</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">verifyRegisterOtp</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box" style="border-color:var(--yellow)">INSERT users</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box" style="border-color:var(--green)">JWT returned</div>
+    </div>
+  </div>
+
+  <!-- Standard REST Flow -->
+  <div class="card mb-16">
+    <h3 class="mb-12">Standard Protected Request Flow</h3>
+    <div class="flow-row">
+      <div class="flow-box" style="border-color:var(--teal)">Page / Component</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">serviceFile.js</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">api.js (Axios + Bearer JWT)</div>
+    </div>
+    <div class="flow-row" style="margin-left:40px">
+      <div class="flow-arrow">→</div>
+      <div class="flow-box" style="border-color:var(--orange)">Helmet / CORS / Rate Limiter</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box" style="border-color:var(--red)">authMiddleware</div>
+    </div>
+    <div class="flow-row" style="margin-left:40px">
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">Auth cache hit? Skip DB query</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">validateMiddleware (input check)</div>
+    </div>
+    <div class="flow-row" style="margin-left:40px">
+      <div class="flow-arrow">→</div>
+      <div class="flow-box" style="border-color:var(--blue)">Controller</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box" style="border-color:var(--yellow)">mysql2 pool.query()</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box" style="border-color:var(--green)">JSON response</div>
+    </div>
+    <div class="flow-row" style="margin-left:40px">
+      <div class="flow-arrow">→</div>
+      <div class="flow-box" style="border-color:var(--teal)">React state update / UI render</div>
+    </div>
+    <div class="mt-12" style="background:var(--bg3);border-radius:6px;padding:10px 14px;font-size:12px;color:var(--text2)">
+      <strong>On 401:</strong> Axios interceptor dispatches <code>arenaX:session-expired</code> → AuthContext shows toast → 3s delay → clearSession() → redirect /login
+    </div>
+  </div>
+
+  <!-- Admin Request Flow -->
+  <div class="card mb-16">
+    <h3 class="mb-12">Admin Request Flow (double-gated)</h3>
+    <div class="flow-row">
+      <div class="flow-box" style="border-color:var(--red)">AdminDashboard.jsx</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">PATCH /api/admin/users/:id/ban</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box" style="border-color:var(--red)">authMiddleware</div>
+    </div>
+    <div class="flow-row" style="margin-left:40px">
+      <div class="flow-arrow">→</div>
+      <div class="flow-box" style="border-color:var(--red)">requireAdmin (live DB lookup)</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">ADMIN_EMAILS env check</div>
+    </div>
+    <div class="flow-row" style="margin-left:40px">
+      <div class="flow-arrow">→</div>
+      <div class="flow-box" style="border-color:var(--blue)">adminController.banUser</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box" style="border-color:var(--red)">invalidateAuthCache(userId)</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box" style="border-color:var(--yellow)">UPDATE users SET status='banned'</div>
+    </div>
+  </div>
+
+  <!-- Database tables overview -->
+  <h3 class="mb-12">Database Schema Overview (29+ Tables)</h3>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+
+    <div>
+      <h4 class="mb-8" style="color:var(--teal)">👤 Users &amp; Social</h4>
+      <div class="db-table">
+        <div class="db-table-header"><div class="icon" style="background:var(--teal)"></div>users</div>
+        <div class="db-field"><span class="fname">user_id</span><span class="ftype">INT PK</span></div>
+        <div class="db-field"><span class="fname">username</span><span class="ftype">VARCHAR UNIQUE</span></div>
+        <div class="db-field"><span class="fname">email</span><span class="ftype">VARCHAR UNIQUE</span></div>
+        <div class="db-field"><span class="fname">status</span><span class="ftype">active|banned|deleted</span></div>
+      </div>
+      <div class="db-table">
+        <div class="db-table-header"><div class="icon" style="background:var(--teal)"></div>user_game_profile</div>
+        <div class="db-field"><span class="fname">`rank`</span><span class="ftype">VARCHAR</span><span class="fkey badge badge-gray">quoted</span></div>
+        <div class="db-field"><span class="fname">`role`</span><span class="ftype">VARCHAR</span><span class="fkey badge badge-gray">quoted</span></div>
+        <div class="db-field"><span class="fname">elo_rating</span><span class="ftype">INT DEFAULT 1000</span></div>
+      </div>
+      <div class="db-table">
+        <div class="db-table-header"><div class="icon" style="background:var(--teal)"></div>user_follows</div>
+        <div class="db-field"><span class="fname">follower_id</span><span class="fkey badge badge-blue">FK</span></div>
+        <div class="db-field"><span class="fname">following_id</span><span class="fkey badge badge-blue">FK</span></div>
+      </div>
+    </div>
+
+    <div>
+      <h4 class="mb-8" style="color:var(--blue)">🏆 Tournaments &amp; Matches</h4>
+      <div class="db-table">
+        <div class="db-table-header"><div class="icon" style="background:var(--blue)"></div>tournaments</div>
+        <div class="db-field"><span class="fname">game_id</span><span class="fkey badge badge-blue">FK</span></div>
+        <div class="db-field"><span class="fname">status</span><span class="ftype">upcoming|ongoing|completed</span></div>
+        <div class="db-field"><span class="fname">prize_pool</span><span class="ftype">DECIMAL</span></div>
+      </div>
+      <div class="db-table">
+        <div class="db-table-header"><div class="icon" style="background:var(--blue)"></div>matches</div>
+        <div class="db-field"><span class="fname">team_a_id / team_b_id</span><span class="fkey badge badge-blue">FK</span></div>
+        <div class="db-field"><span class="fname">winner_team_id</span><span class="fkey badge badge-blue">FK</span></div>
+        <div class="db-field"><span class="fname">status</span><span class="ftype">scheduled|live|completed</span></div>
+      </div>
+      <div class="db-table">
+        <div class="db-table-header"><div class="icon" style="background:var(--blue)"></div>teams + team_members</div>
+        <div class="db-field"><span class="fname">`role`</span><span class="ftype">captain|member|sub</span><span class="fkey badge badge-gray">quoted</span></div>
+      </div>
+    </div>
+
+    <div>
+      <h4 class="mb-8" style="color:var(--purple)">💬 Community &amp; Archive</h4>
+      <div class="db-table">
+        <div class="db-table-header"><div class="icon" style="background:var(--purple)"></div>community_posts</div>
+        <div class="db-field"><span class="fname">upvotes / downvotes</span><span class="ftype">INT</span></div>
+        <div class="db-field"><span class="fname">comment_count</span><span class="ftype">INT (trigger maintained)</span></div>
+      </div>
+      <div class="db-table">
+        <div class="db-table-header"><div class="icon" style="background:var(--purple)"></div>post_votes</div>
+        <div class="db-field"><span class="fname">vote_type</span><span class="ftype">up|down</span></div>
+      </div>
+      <div class="db-table">
+        <div class="db-table-header"><div class="icon" style="background:var(--red)"></div>archive_* (6 tables)</div>
+        <div class="db-field"><span class="fname">archive_tournaments</span></div>
+        <div class="db-field"><span class="fname">archive_teams</span></div>
+        <div class="db-field"><span class="fname">archive_streams</span></div>
+        <div class="db-field"><span class="fname">archive_community_posts</span></div>
+        <div class="db-field"><span class="fname">archive_team_finder_posts</span></div>
+        <div class="db-field"><span class="fname">archive_matches</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ SECTION 6 — SOCKET.IO ════════ -->
+<section id="socket" class="section">
+  <div class="section-header">
+    <div class="section-badge">⚡ Section 6</div>
+    <h1>Socket.IO Architecture</h1>
+    <p class="mt-8">Real-time layer — auth flow, rooms, events, and rate limiting.</p>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+    <div class="card">
+      <h4 class="mb-8">Connection &amp; Auth Flow</h4>
+      <div class="flow-row" style="flex-direction:column;align-items:flex-start;gap:6px">
+        <div class="flow-box" style="border-color:var(--teal)">Client: socket.io-client</div>
+        <div style="color:var(--text3);margin-left:20px;font-size:12px">↓ handshake.auth.token = JWT</div>
+        <div class="flow-box" style="border-color:var(--orange)">io.use() middleware</div>
+        <div style="color:var(--text3);margin-left:20px;font-size:12px">↓ verifyToken(token) — JWT decode</div>
+        <div class="flow-box" style="border-color:var(--orange)">DB check: status = 'active'</div>
+        <div style="color:var(--text3);margin-left:20px;font-size:12px">↓ attach socket.user = decoded</div>
+        <div class="flow-box" style="border-color:var(--green)">socket.join(<code>user:userId</code>)</div>
+        <div style="color:var(--text3);margin-left:20px;font-size:12px">↓ all events now available</div>
+        <div class="flow-box" style="border-color:var(--red)">socket.emit('error') if banned/expired</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4 class="mb-8">Rooms</h4>
+      <table>
+        <tr><th>Room</th><th>Joined by</th><th>Purpose</th></tr>
+        <tr><td><code>user:{id}</code></td><td>Auto on connect</td><td>Personal DM inbox</td></tr>
+        <tr><td><code>stream:{id}</code></td><td>join_stream event</td><td>Stream chat + viewer count</td></tr>
+        <tr><td><code>tournament:{id}</code></td><td>join_tournament event</td><td>Bracket updates</td></tr>
+        <tr><td><code>queue:{gameId}</code></td><td>join_queue event</td><td>Matchmaking queue</td></tr>
+      </table>
+
+      <h4 class="mb-8 mt-12">Rate Limiting</h4>
+      <div style="background:var(--bg3);border-radius:6px;padding:10px 14px;font-size:12px;color:var(--text2)">
+        60 events / 60 seconds per userId<br>
+        In-memory Map with sliding window<br>
+        Stale entries pruned every 5 minutes<br>
+        Applies to: send_message, stream_chat
+      </div>
+    </div>
+  </div>
+
+  <h3 class="mb-12">Events Reference</h3>
+  <h4 class="mb-8 muted">📨 Direct Messages</h4>
+  <div class="socket-event">
+    <div class="socket-event-header">
+      <span class="socket-dir dir-in">CLIENT</span>
+      <span class="socket-name">send_message</span>
+      <span class="socket-desc">Send DM — body: { receiverId, content }</span>
+    </div>
+  </div>
+  <div class="socket-event">
+    <div class="socket-event-header">
+      <span class="socket-dir dir-out">SERVER</span>
+      <span class="socket-name">new_message</span>
+      <span class="socket-desc">Emitted to receiver's room: user:{receiverId}</span>
+    </div>
+  </div>
+  <div class="socket-event mb-12">
+    <div class="socket-event-header">
+      <span class="socket-dir dir-out">SERVER</span>
+      <span class="socket-name">message_sent</span>
+      <span class="socket-desc">Confirmation back to sender</span>
+    </div>
+  </div>
+
+  <h4 class="mb-8 muted">📺 Streams</h4>
+  <div class="socket-event">
+    <div class="socket-event-header">
+      <span class="socket-dir dir-in">CLIENT</span>
+      <span class="socket-name">join_stream</span>
+      <span class="socket-desc">{ streamId } — joins stream:{id} room</span>
+    </div>
+  </div>
+  <div class="socket-event">
+    <div class="socket-event-header">
+      <span class="socket-dir dir-out">SERVER</span>
+      <span class="socket-name">viewer_joined / viewer_left</span>
+      <span class="socket-desc">Broadcast to stream room</span>
+    </div>
+  </div>
+  <div class="socket-event">
+    <div class="socket-event-header">
+      <span class="socket-dir dir-in">CLIENT</span>
+      <span class="socket-name">stream_chat</span>
+      <span class="socket-desc">{ streamId, message } — max 500 chars, rate limited</span>
+    </div>
+  </div>
+  <div class="socket-event mb-12">
+    <div class="socket-event-header">
+      <span class="socket-dir dir-out">SERVER</span>
+      <span class="socket-name">stream_chat_message</span>
+      <span class="socket-desc">{ userId, username, message, timestamp } to stream room</span>
+    </div>
+  </div>
+
+  <h4 class="mb-8 muted">🏆 Tournaments</h4>
+  <div class="socket-event">
+    <div class="socket-event-header">
+      <span class="socket-dir dir-in">CLIENT</span>
+      <span class="socket-name">join_tournament</span>
+      <span class="socket-desc">{ tournamentId } — joins tournament:{id} room</span>
+    </div>
+  </div>
+  <div class="socket-event">
+    <div class="socket-event-header">
+      <span class="socket-dir dir-in">CLIENT</span>
+      <span class="socket-name">match_update</span>
+      <span class="socket-desc">{ tournamentId, matchData } — admin only, DB-verified</span>
+    </div>
+  </div>
+  <div class="socket-event mb-12">
+    <div class="socket-event-header">
+      <span class="socket-dir dir-out">SERVER</span>
+      <span class="socket-name">bracket_updated</span>
+      <span class="socket-desc">matchData broadcast to all in tournament room</span>
+    </div>
+  </div>
+
+  <h4 class="mb-8 muted">🎮 Matchmaking &amp; Presence</h4>
+  <div class="socket-event">
+    <div class="socket-event-header">
+      <span class="socket-dir dir-in">CLIENT</span>
+      <span class="socket-name">join_queue / leave_queue</span>
+      <span class="socket-desc">{ gameId } — join/leave queue:{gameId} room</span>
+    </div>
+  </div>
+  <div class="socket-event">
+    <div class="socket-event-header">
+      <span class="socket-dir dir-in">CLIENT</span>
+      <span class="socket-name">go_online</span>
+      <span class="socket-desc">Broadcasts user_online to all connected sockets</span>
+    </div>
+  </div>
+  <div class="socket-event">
+    <div class="socket-event-header">
+      <span class="socket-dir dir-out">SERVER</span>
+      <span class="socket-name">user_online / user_offline</span>
+      <span class="socket-desc">Broadcast on go_online / disconnect</span>
+    </div>
+  </div>
+  <div class="socket-event">
+    <div class="socket-event-header">
+      <span class="socket-dir dir-out">SERVER</span>
+      <span class="socket-name">error</span>
+      <span class="socket-desc">{ message } — rate limit exceeded, invalid input, unauthorized</span>
+    </div>
+  </div>
+
+  <div class="card mt-12">
+    <h4 class="mb-8">Exported helpers (socket.js → controllers)</h4>
+    <pre>emitToUser(userId, event, data)
+// e.g. from archiveController → notify user their account was soft-deleted
+
+emitToTournament(tournamentId, event, data)
+// e.g. from tournamentController → push bracket update on match result submit</pre>
+  </div>
+</section>
+
+<!-- ════════ SECTION 7 — BACKEND STRUCTURE ════════ -->
+<section id="backend" class="section">
+  <div class="section-header">
+    <div class="section-badge">⚙️ Section 7</div>
+    <h1>Backend Structure</h1>
+    <p class="mt-8">Middleware chain, controller responsibilities, services, and utilities in detail.</p>
+  </div>
+
+  <!-- Middleware Stack -->
+  <div class="card mb-16">
+    <h3 class="mb-12">Middleware Chain (app.js)</h3>
+    <table>
+      <tr><th>#</th><th>Middleware</th><th>Scope</th><th>What it does</th></tr>
+      <tr><td>1</td><td><code>helmet()</code></td><td>All</td><td>Sets CSP, X-Frame-Options, HSTS, removes X-Powered-By</td></tr>
+      <tr><td>2</td><td><code>cors()</code></td><td>All</td><td>Validates Origin against ALLOWED_ORIGINS env var</td></tr>
+      <tr><td>3</td><td><code>authLimiter</code></td><td>/api/auth/*</td><td>10 requests per 15 minutes — prevents brute force</td></tr>
+      <tr><td>4</td><td><code>apiLimiter</code></td><td>/api/* (excl. auth)</td><td>120 requests per 60 seconds</td></tr>
+      <tr><td>5</td><td><code>express.json(5mb)</code></td><td>All</td><td>Parse JSON body; 5mb limit for base64 images</td></tr>
+      <tr><td>6</td><td><code>authMiddleware</code></td><td>Protected routes</td><td>Verifies Bearer JWT; checks auth cache; DB fallback; sets req.user</td></tr>
+      <tr><td>7</td><td><code>requireAdmin</code></td><td>Admin routes</td><td>Live DB email check against ADMIN_EMAILS; sets req.user.isAdmin</td></tr>
+      <tr><td>8</td><td><code>validateMiddleware</code></td><td>Write routes</td><td>Runs express-validator result; returns 400 on failure</td></tr>
+      <tr><td>9</td><td><code>notFound</code></td><td>Catch-all</td><td>404 handler for unmatched routes</td></tr>
+      <tr><td>10</td><td><code>errorHandler</code></td><td>Error propagation</td><td>Centralized error response; strips stack in production</td></tr>
+    </table>
+  </div>
+
+  <!-- Controllers -->
+  <div class="card mb-16">
+    <h3 class="mb-12">Controller Responsibilities</h3>
+    <table>
+      <tr><th>Controller</th><th>Key Responsibilities</th><th>Notable Logic</th></tr>
+      <tr><td><code>authController</code></td><td>Registration, login, OTP, forgot-password</td><td>bcrypt, JWT sign, OTP TTL, 2-step flows</td></tr>
+      <tr><td><code>userController</code></td><td>Profile CRUD, follow/unfollow, game profile upsert, search</td><td>Base64 image, profile ownership check</td></tr>
+      <tr><td><code>gameController</code></td><td>Game catalogue, favourite games, sync from JSON</td><td>gameDataService.js for seeding</td></tr>
+      <tr><td><code>teamController</code></td><td>Create teams, invite, kick, leave, respond to invitations</td><td>Captain ownership enforcement</td></tr>
+      <tr><td><code>teamFinderController</code></td><td>LFG posts, apply, draft-accept → final-accept, reject</td><td>2-step acceptance state machine</td></tr>
+      <tr><td><code>tournamentController</code></td><td>Create/list/register/status-update tournaments</td><td>tournamentService for bracket gen</td></tr>
+      <tr><td><code>communityController</code></td><td>Posts, comments, votes, community feeds</td><td>Sanitize HTML, optional auth, vote toggle</td></tr>
+      <tr><td><code>messageController</code></td><td>REST fallback for messages (inbox, conversation)</td><td>Supplements Socket.IO real-time DMs</td></tr>
+      <tr><td><code>streamController</code></td><td>Go-live, end stream, viewer count update</td><td>Active stream uniqueness per user</td></tr>
+      <tr><td><code>matchController</code></td><td>Find match, submit result, get match, submit stats</td><td>matchmakingService ELO, ownership check on result</td></tr>
+      <tr><td><code>statsController</code></td><td>Game stats from 15+ external APIs</td><td>PC APIs live; mobile returns informational msg</td></tr>
+      <tr><td><code>archiveController</code></td><td>Soft-delete, restore, list archives, audit log, purge</td><td>MySQL triggers auto-snapshot on DELETE</td></tr>
+      <tr><td><code>adminController</code></td><td>User list/ban/unban/rename, platform stats</td><td>invalidateAuthCache on ban; double-gated</td></tr>
+    </table>
+  </div>
+
+  <!-- Services -->
+  <div class="card mb-16">
+    <h3 class="mb-12">Services</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+      <div style="background:var(--bg3);border-radius:var(--radius);padding:14px">
+        <h4 class="mb-8">matchmakingService.js</h4>
+        <p style="font-size:12px;margin-bottom:8px">ELO-based player matching.</p>
+        <ul style="font-size:12px">
+          <li>K=32 Elo calculation</li>
+          <li>3 window sizes: ±200, ±400, ±600</li>
+          <li>All 3 queries run in parallel (Promise.all)</li>
+          <li>Returns narrowest match found</li>
+        </ul>
+      </div>
+      <div style="background:var(--bg3);border-radius:var(--radius);padding:14px">
+        <h4 class="mb-8">tournamentService.js</h4>
+        <p style="font-size:12px;margin-bottom:8px">Bracket generation logic.</p>
+        <ul style="font-size:12px">
+          <li>Single elimination bracket</li>
+          <li>Team seeding from registrations</li>
+          <li>Match creation for each round</li>
+        </ul>
+      </div>
+      <div style="background:var(--bg3);border-radius:var(--radius);padding:14px">
+        <h4 class="mb-8">gameDataService.js</h4>
+        <p style="font-size:12px;margin-bottom:8px">Seeds games from JSON.</p>
+        <ul style="font-size:12px">
+          <li>Reads backend/data/games.json</li>
+          <li>Upserts to games table</li>
+          <li>Called via POST /api/games/sync</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Auth Cache -->
+  <div class="card">
+    <h3 class="mb-12">Auth Cache System (db.js)</h3>
+    <pre>// In-memory Map — {userId → {expiresAt}}
+isAuthCacheHit(userId)   → boolean   // TTL check
+setAuthCache(userId)                 // prime cache (60s TTL)
+invalidateAuthCache(userId)          // instant eviction on ban/delete
+
+// Auto-sweep every 5 minutes (prevents memory leak on long-lived server)
+setInterval(() => { /* prune expired entries */ }, 5 * 60_000)</pre>
+    <p style="font-size:12px;color:var(--text2);margin:8px 0 0">On a typical request the cache hit rate is ~95% — the DB is only queried on the first request per user per 60-second window, or after a ban/delete event.</p>
+  </div>
+</section>
+
+<!-- ════════ SECTION 8 — API ROUTES ════════ -->
+<section id="api" class="section">
+  <div class="section-header">
+    <div class="section-badge">🌐 Section 8</div>
+    <h1>API Routes Overview</h1>
+    <p class="mt-8">All 70+ REST endpoints grouped by module. Base URL: <code>/api</code></p>
+  </div>
+
+  <!-- Auth -->
+  <div class="card mb-12">
+    <h3 class="mb-12">🔐 Auth &nbsp;<code style="font-size:12px">/api/auth</code> &nbsp;<span class="badge badge-red">Rate: 10/15min</span></h3>
+    <div class="route-row"><span class="method POST">POST</span><span class="route-path">/register/send-otp</span><span class="route-auth">Public</span><div style="flex-basis:100%"><div class="route-desc">Step 1 — validate email/password, create OTP, send email</div></div></div>
+    <div class="route-row"><span class="method POST">POST</span><span class="route-path">/register/verify</span><span class="route-auth">Public</span><div style="flex-basis:100%"><div class="route-desc">Step 2 — verify OTP, create user account, return JWT</div></div></div>
+    <div class="route-row"><span class="method POST">POST</span><span class="route-path">/register/resend-otp</span><span class="route-auth">Public</span><div style="flex-basis:100%"><div class="route-desc">Resend registration OTP</div></div></div>
+    <div class="route-row"><span class="method POST">POST</span><span class="route-path">/login</span><span class="route-auth">Public</span><div style="flex-basis:100%"><div class="route-desc">Email/password login → JWT</div></div></div>
+    <div class="route-row"><span class="method GET">GET</span><span class="route-path">/me</span><span class="route-auth badge badge-orange">Auth</span><div style="flex-basis:100%"><div class="route-desc">Get current user from JWT (used by AuthContext on mount)</div></div></div>
+    <div class="route-row"><span class="method POST">POST</span><span class="route-path">/forgot-password</span><span class="route-auth">Public</span><div style="flex-basis:100%"><div class="route-desc">Send password reset OTP</div></div></div>
+    <div class="route-row"><span class="method POST">POST</span><span class="route-path">/forgot-password/verify</span><span class="route-auth">Public</span><div style="flex-basis:100%"><div class="route-desc">Verify reset OTP</div></div></div>
+    <div class="route-row"><span class="method POST">POST</span><span class="route-path">/forgot-password/reset</span><span class="route-auth">Public</span><div style="flex-basis:100%"><div class="route-desc">Set new password after OTP verified</div></div></div>
+  </div>
+
+  <!-- Users -->
+  <div class="card mb-12">
+    <h3 class="mb-12">👤 Users &nbsp;<code style="font-size:12px">/api/users</code></h3>
+    <div class="route-row"><span class="method GET">GET</span><span class="route-path">/?q=username</span><span class="route-auth badge badge-orange">Auth</span><div style="flex-basis:100%"><div class="route-desc">Search users by username</div></div></div>
+    <div class="route-row"><span class="method GET">GET</span><span class="route-path">/me/stats</span><span class="route-auth badge badge-orange">Auth</span><div style="flex-basis:100%"><div class="route-desc">My followers/following/post counts</div></div></div>
+    <div class="route-row"><span class="method GET">GET</span><span class="route-path">/:id</span><span class="route-auth">Public</span><div style="flex-basis:100%"><div class="route-desc">Public profile by user ID</div></div></div>
+    <div class="route-row"><span class="method GET">GET</span><span class="route-path">/:id/activity</span><span class="route-auth">Public</span><div style="flex-basis:100%"><div class="route-desc">User's community posts + team finder posts</div></div></div>
+    <div class="route-row"><span class="method GET">GET</span><span class="route-path">/:id/follow-status</span><span class="route-auth badge badge-orange">Auth</span><div style="flex-basis:100%"><div class="route-desc">Is current user following :id?</div></div></div>
+    <div class="route-row"><span class="method PUT">PUT</span><span class="route-path">/me</span><span class="route-auth badge badge-orange">Auth</span><div style="flex-basis:100%"><div class="route-desc">Update own profile (username, bio, avatar, country, region)</div></div></div>
+    <div class="route-row"><span class="method POST">POST</span><span class="route-path">/me/game-profile</span><span class="route-auth badge badge-orange">Auth</span><div style="flex-basis:100%"><div class="route-desc">Upsert game rank/ELO for a game</div></div></div>
+    <div class="route-row"><span class="method POST">POST</span><span class="route-path">/:id/follow</span><span class="route-auth badge badge-orange">Auth</span><div style="flex-basis:100%"><div class="route-desc">Follow a user</div></div></div>
+    <div class="route-row"><span class="method DELETE">DELETE</span><span class="route-path">/:id/follow</span><span class="route-auth badge badge-orange">Auth</span><div style="flex-basis:100%"><div class="route-desc">Unfollow a user</div></div></div>
+  </div>
+
+  <!-- Games -->
+  <div class="card mb-12">
+    <h3 class="mb-12">🎮 Games &nbsp;<code style="font-size:12px">/api/games</code></h3>
+    <div class="route-row"><span class="method GET">GET</span><span class="route-path">/?genre=&amp;q=&amp;platform=</span><span class="route-auth">Public</span><div style="flex-basis:100%"><div class="route-desc">All games with filter/search</div></div></div>
+    <div class="route-row"><span class="method GET">GET</span><span class="route-path">/my</span><span class="route-auth badge badge-orange">Auth</span><div style="flex-basis:100%"><div class="route-desc">My favourite games</div></div></div>
+    <div class="route-row"><span class="method POST">POST</span><span class="route-path">/my</span><span class="route-auth badge badge-orange">Auth</span><div style="flex-basis:100%"><div class="route-desc">Add favourite game — body: { game_id }</div></div></div>
+    <div class="route-row"><span class="method DELETE">DELETE</span><span class="route-path">/my/:game_id</span><span class="route-auth badge badge-orange">Auth</span><div style="flex-basis:100%"><div class="route-desc">Remove favourite game</div></div></div>
+    <div class="route-row"><span class="method POST">POST</span><span class="route-path">/sync</span><span class="route-auth">Setup</span><div style="flex-basis:100%"><div class="route-desc">Seed games from games.json (admin/first-run)</div></div></div>
+    <div class="route-row"><span class="method GET">GET</span><span class="route-path">/:id</span><span class="route-auth">Public</span><div style="flex-basis:100%"><div class="route-desc">Game by ID</div></div></div>
+  </div>
+
+  <!-- Teams -->
+  <div class="card mb-12">
+    <h3 class="mb-12">🛡️ Teams &nbsp;<code style="font-size:12px">/api/teams</code></h3>
+    <div class="route-row"><span class="method GET">GET</span><span class="route-path">/mine</span><span class="route-auth badge badge-orange">Auth</span><div style="flex-basis:100%"><div class="route-desc">My teams</div></div></div>
+    <div class="route-row"><span class="method GET">GET</span><span class="route-path">/all</span><span class="route-auth badge badge-red">Admin</span><div style="flex-basis:100%"><div class="route-desc">All teams (admin only)</div></div></div>
+    <div class="route-row"><span class="method POST">POST</span><span class="route-path">/</span><span class="route-auth badge badge-orange">Auth</span><div style="flex-basis:100%"><div class="route-desc">Create team</div></div></div>
+    <div class="route-row"><span class="method PATCH">PATCH</span><span class="route-path">/invitations/:invite_id</span><span class="route-auth badge badge-orange">Auth</span><div style="flex-basis:100%"><div class="route-desc">Accept or decline team invitation</div></div></div>
+    <div class="route-row"><span class="method GET">GET</span><span class="route-path">/:id</span><span class="route-auth">Public</span><div style="flex-basis:100%"><div class="route-desc">Team details</div></div></div>
+    <div class="route-row"><span class="method DELETE">DELETE</span><span class="route-path">/:id/leave</span><span class="route-auth badge badge-orange">Auth</span><div style="flex-basis:100%"><div class="route-desc">Leave a team</div></div></div>
+    <div class="route-row"><span class="method DELETE">DELETE</span><span class="route-path">/:id/members/:userId</span><span class="route-auth badge badge-orange">Auth</span><div style="flex-basis:100%"><div class="route-desc">Kick member (captain only)</div></div></div>
+    <div class="route-row"><span class="method POST">POST</span><span class="route-path">/:id/invite</span><span class="route-auth badge badge-orange">Auth</span><div style="flex-basis:100%"><div class="route-desc">Invite user to team — body: { user_id }</div></div></div>
+  </div>
+
+  <!-- Tournaments -->
+  <div class="card mb-12">
+    <h3 class="mb-12">🏆 Tournaments &nbsp;<code style="font-size:12px">/api/tournaments</code></h3>
+    <div class="route-row"><span class="method GET">GET</span><span class="route-path">/?game_id=&amp;region=&amp;status=&amp;limit=&amp;offset=</span><span class="route-auth">Public</span><div style="flex-basis:100%"><div class="route-desc">List tournaments with filters</div></div></div>
+    <div class="route-row"><span class="method GET">GET</span><span class="route-path">/:id</span><span class="route-auth">Public</span><div style="flex-basis:100%"><div class="route-desc">Tournament detail + bracket</div></div></div>
+    <div class="route-row"><span class="method POST">POST</span><span class="route-path">/</span><span class="route-auth badge badge-orange">Auth</span><div style="flex-basis:100%"><div class="route-desc">Create tournament</div></div></div>
+    <div class="route-row"><span class="method POST">POST</span><span class="route-path">/:id/register</span><span class="route-auth badge badge-orange">Auth</span><div style="flex-basis:100%"><div class="route-desc">Register team — body: { team_id }</div></div></div>
+    <div class="route-row"><span class="method PATCH">PATCH</span><span class="route-path">/:id/status</span><span class="route-auth badge badge-orange">Auth</span><div style="flex-basis:100%"><div class="route-desc">Update tournament status — body: { status }</div></div></div>
+  </div>
+
+  <!-- Team Finder -->
+  <div class="card mb-12">
+    <h3 class="mb-12">🔍 Team Finder &nbsp;<code style="font-size:12px">/api/teamfinder</code></h3>
+    <div class="route-row"><span class="method GET">GET</span><span class="route-path">/</span><span class="route-auth">Public</span><div style="flex-basis:100%"><div class="route-desc">All open LFG posts</div></div></div>
+    <div class="route-row"><span class="method POST">POST</span><span class="route-path">/</span><span class="route-auth badge badge-orange">Auth</span><div style="flex-basis:100%"><div class="route-desc">Create LFG post</div></div></div>
+    <div class="route-row"><span class="method GET">GET</span><span class="route-path">/my-applications</span><span class="route-auth badge badge-orange">Auth</span><div style="flex-basis:100%"><div class="route-desc">My applications to LFG posts</div></div></div>
+    <div class="route-row"><span class="method PATCH">PATCH</span><span class="route-path">/:id/close</span><span class="route-auth badge badge-orange">Auth</span><div style="flex-basis:100%"><div class="route-desc">Close own LFG post</div></div></div>
+    <div class="route-row"><span class="method POST">POST</span><span class="route-path">/:id/apply</span><span class="route-auth badge badge-orange">Auth</span><div style="flex-basis:100%"><div class="route-desc">Apply to LFG post with message</div></div></div>
+    <div class="route-row"><span class="method GET">GET</span><span class="route-path">/:id/applications</span><span class="route-auth badge badge-orange">Auth</span><div style="flex-basis:100%"><div class="route-desc">View applications on your post</div></div></div>
+    <div class="route-row"><span class="method PATCH">PATCH</span><span class="route-path">/:id/applications/:appId/draft-accept</span><span class="route-auth badge badge-orange">Auth</span><div style="flex-basis:100%"><div class="route-desc">Draft-accept applicant</div></div></div>
+    <div class="route-row"><span class="method PATCH">PATCH</span><span class="route-path">/:id/applications/:appId/final-accept</span><span class="route-auth badge badge-orange">Auth</span><div style="flex-basis:100%"><div class="route-desc">Final-accept applicant</div></div></div>
+    <div class="route-row"><span class="method PATCH">PATCH</span><span class="route-path">/:id/applications/:appId/reject</span><span class="route-auth badge badge-orange">Auth</span><div style="flex-basis:100%"><div class="route-desc">Reject applicant</div></div></div>
+  </div>
+
+  <!-- Communities -->
+  <div class="card mb-12">
+    <h3 class="mb-12">💬 Communities &nbsp;<code style="font-size:12px">/api/communities</code></h3>
+    <div class="route-row"><span class="method GET">GET</span><span class="route-path">/</span><span class="route-auth">Public</span><div style="flex-basis:100%"><div class="route-desc">All communities</div></div></div>
+    <div class="route-row"><span class="method GET">GET</span><span class="route-path">/all-posts</span><span class="route-auth">OptAuth</span><div style="flex-basis:100%"><div class="route-desc">Aggregated feed for user's favourite games</div></div></div>
+    <div class="route-row"><span class="method GET">GET</span><span class="route-path">/posts</span><span class="route-auth badge badge-red">Admin</span><div style="flex-basis:100%"><div class="route-desc">All posts (admin moderation)</div></div></div>
+    <div class="route-row"><span class="method GET">GET</span><span class="route-path">/:id/posts</span><span class="route-auth">Public</span><div style="flex-basis:100%"><div class="route-desc">Community posts by community ID</div></div></div>
+    <div class="route-row"><span class="method GET">GET</span><span class="route-path">/:id/following-posts</span><span class="route-auth badge badge-orange">Auth</span><div style="flex-basis:100%"><div class="route-desc">Posts from users you follow in a community</div></div></div>
+    <div class="route-row"><span class="method POST">POST</span><span class="route-path">/:id/posts</span><span class="route-auth badge badge-orange">Auth</span><div style="flex-basis:100%"><div class="route-desc">Create post in community</div></div></div>
+    <div class="route-row"><span class="method GET">GET</span><span class="route-path">/posts/:post_id</span><span class="route-auth">Public</span><div style="flex-basis:100%"><div class="route-desc">Post detail with comments</div></div></div>
+    <div class="route-row"><span class="method DELETE">DELETE</span><span class="route-path">/posts/:post_id</span><span class="route-auth badge badge-orange">Auth</span><div style="flex-basis:100%"><div class="route-desc">Delete own post</div></div></div>
+    <div class="route-row"><span class="method POST">POST</span><span class="route-path">/posts/:post_id/comments</span><span class="route-auth badge badge-orange">Auth</span><div style="flex-basis:100%"><div class="route-desc">Add comment</div></div></div>
+    <div class="route-row"><span class="method DELETE">DELETE</span><span class="route-path">/comments/:comment_id</span><span class="route-auth badge badge-orange">Auth</span><div style="flex-basis:100%"><div class="route-desc">Delete own comment</div></div></div>
+    <div class="route-row"><span class="method POST">POST</span><span class="route-path">/posts/:post_id/vote</span><span class="route-auth badge badge-orange">Auth</span><div style="flex-basis:100%"><div class="route-desc">Vote — body: { vote: 'up'|'down' }</div></div></div>
+  </div>
+
+  <!-- Other modules in 3 cols -->
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+
+    <div class="card">
+      <h3 class="mb-12">📺 Streams &nbsp;<code style="font-size:11px">/api/streams</code></h3>
+      <div class="route-row" style="padding:7px 10px"><span class="method GET">GET</span><span class="route-path" style="font-size:12px">/?game_id=&amp;limit=&amp;offset=</span></div>
+      <div class="route-row" style="padding:7px 10px"><span class="method POST">POST</span><span class="route-path" style="font-size:12px">/go-live</span><span class="badge badge-orange" style="font-size:10px">Auth</span></div>
+      <div class="route-row" style="padding:7px 10px"><span class="method PATCH">PATCH</span><span class="route-path" style="font-size:12px">/end</span><span class="badge badge-orange" style="font-size:10px">Auth</span></div>
+      <div class="route-row" style="padding:7px 10px"><span class="method PATCH">PATCH</span><span class="route-path" style="font-size:12px">/:id/viewers</span><span class="badge badge-orange" style="font-size:10px">Auth</span></div>
+    </div>
+
+    <div class="card">
+      <h3 class="mb-12">⚔️ Matches &nbsp;<code style="font-size:11px">/api/matches</code></h3>
+      <div class="route-row" style="padding:7px 10px"><span class="method POST">POST</span><span class="route-path" style="font-size:12px">/find</span><span class="badge badge-orange" style="font-size:10px">Auth</span></div>
+      <div class="route-row" style="padding:7px 10px"><span class="method POST">POST</span><span class="route-path" style="font-size:12px">/result</span><span class="badge badge-orange" style="font-size:10px">Auth</span></div>
+      <div class="route-row" style="padding:7px 10px"><span class="method GET">GET</span><span class="route-path" style="font-size:12px">/:id</span></div>
+      <div class="route-row" style="padding:7px 10px"><span class="method POST">POST</span><span class="route-path" style="font-size:12px">/:id/stats</span><span class="badge badge-orange" style="font-size:10px">Auth</span></div>
+    </div>
+
+    <div class="card">
+      <h3 class="mb-12">💌 Messages &nbsp;<code style="font-size:11px">/api/messages</code></h3>
+      <div class="route-row" style="padding:7px 10px"><span class="method GET">GET</span><span class="route-path" style="font-size:12px">/inbox</span><span class="badge badge-orange" style="font-size:10px">Auth</span></div>
+      <div class="route-row" style="padding:7px 10px"><span class="method GET">GET</span><span class="route-path" style="font-size:12px">/:user_id</span><span class="badge badge-orange" style="font-size:10px">Auth</span></div>
+      <div class="route-row" style="padding:7px 10px"><span class="method POST">POST</span><span class="route-path" style="font-size:12px">/</span><span class="badge badge-orange" style="font-size:10px">Auth</span></div>
+    </div>
+  </div>
+
+  <!-- Stats + Archive + Admin -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+    <div class="card">
+      <h3 class="mb-12">📊 Stats &nbsp;<code style="font-size:11px">/api/stats</code> &nbsp;<span class="badge badge-orange">All require Auth</span></h3>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;font-size:12px">
+        <code>/valorant/:name/:tag</code> <code>/lol/:name/:tag</code> <code>/fortnite/:username</code>
+        <code>/dota2/:steamId</code> <code>/apex/:username</code> <code>/pubg/:username</code>
+        <code>/r6/:username</code> <code>/steam/:steamId</code> <code>/brawlstars/:tag</code>
+        <code>/rocketleague/:username</code> <code>/cod/:username</code>
+        <span class="badge badge-gray">Mobile (informational):</span>
+        <code>/bgmi/:username</code> <code>/freefire/:username</code> <code>/codmobile/:username</code>
+        <code>/mlbb/:playerId</code> <code>/easportsfc/:username</code>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 class="mb-12">👑 Admin &nbsp;<code style="font-size:11px">/api/admin</code> &nbsp;<span class="badge badge-red">Auth + Admin</span></h3>
+      <div class="route-row" style="padding:7px 10px"><span class="method GET">GET</span><span class="route-path" style="font-size:12px">/stats</span><div class="route-desc" style="font-size:11px">Platform-wide stats</div></div>
+      <div class="route-row" style="padding:7px 10px"><span class="method GET">GET</span><span class="route-path" style="font-size:12px">/users?status=&amp;q=</span><div class="route-desc" style="font-size:11px">List all users</div></div>
+      <div class="route-row" style="padding:7px 10px"><span class="method PATCH">PATCH</span><span class="route-path" style="font-size:12px">/users/:id/ban</span></div>
+      <div class="route-row" style="padding:7px 10px"><span class="method PATCH">PATCH</span><span class="route-path" style="font-size:12px">/users/:id/unban</span></div>
+      <div class="route-row" style="padding:7px 10px"><span class="method PATCH">PATCH</span><span class="route-path" style="font-size:12px">/users/:id/username</span></div>
+    </div>
+  </div>
+
+  <!-- Archive -->
+  <div class="card mt-12">
+    <h3 class="mb-12">🗂️ Archive &nbsp;<code style="font-size:12px">/api/archive</code></h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0">
+      <div>
+        <h4 class="mb-8 small muted">User / Content Deletes</h4>
+        <div class="route-row" style="padding:7px 10px"><span class="method DELETE">DELETE</span><span class="route-path" style="font-size:12px">/tournaments/:id</span><span class="badge badge-orange" style="font-size:10px">Auth</span></div>
+        <div class="route-row" style="padding:7px 10px"><span class="method DELETE">DELETE</span><span class="route-path" style="font-size:12px">/teams/:id</span><span class="badge badge-orange" style="font-size:10px">Auth</span></div>
+        <div class="route-row" style="padding:7px 10px"><span class="method DELETE">DELETE</span><span class="route-path" style="font-size:12px">/streams/:id</span><span class="badge badge-orange" style="font-size:10px">Auth</span></div>
+        <div class="route-row" style="padding:7px 10px"><span class="method DELETE">DELETE</span><span class="route-path" style="font-size:12px">/community/posts/:id</span><span class="badge badge-orange" style="font-size:10px">Auth</span></div>
+        <div class="route-row" style="padding:7px 10px"><span class="method DELETE">DELETE</span><span class="route-path" style="font-size:12px">/teamfinder/posts/:id</span><span class="badge badge-orange" style="font-size:10px">Auth</span></div>
+        <div class="route-row" style="padding:7px 10px"><span class="method DELETE">DELETE</span><span class="route-path" style="font-size:12px">/users/me</span><span class="badge badge-orange" style="font-size:10px">Auth</span></div>
+      </div>
+      <div>
+        <h4 class="mb-8 small muted">Admin Archive Management</h4>
+        <div class="route-row" style="padding:7px 10px"><span class="method GET">GET</span><span class="route-path" style="font-size:12px">/admin/archives</span><span class="badge badge-red" style="font-size:10px">Admin</span></div>
+        <div class="route-row" style="padding:7px 10px"><span class="method GET">GET</span><span class="route-path" style="font-size:12px">/admin/archives/audit</span><span class="badge badge-red" style="font-size:10px">Admin</span></div>
+        <div class="route-row" style="padding:7px 10px"><span class="method GET">GET</span><span class="route-path" style="font-size:12px">/admin/archives/:entity/:id</span><span class="badge badge-red" style="font-size:10px">Admin</span></div>
+        <div class="route-row" style="padding:7px 10px"><span class="method POST">POST</span><span class="route-path" style="font-size:12px">/admin/archives/restore/tournament/:id</span><span class="badge badge-red" style="font-size:10px">Admin</span></div>
+        <div class="route-row" style="padding:7px 10px"><span class="method POST">POST</span><span class="route-path" style="font-size:12px">/admin/archives/restore/team/:id</span><span class="badge badge-red" style="font-size:10px">Admin</span></div>
+        <div class="route-row" style="padding:7px 10px"><span class="method POST">POST</span><span class="route-path" style="font-size:12px">/admin/archives/restore/stream/:id</span><span class="badge badge-red" style="font-size:10px">Admin</span></div>
+        <div class="route-row" style="padding:7px 10px"><span class="method DELETE">DELETE</span><span class="route-path" style="font-size:12px">/admin/archives/purge</span><span class="badge badge-red" style="font-size:10px">Admin</span></div>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+</main>
+</div>
+
+<script>
+function show(id, el) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  el.classList.add('active');
+  window.scrollTo(0, 0);
+}
+</script>
+</body>
+</html>
