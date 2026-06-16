@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { getMe } from "../services/authService";
 import {
   updateProfile,
-  upsertGameProfile,
+  // upsertGameProfile, // [COMING SOON] — re-enable with stat sync feature
   getMyStats,
 } from "../services/userService";
 import { getMyGames } from "../services/gameService";
@@ -13,6 +13,12 @@ import { useAuth } from "../context/AuthContext";
 import API from "../api/api";
 import { useTheme } from "../context/ThemeContext";
 import { themeStyles } from "../utils/themeStyles";
+
+/* ============================================================
+ * [COMING SOON] Stat Sync — backendFetch, FETCHERS, GAME_TO_FETCHER,
+ * detectFetcher, GameStatsFetcher — temporarily disabled.
+ * Uncomment when the feature is ready.
+ * ============================================================
 
 async function backendFetch(path) {
   const res = await fetch(`/api/stats${path}`);
@@ -337,6 +343,8 @@ function detectFetcher(gameName = "") {
   }
   return null;
 }
+
+*/
 
 // ── Share Player Card Modal ────────────────────────────────────────────────────────
 function ShareModal({ profile, onClose }) {
@@ -840,12 +848,14 @@ export default function Profile() {
     }
   };
 
+  /* [COMING SOON] handleGameStatsSave — temporarily disabled
   const handleGameStatsSave = async (data) => {
     await upsertGameProfile(data);
     const res = await getMyGames();
     setGames(res.data.games || []);
     showToast("Stats synced!");
   };
+  */
 
   if (loading) return <PageLoader />;
 
@@ -1342,6 +1352,70 @@ export default function Profile() {
 
       {activeTab === "gamestats" && (
         <div className="animate-fade-in">
+          {/* ============================================================
+              [COMING SOON] Live Stat Sync — temporarily replaced with banner.
+              Original implementation is commented out above (backendFetch,
+              FETCHERS, GAME_TO_FETCHER, detectFetcher, GameStatsFetcher).
+              Restore when the feature is ready.
+          ============================================================ */}
+          <div
+            className="rounded-2xl border border-red/20 p-10 flex flex-col items-center justify-center text-center gap-4"
+            style={{
+              background:
+                "linear-gradient(135deg,rgba(255,70,85,0.08),rgba(26,35,64,0.6))",
+            }}
+          >
+            <div className="w-16 h-16 rounded-2xl bg-red/15 border border-red/25 flex items-center justify-center text-4xl">
+              ⚡
+            </div>
+            <div>
+              <p className="font-display font-bold text-2xl text-white mb-1">
+                Coming Soon!!
+              </p>
+              <p className="text-red font-semibold text-sm tracking-widest uppercase mb-3">
+                Stay Tuned
+              </p>
+              <p className="text-gray-400 text-sm max-w-sm leading-relaxed">
+                Live Stat Sync is on its way — connect your in-game IDs to pull
+                live rank &amp; ELO directly from official game APIs.
+              </p>
+            </div>
+            <div className="flex flex-wrap justify-center gap-2 mt-2">
+              {[
+                { icon: "🎯", name: "Valorant" },
+                { icon: "🏗️", name: "Fortnite" },
+                { icon: "🛡️", name: "Dota 2" },
+                { icon: "⭐", name: "Brawl Stars" },
+                { icon: "🔥", name: "Apex Legends" },
+                { icon: "🪖", name: "PUBG" },
+                { icon: "🔫", name: "Rainbow Six" },
+                { icon: "💣", name: "COD" },
+                { icon: "⚡", name: "MLBB" },
+                { icon: "🎮", name: "Steam/CS2" },
+                { icon: "♟", name: "Chess.com" },
+                { icon: "⛏", name: "Minecraft" },
+                { icon: "🟥", name: "Roblox" },
+                { icon: "🚀", name: "Rocket League" },
+                { icon: "🪖", name: "BGMI" },
+                { icon: "🔥", name: "Free Fire" },
+                { icon: "💣", name: "CoD Mobile" },
+                { icon: "⚽", name: "EA Sports FC" },
+              ].map((g) => (
+                <span
+                  key={g.name}
+                  className="inline-flex items-center gap-1 badge-gray text-xs opacity-60"
+                >
+                  {g.icon} {g.name}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* [COMING SOON] Original gamestats tab implementation — preserved below for restoration.
+      {activeTab === "gamestats" && (
+        <div className="animate-fade-in">
           <div
             className="rounded-2xl border border-red/20 mb-6 px-5 py-4 flex gap-4 items-start"
             style={{
@@ -1413,6 +1487,9 @@ export default function Profile() {
           )}
         </div>
       )}
+
+
+      End of commented-out gamestats implementation. */}
 
       {activeTab === "teams" && (
         <div className="space-y-3 animate-fade-in">

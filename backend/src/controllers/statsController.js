@@ -1,3 +1,8 @@
+/** ============================================================
+ * [COMING SOON] Stats Controller — temporarily disabled
+ * Uncomment this entire file when the feature is ready.
+ * ============================================================ */
+ 
 /**
  * statsController.js
  * Server-side proxy for game stat APIs.

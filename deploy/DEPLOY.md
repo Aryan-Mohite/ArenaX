@@ -16,9 +16,7 @@
 # Create app user
 adduser arenaX --disabled-password
 mkdir -p /var/www/arenaX /var/log/arenaX
-chown -R arenaX:arenaX /var/www/arenaX /var/log/arenaX
-```
-
+chown -R arenaX:arenaX /var/www/arenaX /var/log/arena/
 ---
 
 ## 2. Database

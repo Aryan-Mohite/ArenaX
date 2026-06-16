@@ -13,7 +13,8 @@ import communityRoutes  from "./routes/communityRoutes.js";
 import messageRoutes    from "./routes/messageRoutes.js";
 import streamRoutes     from "./routes/streamRoutes.js";
 import matchRoutes      from "./routes/matchRoutes.js";
-import statsRoutes      from "./routes/statsRoutes.js";
+// [COMING SOON] Stat Sync feature — temporarily disabled
+// import statsRoutes      from "./routes/statsRoutes.js";
 import archiveRoutes    from "./routes/archiveRoutes.js";
 import adminRoutes      from "./routes/adminRoutes.js";
 
@@ -113,7 +114,8 @@ app.use("/api/communities", communityRoutes);
 app.use("/api/messages",    messageRoutes);
 app.use("/api/streams",     streamRoutes);
 app.use("/api/matches",     matchRoutes);
-app.use("/api/stats",       statsRoutes);
+// [COMING SOON] Stat Sync routes — temporarily disabled
+// app.use("/api/stats",       statsRoutes);
 app.use("/api/archive",     archiveRoutes);
 app.use("/api/admin",       adminRoutes);
 
