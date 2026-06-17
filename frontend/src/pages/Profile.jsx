@@ -860,16 +860,17 @@ export default function Profile() {
   if (loading) return <PageLoader />;
 
   const totalMatches = games.reduce((s, g) => s + (g.matches_played || 0), 0);
-  const avgWinRate = games.length
-    ? (
-        games.reduce((s, g) => s + Number(g.win_rate || 0), 0) / games.length
-      ).toFixed(1)
-    : null;
-  const avgElo = games.length
-    ? Math.round(
-        games.reduce((s, g) => s + (g.elo_rating || 1000), 0) / games.length,
-      )
-    : null;
+  // [COMING SOON] avgWinRate / avgElo — part of Player Stats feature, hidden until it ships.
+  // const avgWinRate = games.length
+  //   ? (
+  //       games.reduce((s, g) => s + Number(g.win_rate || 0), 0) / games.length
+  //     ).toFixed(1)
+  //   : null;
+  // const avgElo = games.length
+  //   ? Math.round(
+  //       games.reduce((s, g) => s + (g.elo_rating || 1000), 0) / games.length,
+  //     )
+  //   : null;
   const TABS = [
     { id: "overview", label: "Service Record" },
     { id: "games", label: "Arsenal" },
@@ -1239,13 +1240,16 @@ export default function Profile() {
       )}
 
       {/* Stats row */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 gap-4 mb-6">
         <StatCard label="Total Matches" value={totalMatches} />
+        {/* [COMING SOON] Avg Win Rate / Avg ELO — part of Player Stats feature, hidden until it ships.
+        Restore grid-cols-3 above when re-enabling these.
         <StatCard
           label="Avg Win Rate"
           value={avgWinRate ? avgWinRate + "%" : "—"}
         />
         <StatCard label="Avg ELO" value={avgElo} />
+        */}
       </div>
 
       {/* Tabs */}
@@ -1289,6 +1293,7 @@ export default function Profile() {
                 <div className="flex flex-wrap gap-3">
                   {game.rank && <span className="badge-blue">{game.rank}</span>}
                   {game.role && <span className="badge-gray">{game.role}</span>}
+                  {/* [COMING SOON] ELO / Win Rate — part of Player Stats feature, hidden until it ships.
                   {game.elo_rating && (
                     <div className="text-center">
                       <p className="text-xs text-gray-500">ELO</p>
@@ -1305,6 +1310,7 @@ export default function Profile() {
                       </p>
                     </div>
                   )}
+                  */}
                   {game.matches_played > 0 && (
                     <div className="text-center">
                       <p className="text-xs text-gray-500">Matches</p>

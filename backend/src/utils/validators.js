@@ -160,8 +160,29 @@ export const validateCommunityPost = [
     .isLength({ max: 10000 }),
   body("image_url")
     .optional({ nullable: true, checkFalsy: true })
-    .isURL({ protocols: ["https"], require_protocol: true })
-    .withMessage("image_url must be a valid https URL"),
+    .custom((value) => {
+      // Accept either a real https:// URL (e.g. "Paste URL" mode) or a
+      // base64 data URI produced by the in-app file-upload/compression flow
+      // (useImageUpload.js -> pickFile -> compressImage). Without this,
+      // every "Upload file" post fails 422 because data: URIs don't pass
+      // isURL().
+      const isHttpsUrl = /^https:\/\/.+/i.test(value);
+      const isDataUri  = /^data:image\/(jpeg|jpg|png|webp|gif|heic|heif|avif|bmp|tiff);base64,/i.test(value);
+
+      if (!isHttpsUrl && !isDataUri) {
+        throw new Error("image_url must be a valid https URL or an uploaded image");
+      }
+
+      // Guard against oversized payloads landing in the DB/JSON responses.
+      // useImageUpload caps raw uploads at 5MB and compresses non-GIFs to
+      // 800px webp, but GIFs pass through uncompressed, so still cap here.
+      const MAX_DATA_URI_LENGTH = 8 * 1024 * 1024; // ~8MB encoded (~6MB raw)
+      if (isDataUri && value.length > MAX_DATA_URI_LENGTH) {
+        throw new Error("Image is too large to upload");
+      }
+
+      return true;
+    }),
 ];
 
 export const validateComment = [

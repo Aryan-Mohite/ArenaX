@@ -236,6 +236,7 @@ function GameProfileRow({ gp }) {
             {gp.role}
           </span>
         )}
+        {/* [COMING SOON] ELO / Win Rate — part of Player Stats feature, hidden until it ships.
         {gp.elo_rating && (
           <span className="text-xs px-2 py-0.5 rounded-full border border-surface-border bg-white/5 text-gray-400">
             ELO {gp.elo_rating}
@@ -246,6 +247,7 @@ function GameProfileRow({ gp }) {
             {Number(gp.win_rate).toFixed(1)}% WR
           </span>
         )}
+        */}
         {gp.matches_played > 0 && (
           <span className="text-xs text-gray-600">
             {gp.matches_played} matches
@@ -428,14 +430,15 @@ export default function UserProfile() {
     (s, g) => s + (g.matches_played || 0),
     0,
   );
-  const avgWinRate = activity.game_profiles.length
-    ? (
-        activity.game_profiles.reduce(
-          (s, g) => s + Number(g.win_rate || 0),
-          0,
-        ) / activity.game_profiles.length
-      ).toFixed(1)
-    : null;
+  // [COMING SOON] avgWinRate — part of Player Stats feature, hidden until it ships.
+  // const avgWinRate = activity.game_profiles.length
+  //   ? (
+  //       activity.game_profiles.reduce(
+  //         (s, g) => s + Number(g.win_rate || 0),
+  //         0,
+  //       ) / activity.game_profiles.length
+  //     ).toFixed(1)
+  //   : null;
 
   const TABS = [
     {
@@ -605,18 +608,21 @@ export default function UserProfile() {
       </div>
 
       {/* ── Stats Row ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
         <StatPill
           icon="🎮"
           label="Games Played"
           value={activity.game_profiles.length}
         />
         <StatPill icon="⚔️" label="Total Matches" value={totalMatches || "—"} />
+        {/* [COMING SOON] Avg Win Rate — part of Player Stats feature, hidden until it ships.
+        Restore grid-cols-4 above when re-enabling.
         <StatPill
           icon="📈"
           label="Avg Win Rate"
           value={avgWinRate ? avgWinRate + "%" : "—"}
         />
+        */}
         <StatPill
           icon="💬"
           label="Posts"

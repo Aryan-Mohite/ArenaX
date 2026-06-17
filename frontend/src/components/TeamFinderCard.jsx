@@ -9,7 +9,7 @@ export default function TeamFinderCard({ post, onApply }) {
     post_id, username, profile_picture,
     game_name, game_icon, rank_required,
     role_required, region, description,
-    poster_rank, poster_elo, created_at,
+    poster_rank, /* poster_elo, */ created_at, // [COMING SOON] poster_elo — part of Player Stats feature, hidden until it ships
   } = post
 
   const timeAgo = (dateStr) => {
@@ -72,7 +72,8 @@ export default function TeamFinderCard({ post, onApply }) {
         {role_required  && <span className="badge-red">{role_required}</span>}
         {rank_required  && <span className="badge-blue">{rank_required}</span>}
         {region         && <span className="badge-gray">{region}</span>}
-        {poster_elo     && <span className="badge-gray">ELO {poster_elo}</span>}
+        {/* {poster_elo && <span className="badge-gray">ELO {poster_elo}</span>} */}
+        {/* [COMING SOON] ELO badge above — part of Player Stats feature, hidden until it ships. */}
       </div>
 
       {/* Description */}

@@ -296,11 +296,13 @@ export default function PlayerProfileModal({ userId, onClose }) {
                               {gp.rank}
                             </span>
                           )}
+                          {/* [COMING SOON] ELO — part of Player Stats feature, hidden until it ships.
                           {gp.elo_rating && (
                             <span className="text-xs px-2 py-0.5 rounded-full border border-surface-border bg-white/5 text-gray-400">
                               ELO {gp.elo_rating}
                             </span>
                           )}
+                          */}
                           {gp.role && (
                             <span className="text-xs px-2 py-0.5 rounded-full border border-red/30 bg-red/10 text-red-light">
                               {gp.role}

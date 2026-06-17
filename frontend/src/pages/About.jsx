@@ -12,7 +12,9 @@ const FEATURES = [
   {
     icon: "🎮",
     title: "Game Library",
-    desc: "Browse the Grid of supported titles. Add games to your Loadout and let ArenaX live-sync your in-game stats and rank.",
+    // [COMING SOON] Original copy referenced live stat/rank sync — removed until Player Stats ships.
+    // desc: "Browse the Grid of supported titles. Add games to your Loadout and let ArenaX live-sync your in-game stats and rank.",
+    desc: "Browse the Grid of supported titles and add your favourites to your Loadout.",
     to: "/games",
   },
   {
@@ -36,7 +38,9 @@ const FEATURES = [
   {
     icon: "📊",
     title: "Player Cards",
-    desc: "Your Player Card is your gaming résumé. Display ranks, Service Record, tournament history and your Arsenal — all in one place.",
+    // [COMING SOON] Original copy referenced Service Record/ranks (Player Stats feature) — removed until it ships.
+    // desc: "Your Player Card is your gaming résumé. Display ranks, Service Record, tournament history and your Arsenal — all in one place.",
+    desc: "Your Player Card is your gaming résumé. Display tournament history and your Arsenal — all in one place.",
     to: "/profile",
   },
 ];
@@ -74,7 +78,9 @@ const VALUES = [
   {
     icon: "📈",
     title: "Grow Continuously",
-    desc: "Study your Service Record, learn from every loss, and watch your rank climb. Data is your coach.",
+    // [COMING SOON] Original copy referenced Service Record/rank tracking (Player Stats feature) — removed until it ships.
+    // desc: "Study your Service Record, learn from every loss, and watch your rank climb. Data is your coach.",
+    desc: "Learn from every match, sharpen your strategy, and keep pushing toward your next win.",
   },
 ];
 
@@ -168,7 +174,8 @@ function MissionSection() {
           <p className="text-gray-400 leading-relaxed mb-4">
             We envision a world where competitive gaming is as accessible and
             rewarding as playing itself. A world where every player can find
-            their community, test their skills, and rise through the ranks — all
+            {/* [COMING SOON] Original copy: "their community, test their skills, and rise through the ranks — all" — rank mention removed until Player Stats ships. */}
+            their community, test their skills, and compete at the highest level — all
             without leaving the platform.
           </p>
         </div>
@@ -212,9 +219,9 @@ function FeaturesSection() {
             Everything on one platform
           </h2>
           <p className="text-gray-400 max-w-xl mx-auto">
-            Six core features, all interconnected. Your tournament wins show on
-            your profile. Your stats power your team listing. It all fits
-            together.
+            {/* [COMING SOON] Original copy: "Your tournament wins show on your profile. Your stats power your team listing. It all fits together." — stats reference removed until Player Stats ships. */}
+            Six core features, all interconnected. Your tournament history shows on
+            your profile, and it all fits together.
           </p>
         </div>
 

@@ -1325,3 +1325,6 @@ ALTER TABLE deleted_users_log
 
 ALTER TABLE tournaments
 ADD COLUMN max_teams INT DEFAULT NULL;
+
+ALTER TABLE community_posts
+  MODIFY COLUMN image_url LONGTEXT;

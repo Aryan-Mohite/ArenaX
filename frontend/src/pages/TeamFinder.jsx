@@ -424,11 +424,13 @@ function RosterModal({ post, onClose, onChat, navigate }) {
                                     {app.game_role}
                                   </span>
                                 )}
+                                {/* [COMING SOON] ELO — part of Player Stats feature, hidden until it ships.
                                 {app.elo_rating && (
                                   <span className="text-xs px-2 py-0.5 rounded-full border border-surface-border bg-white/5 text-gray-400">
                                     ELO {app.elo_rating}
                                   </span>
                                 )}
+                                */}
                               </div>
                               {app.message && (
                                 <p className="text-xs text-gray-400 mt-1 line-clamp-2 leading-relaxed">
@@ -1205,7 +1207,7 @@ function ListingCard({
     region,
     description,
     poster_rank,
-    poster_elo,
+    // poster_elo, // [COMING SOON] — part of Player Stats feature, hidden until it ships
     created_at,
     post_id,
     deadline,
@@ -1342,7 +1344,8 @@ function ListingCard({
           {role_required && <span className="badge-red">{role_required}</span>}
           {rank_required && <span className="badge-blue">{rank_required}</span>}
           {region && <span className="badge-gray">📍 {region}</span>}
-          {poster_elo && <span className="badge-gray">ELO {poster_elo}</span>}
+          {/* {poster_elo && <span className="badge-gray">ELO {poster_elo}</span>} */}
+          {/* [COMING SOON] ELO badge above — part of Player Stats feature, hidden until it ships. */}
           {poster_rank && <span className="badge-gray">🏅 {poster_rank}</span>}
         </div>
         {description && (
