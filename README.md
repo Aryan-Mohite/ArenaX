@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="Arena X Logo.png" alt="ArenaX Logo" width="180"/>
+<img src="TeamUpArenaX.jpg" alt="ArenaX Logo" width="160"/>
 
 # ArenaX
 
@@ -40,7 +40,7 @@
 
 ## Overview
 
-ArenaX is a community-driven esports web platform designed for competitive gamers. It brings together tournament management, team coordination, live streaming, and social features into a single, unified experience — built from the ground up as a full-stack application with a focus on performance and security.
+ArenaX is a community-driven esports web platform built for competitive gamers. It brings tournament management, team coordination, live streaming, and social features together into a single, unified experience — built from the ground up as a full-stack application with a focus on performance and security.
 
 The platform supports multiple popular titles including Valorant, BGMI, Free Fire, PUBG, CS2, Mobile Legends, Dota 2, Apex Legends, and more.
 
@@ -48,16 +48,16 @@ The platform supports multiple popular titles including Valorant, BGMI, Free Fir
 
 ## Screenshots
 
-> _Screenshots coming soon — drop yours in a PR!_
+> Screenshots coming soon — more will be added as the project evolves.
 
-| Page | Preview |
-|------|---------|
-| Home | `docs/screenshots/home.png` |
-| Tournament Bracket | `docs/screenshots/tournament.png` |
-| Team Finder | `docs/screenshots/teamfinder.png` |
-| Communities | `docs/screenshots/communities.png` |
-| Admin Dashboard | `docs/screenshots/admin.png` |
-| User Profile | `docs/screenshots/profile.png` |
+| Page               | Preview |
+| ------------------ | ------- |
+| Home               | `TeamUpArenaX.jpg` |
+| Tournament Bracket | `TeamUpArenaX.jpg` |
+| Team Finder        | `TeamUpArenaX.jpg` |
+| Communities        | `TeamUpArenaX.jpg` |
+| Admin Dashboard    | `TeamUpArenaX.jpg` |
+| User Profile       | `TeamUpArenaX.jpg` |
 
 ---
 
@@ -111,26 +111,28 @@ The platform supports multiple popular titles including Valorant, BGMI, Free Fir
 ## Tech Stack
 
 ### Backend
-| Layer | Technology |
-|-------|-----------|
-| Runtime | Node.js ≥ 18 (ES Modules) |
-| Framework | Express 4 |
-| Database | MySQL 8.0 via `mysql2` |
-| Real-time | Socket.io 4 |
-| Auth | JWT (`jsonwebtoken`) + bcrypt |
-| Email | Nodemailer (SMTP) |
-| Security | Helmet (CSP), CORS, express-rate-limit, express-validator, sanitize-html |
-| Process Manager | PM2 (production) |
+
+| Layer           | Technology |
+| ---------------- | ---------- |
+| Runtime           | Node.js ≥ 18 (ES Modules) |
+| Framework         | Express 4 |
+| Database          | MySQL 8.0 via `mysql2` |
+| Real-time         | Socket.io 4 |
+| Auth              | JWT (`jsonwebtoken`) + bcrypt |
+| Email             | Nodemailer (SMTP) |
+| Security          | Helmet (CSP), CORS, express-rate-limit, express-validator, sanitize-html |
+| Process Manager   | PM2 (production) |
 
 ### Frontend
-| Layer | Technology |
-|-------|-----------|
-| Framework | React 18 |
-| Build Tool | Vite 5 |
-| Routing | React Router v6 |
-| Styling | Tailwind CSS 3 |
-| HTTP Client | Axios |
-| Real-time | Socket.io-client 4 |
+
+| Layer        | Technology |
+| ------------- | ---------- |
+| Framework      | React 18 |
+| Build Tool     | Vite 5 |
+| Routing        | React Router v6 |
+| Styling        | Tailwind CSS 3 |
+| HTTP Client    | Axios |
+| Real-time      | Socket.io-client 4 |
 
 ### Infrastructure
 - **Web Server** — Nginx (reverse proxy + static file serving + WebSocket support)
@@ -253,19 +255,19 @@ The full schema lives at `backend/database/arenaX_schema_mysql.sql` and is idemp
 
 **Core tables:**
 
-| Group | Tables |
-|-------|--------|
-| Users & Auth | `users`, `pending_verifications`, `password_resets` |
-| Games | `games`, `user_game_profile` |
-| Social | `user_follows`, `friendships`, `messages`, `notifications` |
-| Teams | `teams`, `team_members`, `team_invitations` |
-| Team Finder | `team_finder_posts`, `team_finder_applications` |
-| Tournaments | `tournaments`, `tournament_registrations`, `tournament_organizers`, `matches`, `match_player_stats` |
-| Communities | `communities`, `community_posts`, `post_comments`, `post_votes` |
-| Streaming | `streams` |
-| Gamification | `achievements`, `user_achievements` |
-| Moderation | `reports`, `deleted_users_log` |
-| Archive | `archive_tournaments`, `archive_team_finder_posts`, `archive_streams`, `archive_community_posts`, `archive_teams`, `archive_matches`, `archive_audit_log`, `archive_config` |
+| Group        | Tables |
+| ------------- | ------ |
+| Users & Auth   | `users`, `pending_verifications`, `password_resets` |
+| Games          | `games`, `user_game_profile` |
+| Social         | `user_follows`, `friendships`, `messages`, `notifications` |
+| Teams          | `teams`, `team_members`, `team_invitations` |
+| Team Finder    | `team_finder_posts`, `team_finder_applications` |
+| Tournaments    | `tournaments`, `tournament_registrations`, `tournament_organizers`, `matches`, `match_player_stats` |
+| Communities    | `communities`, `community_posts`, `post_comments`, `post_votes` |
+| Streaming      | `streams` |
+| Gamification   | `achievements`, `user_achievements` |
+| Moderation     | `reports`, `deleted_users_log` |
+| Archive        | `archive_tournaments`, `archive_team_finder_posts`, `archive_streams`, `archive_community_posts`, `archive_teams`, `archive_matches`, `archive_audit_log`, `archive_config` |
 
 Archive tables use MySQL triggers to snapshot rows as JSON before deletion, providing a full soft-delete + restore system.
 
@@ -274,7 +276,6 @@ Archive tables use MySQL triggers to snapshot rows as JSON before deletion, prov
 ## Getting Started
 
 ### Prerequisites
-
 - **Node.js** ≥ 18.0.0
 - **MySQL** 8.0+
 - **npm** or **yarn**
@@ -283,8 +284,8 @@ Archive tables use MySQL triggers to snapshot rows as JSON before deletion, prov
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/your-username/arenaX.git
-cd arenaX/backend
+git clone https://github.com/Aryan-Mohite/ArenaX.git
+cd ArenaX/backend
 
 # 2. Install dependencies
 npm install
@@ -307,7 +308,7 @@ npm run dev
 ### Frontend Setup
 
 ```bash
-cd arenaX/frontend
+cd ArenaX/frontend
 
 # 1. Install dependencies
 npm install
@@ -327,34 +328,34 @@ npm run dev
 
 ### Backend — `backend/.env`
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `PORT` | No | Server port (default: `5000`) |
-| `NODE_ENV` | No | `development` or `production` |
-| `DB_HOST` | ✅ | MySQL host |
-| `DB_PORT` | No | MySQL port (default: `3306`) |
-| `DB_USER` | ✅ | MySQL username |
-| `DB_PASSWORD` | ✅ | MySQL password |
-| `DB_NAME` | ✅ | Database name |
-| `JWT_SECRET` | ✅ | Long random secret — generate with `openssl rand -hex 64` |
-| `JWT_EXPIRES_IN` | No | Token expiry (default: `7d`) |
-| `ALLOWED_ORIGINS` | ✅ | Comma-separated list of allowed frontend origins |
-| `ADMIN_EMAILS` | ✅ | Comma-separated admin email addresses |
-| `SMTP_HOST` | ✅ | SMTP server host |
-| `SMTP_PORT` | ✅ | SMTP port (usually `587`) |
-| `SMTP_USER` | ✅ | SMTP username / email |
-| `SMTP_PASS` | ✅ | SMTP password or app password |
-| `HENRIKDEV_KEY` | No | HenrikDev API key (Valorant stats) |
-| `TRACKER_GG_KEY` | No | Tracker.gg API key |
+| Variable          | Required | Description |
+| ------------------ | -------- | ------------ |
+| `PORT`              | No  | Server port (default: `5000`) |
+| `NODE_ENV`          | No  | `development` or `production` |
+| `DB_HOST`           | Yes | MySQL host |
+| `DB_PORT`           | No  | MySQL port (default: `3306`) |
+| `DB_USER`           | Yes | MySQL username |
+| `DB_PASSWORD`       | Yes | MySQL password |
+| `DB_NAME`           | Yes | Database name |
+| `JWT_SECRET`        | Yes | Long random secret — generate with `openssl rand -hex 64` |
+| `JWT_EXPIRES_IN`    | No  | Token expiry (default: `7d`) |
+| `ALLOWED_ORIGINS`   | Yes | Comma-separated list of allowed frontend origins |
+| `ADMIN_EMAILS`      | Yes | Comma-separated admin email addresses |
+| `SMTP_HOST`         | Yes | SMTP server host |
+| `SMTP_PORT`         | Yes | SMTP port (usually `587`) |
+| `SMTP_USER`         | Yes | SMTP username / email |
+| `SMTP_PASS`         | Yes | SMTP password or app password |
+| `HENRIKDEV_KEY`     | No  | HenrikDev API key (Valorant stats) |
+| `TRACKER_GG_KEY`    | No  | Tracker.gg API key |
 
 > **Never commit `.env` to version control.** Use `.env.example` as the template.
 
 ### Frontend — `frontend/.env.production`
 
-| Variable | Description |
-|----------|-------------|
-| `VITE_API_URL` | Backend API base URL (e.g. `https://api.yourdomain.com/api`). Leave empty if served from the same origin via Nginx. |
-| `VITE_SOCKET_URL` | Socket.io server URL. Defaults to same origin as the API. |
+| Variable           | Description |
+| -------------------- | ------------ |
+| `VITE_API_URL`        | Backend API base URL (e.g. `https://api.yourdomain.com/api`). Leave empty if served from the same origin via Nginx. |
+| `VITE_SOCKET_URL`     | Socket.io server URL. Defaults to same origin as the API. |
 
 ---
 
@@ -362,26 +363,26 @@ npm run dev
 
 All endpoints are prefixed with `/api`. Protected routes require an `Authorization: Bearer <token>` header.
 
-| Route Prefix | Description | Auth |
-|---|---|---|
-| `POST /api/auth/register` | Create account + send OTP | Public |
-| `POST /api/auth/verify-email` | Verify email with OTP | Public |
-| `POST /api/auth/login` | Login, returns JWT | Public |
-| `POST /api/auth/forgot-password` | Send password reset email | Public |
-| `POST /api/auth/reset-password` | Reset password with token | Public |
-| `/api/users` | Profile read/update, follows, friends | Protected |
-| `/api/games` | Game catalog CRUD | Public / Admin |
-| `/api/tournaments` | Tournament create, join, bracket | Mixed |
-| `/api/teams` | Team management, invitations | Protected |
-| `/api/teamfinder` | LFG posts and applications | Mixed |
-| `/api/communities` | Posts, comments, votes | Mixed |
-| `/api/messages` | Direct message history | Protected |
-| `/api/streams` | Stream session management | Protected |
-| `/api/matches` | Match results and stats | Protected |
-| `/api/stats` | Player and platform statistics | Mixed |
-| `/api/admin` | User/content moderation | Admin only |
-| `/api/archive` | Soft-delete archive and restore | Admin only |
-| `GET /health` | Health check | Public |
+| Route Prefix                      | Description                            | Auth |
+| ----------------------------------- | --------------------------------------- | ---- |
+| `POST /api/auth/register`           | Create account + send OTP               | Public |
+| `POST /api/auth/verify-email`       | Verify email with OTP                   | Public |
+| `POST /api/auth/login`              | Login, returns JWT                      | Public |
+| `POST /api/auth/forgot-password`    | Send password reset email               | Public |
+| `POST /api/auth/reset-password`     | Reset password with token                | Public |
+| `/api/users`                        | Profile read/update, follows, friends    | Protected |
+| `/api/games`                        | Game catalog CRUD                       | Public / Admin |
+| `/api/tournaments`                  | Tournament create, join, bracket         | Mixed |
+| `/api/teams`                        | Team management, invitations             | Protected |
+| `/api/teamfinder`                   | LFG posts and applications               | Mixed |
+| `/api/communities`                  | Posts, comments, votes                   | Mixed |
+| `/api/messages`                     | Direct message history                   | Protected |
+| `/api/streams`                      | Stream session management                | Protected |
+| `/api/matches`                      | Match results and stats                  | Protected |
+| `/api/stats`                        | Player and platform statistics           | Mixed |
+| `/api/admin`                        | User/content moderation                  | Admin only |
+| `/api/archive`                      | Soft-delete archive and restore          | Admin only |
+| `GET /health`                       | Health check                             | Public |
 
 Rate limits: auth endpoints are capped at **10 requests / 15 minutes**; all other API endpoints at **120 requests / minute**.
 
@@ -393,29 +394,29 @@ Socket connections require a valid JWT passed in `socket.handshake.auth.token`. 
 
 ### Client → Server
 
-| Event | Payload | Description |
-|-------|---------|-------------|
-| `go_online` | — | Broadcast presence to other users |
-| `send_message` | `{ receiverId, content }` | Send a direct message |
-| `join_stream` | `{ streamId }` | Join a stream chat room |
-| `leave_stream` | `{ streamId }` | Leave a stream chat room |
-| `stream_chat` | `{ streamId, message }` | Send a stream chat message |
-| `join_tournament` | `{ tournamentId }` | Subscribe to bracket updates |
-| `match_update` | `{ tournamentId, matchData }` | Push bracket update (admin only) |
-| `join_queue` | `{ gameId }` | Enter matchmaking queue |
-| `leave_queue` | `{ gameId }` | Exit matchmaking queue |
+| Event                | Payload                          | Description |
+| ---------------------- | ---------------------------------- | ------------ |
+| `go_online`             | —                                   | Broadcast presence to other users |
+| `send_message`          | `{ receiverId, content }`          | Send a direct message |
+| `join_stream`           | `{ streamId }`                     | Join a stream chat room |
+| `leave_stream`          | `{ streamId }`                     | Leave a stream chat room |
+| `stream_chat`           | `{ streamId, message }`            | Send a stream chat message |
+| `join_tournament`       | `{ tournamentId }`                 | Subscribe to bracket updates |
+| `match_update`          | `{ tournamentId, matchData }`      | Push bracket update (admin only) |
+| `join_queue`            | `{ gameId }`                       | Enter matchmaking queue |
+| `leave_queue`           | `{ gameId }`                       | Exit matchmaking queue |
 
 ### Server → Client
 
-| Event | Description |
-|-------|-------------|
-| `user_online` / `user_offline` | Presence updates |
-| `new_message` | Incoming direct message |
-| `message_sent` | Confirmation of sent message |
-| `stream_chat_message` | Incoming stream chat message |
-| `viewer_joined` / `viewer_left` | Stream viewer updates |
-| `bracket_updated` | Live tournament bracket change |
-| `queue_joined` | Matchmaking queue confirmation |
+| Event                              | Description |
+| ------------------------------------ | ------------ |
+| `user_online` / `user_offline`        | Presence updates |
+| `new_message`                         | Incoming direct message |
+| `message_sent`                        | Confirmation of sent message |
+| `stream_chat_message`                 | Incoming stream chat message |
+| `viewer_joined` / `viewer_left`       | Stream viewer updates |
+| `bracket_updated`                     | Live tournament bracket change |
+| `queue_joined`                        | Matchmaking queue confirmation |
 
 Socket messages are rate-limited to **60 events / minute per user**. Message length is capped at 2,000 characters for DMs and 500 for stream chat.
 
@@ -427,9 +428,9 @@ ArenaX was built with security as a first-class concern:
 
 - **Helmet** — Sets strict HTTP security headers including a hand-tuned Content Security Policy (no `unsafe-eval`, no wildcard origins)
 - **CORS** — Strict allowlist; only origins in `ALLOWED_ORIGINS` are accepted
-- **JWT + DB verification** — Every authenticated request verifies the token _and_ checks the user is still active in the database. Banned or deleted accounts are rejected immediately.
+- **JWT + DB verification** — Every authenticated request verifies the token *and* checks the user is still active in the database. Banned or deleted accounts are rejected immediately.
 - **Admin verification** — Admin middleware performs a live DB lookup against `ADMIN_EMAILS` on every request; a forged `isAdmin` JWT claim grants no access
-- **Auth cache** — In-memory cache (60 s TTL) reduces DB load on the hot auth path; cache entries are evicted instantly when a user is banned or deleted
+- **Auth cache** — In-memory cache (60s TTL) reduces DB load on the hot auth path; cache entries are evicted instantly when a user is banned or deleted
 - **Rate limiting** — Separate limits for auth routes (brute-force protection) and general API routes
 - **Socket rate limiting** — Per-user event counters with automatic stale-entry pruning
 - **Input validation** — `express-validator` on all inputs; user-generated HTML is sanitized with `sanitize-html` before storage
@@ -489,6 +490,6 @@ This project is licensed under the **ISC License**. See [`LICENSE`](LICENSE) for
 
 <div align="center">
 
-Built by [Aryan](https://github.com/your-username) · Walchand College of Engineering, Sangli
+Built by [Aryan Mohite](https://github.com/Aryan-Mohite) · Walchand College of Engineering, Sangli
 
 </div>
