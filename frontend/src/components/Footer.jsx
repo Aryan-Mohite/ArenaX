@@ -130,7 +130,7 @@ export default function Footer() {
         <div className="flex items-center gap-4">
           {/* Instagram */}
           <a
-            href="https://instagram.com/arenax.gg"
+            href="https://www.instagram.com/arenax_gg/"
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Follow us on Instagram"
@@ -158,7 +158,7 @@ export default function Footer() {
 
           {/* YouTube */}
           <a
-            href="https://youtube.com/@arenax"
+            href="https://youtube.com/@ArenaX_gg"
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Subscribe on YouTube"
