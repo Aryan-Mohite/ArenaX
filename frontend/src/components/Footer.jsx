@@ -118,11 +118,11 @@ export default function Footer() {
             |
           </span>
           <a
-            href="mailto:legal@arenax.gg"
+            href="mailto:arenaxxtreme@gmail.com"
             className="text-xs transition-colors hover:underline"
             style={{ color: "var(--text-muted)" }}
           >
-            legal@arenax.gg
+            arenaxxtreme@gmail.com
           </a>
         </div>
 

@@ -35,20 +35,12 @@ const FEATURES = [
     desc: "Spectate community members broadcasting live. Going live yourself is one click away — no external setup required.",
     to: "/stream",
   },
-  {
-    icon: "📊",
-    title: "Player Cards",
-    // [COMING SOON] Original copy referenced Service Record/ranks (Player Stats feature) — removed until it ships.
-    // desc: "Your Player Card is your gaming résumé. Display ranks, Service Record, tournament history and your Arsenal — all in one place.",
-    desc: "Your Player Card is your gaming résumé. Display tournament history and your Arsenal — all in one place.",
-    to: "/profile",
-  },
 ];
 
 const STATS = [
-  { value: "50K+", label: "Registered players" },
-  { value: "1200+", label: "Tournaments forged" },
-  { value: "25+", label: "Games in the Grid" },
+  { value: "50+", label: "Registered players" },
+  { value: "100+", label: "Tournaments forged" },
+  { value: "10+", label: "Games in the Grid" },
   { value: "24 / 7", label: "Live streams" },
 ];
 
@@ -56,7 +48,6 @@ const TEAM = [
   { name: "Aryan & Adi", role: "Founder & CEO", emoji: "🦁" },
   { name: "Aditya", role: "Head of Product", emoji: "🚀" },
   { name: "Aryan", role: "Lead Engineer", emoji: "⚡" },
-  { name: "Claude", role: "Community Manager", emoji: "🎯" },
 ];
 
 const VALUES = [
@@ -175,8 +166,8 @@ function MissionSection() {
             We envision a world where competitive gaming is as accessible and
             rewarding as playing itself. A world where every player can find
             {/* [COMING SOON] Original copy: "their community, test their skills, and rise through the ranks — all" — rank mention removed until Player Stats ships. */}
-            their community, test their skills, and compete at the highest level — all
-            without leaving the platform.
+            their community, test their skills, and compete at the highest level
+            — all without leaving the platform.
           </p>
         </div>
 
@@ -220,8 +211,8 @@ function FeaturesSection() {
           </h2>
           <p className="text-gray-400 max-w-xl mx-auto">
             {/* [COMING SOON] Original copy: "Your tournament wins show on your profile. Your stats power your team listing. It all fits together." — stats reference removed until Player Stats ships. */}
-            Six core features, all interconnected. Your tournament history shows on
-            your profile, and it all fits together.
+            Six core features, all interconnected. Your tournament history shows
+            on your profile, and it all fits together.
           </p>
         </div>
 
