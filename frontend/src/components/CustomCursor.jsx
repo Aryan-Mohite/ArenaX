@@ -8,8 +8,22 @@ export default function CustomCursor() {
   const rafRef = useRef(null)
   const [isPointer, setIsPointer] = useState(false)
   const [isHidden, setIsHidden] = useState(false)
+  const [isTouchDevice, setIsTouchDevice] = useState(true)
+
+  // Detect touch / coarse-pointer devices (phones, tablets) up front so we
+  // never attach mouse listeners or render the custom cursor on them — on
+  // touch devices there's no real mouse, so the cursor just gets "stuck"
+  // wherever the last touch happened instead of following anything.
+  useEffect(() => {
+    const coarsePointer = window.matchMedia('(pointer: coarse)').matches
+    const noHover = window.matchMedia('(hover: none)').matches
+    const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+    setIsTouchDevice(coarsePointer || noHover || hasTouch)
+  }, [])
 
   useEffect(() => {
+    if (isTouchDevice) return
+
     const onMouseMove = (e) => {
       mousePos.current = { x: e.clientX, y: e.clientY }
 
@@ -51,7 +65,9 @@ export default function CustomCursor() {
       document.removeEventListener('mouseenter', onMouseEnter)
       cancelAnimationFrame(rafRef.current)
     }
-  }, [])
+  }, [isTouchDevice])
+
+  if (isTouchDevice) return null
 
   return (
     <>

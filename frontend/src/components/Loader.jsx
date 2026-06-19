@@ -26,7 +26,7 @@ export default function Loader() {
 
   return (
     <div
-      className={`fixed inset-0 z-[9999] flex items-center justify-center bg-[#050505] transition-all duration-500 ${
+      className={`app-loader fixed inset-0 z-[9999] flex items-center justify-center bg-[#050505] transition-all duration-500 ${
         count === 100 ? 'opacity-0 invisible' : 'opacity-100 visible'
       }`}
     >

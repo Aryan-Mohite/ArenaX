@@ -81,7 +81,15 @@
    BASE STYLES
 ════════════════════════════════════════════════ */
 @layer base {
-  * { box-sizing: border-box; cursor: none !important; }
+  * { box-sizing: border-box; }
+
+  /* Hide the native cursor only on devices with a real mouse (fine pointer).
+     On touch devices (phones/tablets) there's no custom cursor rendered
+     (see CustomCursor.jsx), so we must not hide the native cursor there —
+     doing so previously left a frozen ring/dot stuck at the last tap point. */
+  @media (hover: hover) and (pointer: fine) {
+    * { cursor: none !important; }
+  }
 
   html {
     transition: background-color 0.3s ease, color 0.3s ease;
@@ -128,7 +136,6 @@
     border: none;
     display: inline-flex;
     align-items: center;
-    cursor: none !important;
   }
   .btn-primary:hover  { background-color: var(--red-dark); }
   .btn-primary:active { transform: scale(0.95); }
@@ -144,7 +151,6 @@
     transition: all 0.2s;
     display: inline-flex;
     align-items: center;
-    cursor: none !important;
   }
   .btn-secondary:hover {
     border-color: var(--red);
@@ -161,7 +167,6 @@
     background: transparent;
     border: none;
     transition: all 0.2s;
-    cursor: none !important;
   }
   .btn-ghost:hover { color: var(--text-primary); background-color: var(--bg-card); }
 
@@ -181,7 +186,6 @@
     padding: 1.25rem;
     transition: background-color 0.3s, border-color 0.3s, box-shadow 0.2s;
     box-shadow: var(--shadow-card);
-    cursor: none !important;
   }
   .card-hover:hover {
     border-color: var(--border-hover);
@@ -241,7 +245,6 @@
     width: 48px;
     height: 26px;
     border-radius: 9999px;
-    cursor: none !important;
     transition: background-color 0.35s ease;
     border: 1.5px solid var(--border-color);
     flex-shrink: 0;
@@ -707,4 +710,21 @@ header.sticky {
     color: var(--text-secondary) !important;
     border-color: var(--border-color) !important;
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   APP SPLASH LOADER — always dark, regardless of theme
+   The loader is a full-screen pre-content splash shown before the
+   user has even seen the themed UI. It must never be re-skinned by
+   the light-theme overrides above (which otherwise turn its white
+   status text dark, making it invisible against the loader's dark
+   backdrop). Placed last so it wins over earlier same-specificity
+   light-theme rules.
+═══════════════════════════════════════════════════════════════════ */
+.app-loader {
+  background-color: #050505 !important;
+}
+.app-loader .text-white,
+.app-loader [class*="text-white"] {
+  color: #ffffff !important;
 }

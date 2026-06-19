@@ -216,12 +216,12 @@ function FeaturesSection() {
           </p>
         </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="flex flex-wrap justify-center gap-5">
           {FEATURES.map(({ icon, title, desc, to }) => (
             <Link
               key={title}
               to={to}
-              className="card-hover group flex flex-col gap-3"
+              className="card-hover group flex flex-col gap-3 w-full sm:w-[calc(50%-0.625rem)] lg:w-[calc(33.333%-0.834rem)]"
             >
               <span className="text-3xl">{icon}</span>
               <h3 className="font-semibold text-white group-hover:text-red transition-colors">
@@ -287,11 +287,11 @@ function TeamSection() {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+        <div className="flex flex-wrap justify-center gap-5">
           {TEAM.map(({ name, role, emoji }) => (
             <div
               key={name}
-              className="card text-center flex flex-col items-center gap-3"
+              className="card text-center flex flex-col items-center gap-3 w-full sm:w-[calc(50%-0.625rem)] md:w-[calc(25%-0.938rem)]"
             >
               <div
                 className="w-16 h-16 rounded-full flex items-center justify-center text-3xl border border-surface-border"
