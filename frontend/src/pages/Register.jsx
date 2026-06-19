@@ -91,6 +91,16 @@ export default function Register() {
   // FIX (medium): countKey increments on each resend, causing Countdown to remount
   // and restart from 600s with the new code's expiry window.
   const [countKey, setCountKey] = useState(0);
+  const [resendCooldown, setResendCooldown] = useState(60);
+
+
+  useEffect(() => {
+    if (step !== "otp" || resendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCooldown((v) => (v <= 1 ? 0 : v - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [step, resendCooldown]);
 
   const handleChange = (e) => {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
@@ -106,6 +116,7 @@ export default function Register() {
       setStep("otp");
       setExpired(false);
       setCountKey(0);
+      setResendCooldown(60);
     } catch (err) {
       const errs = err.response?.data?.errors;
       setError(errs ? errs[0]?.message : err.response?.data?.message || "Failed to send code");
@@ -127,6 +138,7 @@ export default function Register() {
   };
 
   const handleResend = async () => {
+    if (resendCooldown > 0) return;
     setLoading(true); setError(""); setResendOk(false);
     try {
       await resendRegisterOtp({ email: form.email });
@@ -135,6 +147,7 @@ export default function Register() {
       setResendOk(true);
       // FIX: increment countKey to force Countdown remount with fresh 600s window
       setCountKey((k) => k + 1);
+      setResendCooldown(60);
       setTimeout(() => setResendOk(false), 4000);
     } catch (err) {
       setError(err.response?.data?.message || "Failed to resend");
@@ -293,12 +306,18 @@ export default function Register() {
 
                 {!expired && (
                   <div className="text-center text-sm" style={{ color: "var(--text-secondary)" }}>
-                    Didn't receive it?{" "}
-                    <button type="button" onClick={handleResend} disabled={loading}
-                      className="font-medium hover:underline disabled:opacity-50"
-                      style={{ color: "#ff4655" }}>
-                      Resend code
-                    </button>
+                    {resendCooldown > 0 ? (
+                      <>Resend available in <span style={{ color: "#ff4655" }}>{resendCooldown}s</span></>
+                    ) : (
+                      <>
+                        Didn't receive it?{" "}
+                        <button type="button" onClick={handleResend} disabled={loading}
+                          className="font-medium hover:underline disabled:opacity-50"
+                          style={{ color: "#ff4655" }}>
+                          Resend code
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
 
