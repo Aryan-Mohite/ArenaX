@@ -29,9 +29,21 @@ const STATUS_STYLES = {
 const FORMAT_LABELS = {
   single_elimination: "Single Elim",
   double_elimination: "Double Elim",
-  round_robin: "Round Robin",
-  swiss: "Swiss",
+  TDM: "TDM",
+  _5v5: "5v5",
+  Battle_Royale: "Battle Royale",
+  Round_Robin: "Round Robin",
+  League: "League",
+  Swiss: "Swiss",
+  Group_Stage: "Group Stage",
+  Knockout: "Knockout",
+  Qualifiers: "Qualifiers",
+  Playoffs: "Playoffs",
+  Championship: "Championship",
 };
+// Same set, used to populate the "Format" <select> in the post form.
+// Keys here must match the values TournamentCard.jsx (and the backend) expect.
+const FORMAT_OPTIONS = Object.entries(FORMAT_LABELS);
 function StatusBadge({ status }) {
   const s = STATUS_STYLES[status] || STATUS_STYLES.upcoming;
   return (
@@ -248,14 +260,11 @@ function OrganizerPostModal({ games, onClose, onCreated }) {
                     value={form.format}
                     onChange={(e) => set("format", e.target.value)}
                   >
-                    <option value="single_elimination">
-                      Single Elimination
-                    </option>
-                    <option value="double_elimination">
-                      Double Elimination
-                    </option>
-                    <option value="round_robin">Round Robin</option>
-                    <option value="swiss">Swiss</option>
+                    {FORMAT_OPTIONS.map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
