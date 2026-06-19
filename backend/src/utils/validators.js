@@ -55,7 +55,21 @@ export const validateCreateTournament = [
     .isInt({ min: 1 }).withMessage("game_id must be a positive integer"),
   body("format")
     .optional()
-    .isIn(["single_elimination", "double_elimination", "round_robin", "swiss"])
+    .isIn([
+      "single_elimination",
+      "double_elimination",
+      "TDM",
+      "_5v5",
+      "Battle_Royale",
+      "Round_Robin",
+      "League",
+      "Swiss",
+      "Group_Stage",
+      "Knockout",
+      "Qualifiers",
+      "Playoffs",
+      "Championship",
+    ])
     .withMessage("Invalid tournament format"),
   body("start_date")
     .notEmpty().withMessage("Start date is required")
