@@ -9,3 +9,5 @@ export const leaveTeam            = (id)                 => API.delete(`/teams/$
 export const kickMember           = (teamId, userId)     => API.delete(`/teams/${teamId}/members/${userId}`)
 export const inviteMember         = (teamId, userId)     => API.post(`/teams/${teamId}/invite`, { user_id: userId })
 export const respondToInvitation  = (inviteId, action)  => API.patch(`/teams/invitations/${inviteId}`, { action })
+export const getTeamMessages      = (teamId, params)    => API.get(`/teams/${teamId}/messages`, { params })
+export const sendTeamMessage      = (teamId, content)    => API.post(`/teams/${teamId}/messages`, { content })

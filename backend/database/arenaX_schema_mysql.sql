@@ -1328,3 +1328,23 @@ ADD COLUMN max_teams INT DEFAULT NULL;
 
 ALTER TABLE community_posts
   MODIFY COLUMN image_url LONGTEXT;
+
+
+-- =============================================================================
+-- MIGRATION: Team group chat
+-- Safe to run on an existing database — uses CREATE TABLE IF NOT EXISTS,
+-- so it will not error or duplicate if run more than once.
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS team_messages (
+    team_message_id INT AUTO_INCREMENT  PRIMARY KEY,
+    team_id          INT                 NOT NULL,
+    sender_id        INT                 NOT NULL,
+    content          TEXT                NOT NULL,
+    sent_at          DATETIME            NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_tmsg_team   FOREIGN KEY (team_id)   REFERENCES teams(team_id) ON DELETE CASCADE,
+    CONSTRAINT fk_tmsg_sender FOREIGN KEY (sender_id) REFERENCES users(user_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE INDEX idx_team_messages_team   ON team_messages(team_id, sent_at);
+CREATE INDEX idx_team_messages_sender ON team_messages(sender_id);

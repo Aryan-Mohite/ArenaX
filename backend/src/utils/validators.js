@@ -162,6 +162,13 @@ export const validateSendMessage = [
     .isLength({ max: 2000 }).withMessage("Message must be under 2000 characters"),
 ];
 
+export const validateSendTeamMessage = [
+  body("content")
+    .trim()
+    .notEmpty().withMessage("Message content cannot be empty")
+    .isLength({ max: 2000 }).withMessage("Message must be under 2000 characters"),
+];
+
 // ─── COMMUNITY POSTS ───────────────────────────────────────────────────────────
 export const validateCommunityPost = [
   body("title")

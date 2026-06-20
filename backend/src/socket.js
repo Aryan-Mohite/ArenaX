@@ -140,6 +140,75 @@ export const initSocket = (httpServer) => {
       });
     });
 
+    // ── TEAM GROUP CHAT ────────────────────────────────────────────────────
+    // Only active team_members may join/post. Membership is re-checked on every
+    // join and every message so kicked/left members lose access immediately —
+    // even if they kept an old tab open with the room already joined.
+    socket.on("join_team_chat", async ({ teamId }) => {
+      const safeTeamId = Number(teamId);
+      if (!Number.isInteger(safeTeamId) || safeTeamId < 1) return;
+      try {
+        const [rows] = await pool.query(
+          "SELECT 1 FROM team_members WHERE team_id=? AND user_id=? AND status='active'",
+          [safeTeamId, userId]
+        );
+        if (rows.length === 0)
+          return socket.emit("error", { message: "You are not a member of this team" });
+
+        socket.join(`team:${safeTeamId}`);
+      } catch (err) {
+        console.error("Socket join_team_chat error:", err.message);
+      }
+    });
+
+    socket.on("leave_team_chat", ({ teamId }) => {
+      const safeTeamId = Number(teamId);
+      if (!Number.isInteger(safeTeamId) || safeTeamId < 1) return;
+      socket.leave(`team:${safeTeamId}`);
+    });
+
+    socket.on("team_chat_message", async ({ teamId, content }) => {
+      const safeTeamId = Number(teamId);
+      if (!Number.isInteger(safeTeamId) || safeTeamId < 1 || !content?.trim()) return;
+
+      if (isRateLimited(userId))
+        return socket.emit("error", { message: "Sending messages too quickly — slow down" });
+
+      if (content.trim().length > SOCKET_MSG_MAX_LEN)
+        return socket.emit("error", { message: `Message too long (max ${SOCKET_MSG_MAX_LEN} characters)` });
+
+      try {
+        // Re-check membership on every send — not just at join time — so a
+        // member kicked mid-session can't keep posting in a stale room.
+        const [memberRows] = await pool.query(
+          "SELECT 1 FROM team_members WHERE team_id=? AND user_id=? AND status='active'",
+          [safeTeamId, userId]
+        );
+        if (memberRows.length === 0)
+          return socket.emit("error", { message: "You are no longer a member of this team" });
+
+        const [insertResult] = await pool.query(
+          "INSERT INTO team_messages (team_id, sender_id, content) VALUES (?, ?, ?)",
+          [safeTeamId, userId, content.trim()]
+        );
+
+        const [msgRows] = await pool.query(
+          `SELECT tm.*, u.username AS sender_username, u.profile_picture AS sender_picture
+           FROM team_messages tm JOIN users u ON u.user_id = tm.sender_id
+           WHERE tm.team_message_id = ?`,
+          [insertResult.insertId]
+        );
+
+        // Broadcast to everyone in the room, including the sender — keeps a
+        // single source of truth for ordering instead of an optimistic-bubble
+        // diverging from the server copy.
+        io.to(`team:${safeTeamId}`).emit("team_chat_message", msgRows[0]);
+      } catch (err) {
+        socket.emit("error", { message: "Failed to send team message" });
+        console.error("Socket team_chat_message error:", err.message);
+      }
+    });
+
     // ── TOURNAMENT ROOMS ───────────────────────────────────────────────────
     socket.on("join_tournament", ({ tournamentId }) => socket.join(`tournament:${tournamentId}`));
 

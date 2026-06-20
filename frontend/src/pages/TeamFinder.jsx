@@ -350,6 +350,242 @@ function ChatModal({ partnerId, partnerName, onClose }) {
   );
 }
 
+function TeamChatModal({ teamId, teamName, onClose }) {
+  const { theme } = useTheme();
+  const ts = themeStyles(theme);
+  const isLight = theme === "light";
+
+  const [messages, setMessages] = useState([]);
+  const [text, setText] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [connected, setConnected] = useState(false);
+  const [joined, setJoined] = useState(false);
+  const [accessError, setAccessError] = useState("");
+  const { user } = useAuth();
+  const bottomRef = useRef(null);
+  const socketRef = useRef(null);
+
+  const loadMessages = useCallback(async () => {
+    try {
+      const r = await authFetch(`/teams/${teamId}/messages?limit=60`);
+      setMessages(r.messages || []);
+    } catch (err) {
+      if (err?.response?.status === 403) {
+        setAccessError("You're no longer a member of this team.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [teamId]);
+
+  // Socket.IO room — joining is membership-checked server-side on every join,
+  // and again on every message send, so a kicked/left member loses access
+  // immediately rather than at next page load.
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    const apiUrl = import.meta.env.VITE_API_URL || "";
+    const socketUrl =
+      import.meta.env.VITE_SOCKET_URL ||
+      (apiUrl ? apiUrl.replace(/\/api\/?$/, "") : undefined);
+
+    const socket = io(socketUrl || undefined, {
+      auth: { token },
+      transports: ["websocket", "polling"],
+      reconnectionAttempts: 5,
+    });
+    socketRef.current = socket;
+
+    socket.on("connect", () => {
+      setConnected(true);
+      socket.emit("join_team_chat", { teamId });
+    });
+    socket.on("disconnect", () => setConnected(false));
+
+    // Once join_team_chat is accepted there's no explicit ack — we infer
+    // success unless an error event fires right after.
+    setJoined(true);
+
+    socket.on("team_chat_message", (msg) => {
+      if (Number(msg.team_id) !== Number(teamId)) return;
+      setMessages((prev) => {
+        if (prev.find((m) => m.team_message_id === msg.team_message_id)) return prev;
+        return [...prev.filter((m) => !m._opt), msg];
+      });
+      setSending(false);
+    });
+
+    socket.on("error", (err) => {
+      setSending(false);
+      if (err?.message?.toLowerCase().includes("member")) {
+        setAccessError(err.message);
+        setJoined(false);
+      }
+    });
+
+    return () => {
+      socket.emit("leave_team_chat", { teamId });
+      socket.disconnect();
+      socketRef.current = null;
+    };
+  }, [teamId]);
+
+  useEffect(() => {
+    loadMessages();
+  }, [loadMessages]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const handleSend = async () => {
+    if (!text.trim() || sending || accessError) return;
+    setSending(true);
+    const content = text.trim();
+    setText("");
+
+    const opt = {
+      team_message_id: `opt_${Date.now()}`,
+      team_id: teamId,
+      sender_id: user?.id,
+      sender_username: user?.username,
+      sender_picture: user?.profile_picture,
+      content,
+      sent_at: new Date().toISOString(),
+      _opt: true,
+    };
+    setMessages((p) => [...p, opt]);
+
+    if (socketRef.current?.connected) {
+      // Server broadcasts the saved message back to everyone (including us),
+      // which replaces this optimistic bubble once it arrives.
+      socketRef.current.emit("team_chat_message", { teamId, content });
+    } else {
+      try {
+        await authFetch(`/teams/${teamId}/messages`, {
+          method: "POST",
+          body: { content },
+        });
+        await loadMessages();
+      } catch {
+        setMessages((p) => p.filter((m) => !m._opt));
+      } finally {
+        setSending(false);
+      }
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      style={ts.modalBackdropSm}
+    >
+      <div
+        className="w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl border border-surface-border overflow-hidden flex flex-col animate-slide-up"
+        style={{ height: "min(90vh,580px)", ...ts.chatCard }}
+      >
+        <div
+          className="flex items-center gap-3 px-4 py-3 border-b border-surface-border shrink-0"
+          style={ts.modalHeader("rgba(239,68,68,0.08)")}
+        >
+          <div className="w-8 h-8 rounded-full bg-red/20 border border-red/30 flex items-center justify-center text-red font-bold text-sm shrink-0">
+            ⚔️
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-white text-sm truncate">{teamName}</p>
+            <p className="text-xs text-red-light flex items-center gap-1">
+              <span className={`w-1.5 h-1.5 rounded-full inline-block ${connected ? "bg-green-400" : "bg-yellow-400"}`} />
+              {accessError ? "No access" : connected ? "Live" : "Connecting…"}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:text-white hover:bg-white/10 transition-colors"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2">
+          {loading ? (
+            <div className="flex items-center justify-center flex-1">
+              <div className="w-6 h-6 border-2 border-surface-border border-t-red rounded-full animate-spin" />
+            </div>
+          ) : accessError ? (
+            <div className="flex flex-col items-center justify-center flex-1 text-center px-4">
+              <div className="text-4xl mb-2 opacity-20">🚫</div>
+              <p className="text-gray-400 text-sm">{accessError}</p>
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center flex-1 text-center">
+              <div className="text-4xl mb-2 opacity-20">💬</div>
+              <p className="text-gray-500 text-sm">Say hello to your squad!</p>
+            </div>
+          ) : (
+            messages.map((msg) => {
+              const isMine = msg.sender_id === user?.id;
+              return (
+                <div
+                  key={msg.team_message_id}
+                  className={`flex ${isMine ? "justify-end" : "justify-start"}`}
+                >
+                  <div className={`max-w-[75%] flex flex-col ${isMine ? "items-end" : "items-start"}`}>
+                    {!isMine && (
+                      <p className="text-xs text-gray-500 mb-0.5 px-1">
+                        {msg.sender_username}
+                      </p>
+                    )}
+                    <div
+                      className={`px-3 py-2 rounded-2xl text-sm leading-relaxed ${isMine ? "rounded-br-sm bg-red/20 border border-red/20 text-white" : "rounded-bl-sm bg-white/5 border border-white/10 text-gray-200"} ${msg._opt ? "opacity-60" : ""}`}
+                    >
+                      <p>{msg.content}</p>
+                      <p
+                        className={`text-xs mt-0.5 ${isMine ? "text-red-light/60" : "text-gray-600"}`}
+                      >
+                        {new Date(msg.sent_at).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+          <div ref={bottomRef} />
+        </div>
+        <div className="px-3 py-3 border-t border-surface-border shrink-0 flex gap-2 items-end">
+          <textarea
+            className="flex-1 resize-none rounded-xl border border-surface-border bg-white/5 text-white text-sm px-3 py-2 placeholder-gray-600 focus:outline-none focus:border-red/50 transition-colors disabled:opacity-50"
+            rows={1}
+            placeholder={accessError ? "Chat unavailable" : "Message your team..."}
+            value={text}
+            disabled={!!accessError}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
+            style={{ minHeight: "38px", maxHeight: "96px" }}
+          />
+          <button
+            onClick={handleSend}
+            disabled={!text.trim() || sending || !!accessError}
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-white transition-all shrink-0 disabled:opacity-30"
+            style={{ background: "linear-gradient(135deg,#ef4444,#dc2626)" }}
+          >
+            ➤
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function RosterModal({ post, onClose, onChat, navigate }) {
   const { theme } = useTheme();
   const ts = themeStyles(theme);
@@ -640,7 +876,7 @@ function RosterModal({ post, onClose, onChat, navigate }) {
   );
 }
 
-function MyTeamsPanel({ myGames, onPostForTeam, refreshKey, onTeamsLoaded }) {
+function MyTeamsPanel({ myGames, onPostForTeam, refreshKey, onTeamsLoaded, onTeamChat }) {
   const { theme } = useTheme();
   const ts = themeStyles(theme);
   const isLight = theme === "light";
@@ -921,22 +1157,32 @@ function MyTeamsPanel({ myGames, onPostForTeam, refreshKey, onTeamsLoaded }) {
                         </span>
                       </div>
                     </div>
-                    {team.my_role === "captain" && (
-                      <div className="flex gap-1.5 shrink-0">
-                        <button
-                          onClick={() => onPostForTeam(team)}
-                          className="px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-green-500/30 bg-green-500/10 text-green-400 hover:bg-green-500/20 transition-colors whitespace-nowrap"
-                        >
-                          + Draft
-                        </button>
-                        <button
-                          onClick={() => setDisbandTarget(team.team_id)}
-                          className="w-8 h-8 flex items-center justify-center rounded-lg border border-red/20 bg-red/5 text-red-light hover:bg-red/15 transition-colors text-sm"
-                        >
-                          🗑️
-                        </button>
-                      </div>
-                    )}
+                    <div className="flex gap-1.5 shrink-0">
+                      <button
+                        onClick={() =>
+                          onTeamChat(team.team_id, team.team_name)
+                        }
+                        className="px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-blue-500/30 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors whitespace-nowrap"
+                      >
+                        💬 Team Chat
+                      </button>
+                      {team.my_role === "captain" && (
+                        <>
+                          <button
+                            onClick={() => onPostForTeam(team)}
+                            className="px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-green-500/30 bg-green-500/10 text-green-400 hover:bg-green-500/20 transition-colors whitespace-nowrap"
+                          >
+                            + Draft
+                          </button>
+                          <button
+                            onClick={() => setDisbandTarget(team.team_id)}
+                            className="w-8 h-8 flex items-center justify-center rounded-lg border border-red/20 bg-red/5 text-red-light hover:bg-red/15 transition-colors text-sm"
+                          >
+                            🗑️
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -1506,6 +1752,7 @@ export default function TeamFinder() {
   const [appliedIds, setAppliedIds] = useState(new Set());
   const [rosterPost, setRosterPost] = useState(null);
   const [chatPartner, setChatPartner] = useState(null);
+  const [teamChatTarget, setTeamChatTarget] = useState(null);
   const [closePost_, setClosePost] = useState(null);
   const [myTeams, setMyTeams] = useState([]);
   const [teamsRefresh, setTeamsRefresh] = useState(0);
@@ -1646,6 +1893,13 @@ export default function TeamFinder() {
           partnerId={chatPartner.userId}
           partnerName={chatPartner.username}
           onClose={() => setChatPartner(null)}
+        />
+      )}
+      {teamChatTarget && (
+        <TeamChatModal
+          teamId={teamChatTarget.teamId}
+          teamName={teamChatTarget.teamName}
+          onClose={() => setTeamChatTarget(null)}
         />
       )}
       {closePost_ && (
@@ -1889,6 +2143,9 @@ export default function TeamFinder() {
           onPostForTeam={handlePostForTeam}
           refreshKey={teamsRefresh}
           onTeamsLoaded={setMyTeams}
+          onTeamChat={(teamId, teamName) =>
+            setTeamChatTarget({ teamId, teamName })
+          }
         />
       )}
       {isAuthenticated && (
