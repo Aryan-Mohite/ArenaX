@@ -859,8 +859,8 @@ export default function Profile() {
 
   if (loading) return <PageLoader />;
 
-  const totalMatches = games.reduce((s, g) => s + (g.matches_played || 0), 0);
-  // [COMING SOON] avgWinRate / avgElo — part of Player Stats feature, hidden until it ships.
+  // [COMING SOON] totalMatches / avgWinRate / avgElo — part of Player Stats feature, hidden until it ships.
+  // const totalMatches = games.reduce((s, g) => s + (g.matches_played || 0), 0);
   // const avgWinRate = games.length
   //   ? (
   //       games.reduce((s, g) => s + Number(g.win_rate || 0), 0) / games.length
@@ -1239,18 +1239,18 @@ export default function Profile() {
         </div>
       )}
 
-      {/* Stats row */}
+      {/* Stats row — [COMING SOON] entire Player Stats feature hidden until it ships.
+      Restore this block (and the totalMatches/avgWinRate/avgElo consts above) when re-enabling. */}
+      {/*
       <div className="grid grid-cols-1 gap-4 mb-6">
         <StatCard label="Total Matches" value={totalMatches} />
-        {/* [COMING SOON] Avg Win Rate / Avg ELO — part of Player Stats feature, hidden until it ships.
-        Restore grid-cols-3 above when re-enabling these.
         <StatCard
           label="Avg Win Rate"
           value={avgWinRate ? avgWinRate + "%" : "—"}
         />
         <StatCard label="Avg ELO" value={avgElo} />
-        */}
       </div>
+      */}
 
       {/* Tabs */}
       <div className="flex gap-1 bg-surface-card rounded-lg p-1 mb-6 self-start w-fit">

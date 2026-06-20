@@ -426,11 +426,11 @@ export default function UserProfile() {
       </div>
     );
 
-  const totalMatches = activity.game_profiles.reduce(
-    (s, g) => s + (g.matches_played || 0),
-    0,
-  );
-  // [COMING SOON] avgWinRate — part of Player Stats feature, hidden until it ships.
+  // [COMING SOON] totalMatches / avgWinRate — part of Player Stats feature, hidden until it ships.
+  // const totalMatches = activity.game_profiles.reduce(
+  //   (s, g) => s + (g.matches_played || 0),
+  //   0,
+  // );
   // const avgWinRate = activity.game_profiles.length
   //   ? (
   //       activity.game_profiles.reduce(
@@ -608,15 +608,15 @@ export default function UserProfile() {
       </div>
 
       {/* ── Stats Row ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
         <StatPill
           icon="🎮"
           label="Games Played"
           value={activity.game_profiles.length}
         />
+        {/* [COMING SOON] Total Matches / Avg Win Rate — part of Player Stats feature, hidden until it ships.
+        Restore grid-cols-4 above when re-enabling both.
         <StatPill icon="⚔️" label="Total Matches" value={totalMatches || "—"} />
-        {/* [COMING SOON] Avg Win Rate — part of Player Stats feature, hidden until it ships.
-        Restore grid-cols-4 above when re-enabling.
         <StatPill
           icon="📈"
           label="Avg Win Rate"
