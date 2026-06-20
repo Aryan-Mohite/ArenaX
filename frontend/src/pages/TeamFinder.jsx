@@ -1077,7 +1077,8 @@ function MyDispatchesPanel({ onChat }) {
                     >
                       {cfg.label}
                     </span>
-                    {app.status === "draft_accepted" && (
+                    {(app.status === "draft_accepted" ||
+                      app.status === "accepted") && (
                       <button
                         onClick={() =>
                           onChat(app.poster_user_id, app.poster_username)
