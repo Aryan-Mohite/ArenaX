@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
+import { io } from "socket.io-client";
 import API from "../api/api";
 import { useNavigate } from "react-router-dom";
 import {
@@ -121,51 +122,137 @@ function ChatModal({ partnerId, partnerName, onClose }) {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [connected, setConnected] = useState(false);
   const { user } = useAuth();
   const bottomRef = useRef(null);
   const pollRef = useRef(null);
+  const socketRef = useRef(null);
+
+  // ── BUG FIX 1: Correct conversation URL ─────────────────────────────────
+  // Was: /messages/conversation/${partnerId}  → no such route → 404 silently swallowed
+  // Fix: /messages/${partnerId}              → matches GET /api/messages/:user_id
   const loadMessages = useCallback(
     async (first = false) => {
       try {
-        const r = await authFetch(
-          `/messages/conversation/${partnerId}?limit=60`,
-        );
+        const r = await authFetch(`/messages/${partnerId}?limit=60`);
+        // Replace full list from DB — this also recovers offline messages
         setMessages(r.messages || []);
       } catch {
+        // keep existing messages on transient failure
       } finally {
         if (first) setLoading(false);
       }
     },
     [partnerId],
   );
+
+  // ── BUG FIX 2: Socket.IO for real-time delivery ──────────────────────────
+  // Previously, ChatModal had no Socket.IO at all. The receiver would never see
+  // messages until the next HTTP poll tick — and with the wrong URL above,
+  // they never saw them at all.
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    // Derive socket server URL:
+    //  - Dev (Vite proxy): connect to same origin (undefined = socket.io default)
+    //  - Prod: VITE_SOCKET_URL if set, else strip /api suffix from VITE_API_URL
+    const apiUrl = import.meta.env.VITE_API_URL || "";
+    const socketUrl =
+      import.meta.env.VITE_SOCKET_URL ||
+      (apiUrl ? apiUrl.replace(/\/api\/?$/, "") : undefined);
+
+    const socket = io(socketUrl || undefined, {
+      auth: { token },
+      transports: ["websocket", "polling"],
+      reconnectionAttempts: 5,
+    });
+    socketRef.current = socket;
+
+    socket.on("connect", () => setConnected(true));
+    socket.on("disconnect", () => setConnected(false));
+
+    // Incoming message from our chat partner
+    socket.on("new_message", (msg) => {
+      const senderId = Number(msg.sender_id);
+      const numPartnerId = Number(partnerId);
+      if (senderId !== numPartnerId) return; // ignore messages from other conversations
+      setMessages((prev) => {
+        if (prev.find((m) => m.message_id === msg.message_id)) return prev; // dedupe
+        return [...prev, msg];
+      });
+    });
+
+    // Server confirms our own sent message (replace the optimistic bubble)
+    socket.on("message_sent", (msg) => {
+      setMessages((prev) => {
+        const withoutOpt = prev.filter((m) => !m._opt);
+        if (withoutOpt.find((m) => m.message_id === msg.message_id))
+          return withoutOpt; // already added by poll
+        return [...withoutOpt, msg];
+      });
+      setSending(false);
+    });
+
+    socket.on("error", () => setSending(false));
+
+    return () => {
+      socket.disconnect();
+      socketRef.current = null;
+    };
+  }, [partnerId]);
+
+  // Initial load + fallback poll (10 s) to catch any missed socket events
   useEffect(() => {
     loadMessages(true);
-    pollRef.current = setInterval(() => loadMessages(false), 4000);
+    pollRef.current = setInterval(() => loadMessages(false), 10_000);
     return () => clearInterval(pollRef.current);
   }, [loadMessages]);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
   const handleSend = async () => {
     if (!text.trim() || sending) return;
     setSending(true);
+    const content = text.trim();
+    setText("");
+
+    // Optimistic bubble
     const opt = {
-      message_id: Date.now(),
+      message_id: `opt_${Date.now()}`,
       sender_id: user?.id,
       receiver_id: partnerId,
-      content: text.trim(),
+      content,
       sent_at: new Date().toISOString(),
       _opt: true,
     };
     setMessages((p) => [...p, opt]);
-    setText("");
-    try {
-      await authFetch("/messages", {
-        method: "POST",
-        body: { receiver_id: partnerId, content: opt.content },
+
+    if (socketRef.current?.connected) {
+      // Preferred path: socket saves to DB + delivers to receiver in real-time.
+      // message_sent event will replace the optimistic bubble and clear sending.
+      socketRef.current.emit("send_message", {
+        receiverId: partnerId,
+        content,
       });
-    } catch {}
-    setSending(false);
+    } else {
+      // Fallback: REST POST (still persists to DB; receiver picks it up on next poll)
+      try {
+        await authFetch("/messages", {
+          method: "POST",
+          body: { receiver_id: partnerId, content },
+        });
+        // Reload to get the real message_id from DB
+        await loadMessages(false);
+      } catch {
+        // Remove optimistic bubble on failure
+        setMessages((p) => p.filter((m) => !m._opt));
+      } finally {
+        setSending(false);
+      }
+    }
   };
   return (
     <div
@@ -186,8 +273,8 @@ function ChatModal({ partnerId, partnerName, onClose }) {
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-white text-sm">{partnerName}</p>
             <p className="text-xs text-blue-400 flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-400 inline-block" />
-              Squad Comms
+              <span className={`w-1.5 h-1.5 rounded-full inline-block ${connected ? "bg-green-400" : "bg-yellow-400"}`} />
+              {connected ? "Live" : "Connecting…"}
             </p>
           </div>
           <button
