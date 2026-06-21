@@ -6,6 +6,8 @@ import {
   updateProfile,
   // upsertGameProfile, // [COMING SOON] — re-enable with stat sync feature
   getMyStats,
+  getFollowers,
+  getFollowing,
 } from "../services/userService";
 import { getMyGames } from "../services/gameService";
 import { PageLoader, ErrorMessage, StatCard } from "../components/UI";
@@ -471,10 +473,37 @@ function ShareModal({ profile, onClose }) {
 }
 
 // ── Follow Stats Modal ─────────────────────────────────────────────────────────
-function FollowStatsModal({ type, onClose }) {
+function FollowStatsModal({ type, userId, onClose }) {
   const { theme } = useTheme();
   const ts = themeStyles(theme);
   const isLight = theme === "light";
+
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetcher = type === "followers" ? getFollowers : getFollowing;
+
+    const load = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const res = await fetcher(userId);
+        if (!cancelled) setUsers(res.data.users || []);
+      } catch {
+        if (!cancelled) setError("Couldn't load this list. Try again later.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    if (userId) load();
+    return () => {
+      cancelled = true;
+    };
+  }, [type, userId]);
 
   return (
     <div
@@ -498,14 +527,58 @@ function FollowStatsModal({ type, onClose }) {
             ✕
           </button>
         </div>
-        <div className="px-5 py-10 text-center text-gray-500 text-sm">
-          <span className="text-3xl block mb-3">👥</span>
-          {type === "followers"
-            ? "Your followers will appear here."
-            : "People you follow will appear here."}
-          <p className="text-xs mt-2 text-gray-600">
-            Full list feature coming soon!
-          </p>
+
+        <div className="max-h-96 overflow-y-auto">
+          {loading ? (
+            <div className="px-5 py-10 text-center text-gray-500 text-sm">
+              Loading…
+            </div>
+          ) : error ? (
+            <div className="px-5 py-10 text-center text-gray-500 text-sm">
+              {error}
+            </div>
+          ) : users.length === 0 ? (
+            <div className="px-5 py-10 text-center text-gray-500 text-sm">
+              <span className="text-3xl block mb-3">👥</span>
+              {type === "followers"
+                ? "No followers yet."
+                : "Not following anyone yet."}
+            </div>
+          ) : (
+            <ul className="divide-y divide-surface-border">
+              {users.map((u) => (
+                <li key={u.user_id}>
+                  <Link
+                    to={`/users/${u.user_id}`}
+                    onClick={onClose}
+                    className="flex items-center gap-3 px-5 py-3 hover:bg-white/5 transition-colors"
+                  >
+                    {u.profile_picture ? (
+                      <img
+                        src={u.profile_picture}
+                        alt={u.username}
+                        className="w-10 h-10 rounded-full object-cover border border-surface-border shrink-0"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-red/20 border border-red/40 flex items-center justify-center text-red font-display font-bold text-sm shrink-0">
+                        {u.username?.[0]?.toUpperCase()}
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-white text-sm font-medium truncate">
+                        {u.username}
+                      </p>
+                      {(u.country || u.region) && (
+                        <p className="text-gray-500 text-xs truncate">
+                          {[u.country, u.region].filter(Boolean).join(" · ")}
+                        </p>
+                      )}
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
     </div>
@@ -582,7 +655,9 @@ function GameStatsFetcher({ game, onSave }) {
     <div
       className="mx-5 mb-5 rounded-xl border border-yellow-500/20 overflow-hidden"
       style={{
-        background: isLight ? "rgba(251,191,36,0.05)" : "linear-gradient(135deg,rgba(244,165,35,0.06),rgba(26,35,64,0.8))",
+        background: isLight
+          ? "rgba(251,191,36,0.05)"
+          : "linear-gradient(135deg,rgba(244,165,35,0.06),rgba(26,35,64,0.8))",
       }}
     >
       <div className="flex items-center gap-3 px-4 py-3 border-b border-surface-border/50">
@@ -889,6 +964,7 @@ export default function Profile() {
       {followModal && (
         <FollowStatsModal
           type={followModal}
+          userId={profile?.user_id}
           onClose={() => setFollowModal(null)}
         />
       )}

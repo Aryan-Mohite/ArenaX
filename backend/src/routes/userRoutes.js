@@ -8,6 +8,8 @@ import {
   unfollowUser,
   getMyFollowStats,
   getFollowStatus,
+  getFollowers,
+  getFollowing,
   getUserActivity,
 } from "../controllers/userController.js";
 import authMiddleware from "../middleware/authMiddleware.js";
@@ -30,6 +32,12 @@ router.get("/:id/activity", validateIdParam, validate, getUserActivity);
 
 // GET /api/users/:id/follow-status — is current user following :id?
 router.get("/:id/follow-status", authMiddleware, validateIdParam, validate, getFollowStatus);
+
+// GET /api/users/:id/followers — list of users following :id
+router.get("/:id/followers", validateIdParam, validate, getFollowers);
+
+// GET /api/users/:id/following — list of users :id follows
+router.get("/:id/following", validateIdParam, validate, getFollowing);
 
 // PUT /api/users/me  — update own profile
 // FIX (high): was missing backend validation entirely. Now validates username format,

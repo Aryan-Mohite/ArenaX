@@ -222,6 +222,48 @@ export const getFollowStatus = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+// ─── GET FOLLOWERS LIST ───────────────────────────────────────────────────────
+export const getFollowers = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { limit: _rawLimit = 50, offset = 0 } = req.query;
+    const limit = Math.min(Number(_rawLimit) || 50, 100);
+
+    const [rows] = await pool.query(
+      `SELECT u.user_id, u.username, u.profile_picture, u.country, u.region, uf.created_at AS followed_at
+       FROM user_follows uf
+       JOIN users u ON u.user_id = uf.follower_id
+       WHERE uf.following_id = ? AND u.status = 'active'
+       ORDER BY uf.created_at DESC
+       LIMIT ? OFFSET ?`,
+      [id, limit, Number(offset)]
+    );
+
+    res.json({ success: true, users: rows });
+  } catch (err) { next(err); }
+};
+
+// ─── GET FOLLOWING LIST ───────────────────────────────────────────────────────
+export const getFollowing = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { limit: _rawLimit = 50, offset = 0 } = req.query;
+    const limit = Math.min(Number(_rawLimit) || 50, 100);
+
+    const [rows] = await pool.query(
+      `SELECT u.user_id, u.username, u.profile_picture, u.country, u.region, uf.created_at AS followed_at
+       FROM user_follows uf
+       JOIN users u ON u.user_id = uf.following_id
+       WHERE uf.follower_id = ? AND u.status = 'active'
+       ORDER BY uf.created_at DESC
+       LIMIT ? OFFSET ?`,
+      [id, limit, Number(offset)]
+    );
+
+    res.json({ success: true, users: rows });
+  } catch (err) { next(err); }
+};
+
 // ─── GET USER ACTIVITY ────────────────────────────────────────────────────────
 export const getUserActivity = async (req, res, next) => {
   try {

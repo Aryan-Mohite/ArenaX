@@ -10,6 +10,8 @@ export const getUserActivity   = (id)       => API.get(`/users/${id}/activity`)
 export const followUser        = (id)       => API.post(`/users/${id}/follow`)
 export const unfollowUser      = (id)       => API.delete(`/users/${id}/follow`)
 export const getFollowStatus   = (id)       => API.get(`/users/${id}/follow-status`)
+export const getFollowers      = (id)       => API.get(`/users/${id}/followers`)
+export const getFollowing      = (id)       => API.get(`/users/${id}/following`)
 
 // ── Own stats (followers / following / community_posts) ───────────────────────
 export const getMyStats        = ()         => API.get('/users/me/stats')

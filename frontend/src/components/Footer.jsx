@@ -186,7 +186,7 @@ export default function Footer() {
 
           {/* X / Twitter */}
           <a
-            href="https://x.com/arenax_gg"
+            href="https://x.com/Official_ArenaX"
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Follow us on X"
@@ -214,7 +214,7 @@ export default function Footer() {
 
           {/* Discord */}
           <a
-            href="https://discord.gg/arenax"
+            href="https://discordapp.com/users/1517943851581571144"
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Join our Discord"
@@ -242,7 +242,7 @@ export default function Footer() {
 
           {/* Twitch */}
           <a
-            href="https://twitch.tv/arenax"
+            href="https://www.twitch.tv/arenaxxtreme"
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Watch us on Twitch"
