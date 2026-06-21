@@ -13,6 +13,7 @@ import {
 } from "../services/teamFinderService";
 import { getMyGames } from "../services/gameService";
 import { ErrorMessage } from "../components/UI";
+import TeamIdBadge from "../components/TeamIdBadge";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { themeStyles } from "../utils/themeStyles";
@@ -494,7 +495,10 @@ function TeamChatModal({ teamId, teamName, onClose }) {
             ⚔️
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-white text-sm truncate">{teamName}</p>
+            <div className="flex items-center gap-2 min-w-0">
+              <p className="font-semibold text-white text-sm truncate">{teamName}</p>
+              <TeamIdBadge teamId={teamId} />
+            </div>
             <p className="text-xs text-red-light flex items-center gap-1">
               <span className={`w-1.5 h-1.5 rounded-full inline-block ${connected ? "bg-green-400" : "bg-yellow-400"}`} />
               {accessError ? "No access" : connected ? "Live" : "Connecting…"}
@@ -651,9 +655,10 @@ function RosterModal({ post, onClose, onChat, navigate }) {
             <h3 className="font-display font-bold text-white text-lg">
               Applicants — {post.game_name}
             </h3>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
               {post.team_name ? `Team: ${post.team_name}` : "No team assigned"}{" "}
               · {post.role_required || "Any Role"}
+              {post.team_name && <TeamIdBadge teamId={post.team_id} />}
             </p>
           </div>
           <button
@@ -1103,6 +1108,7 @@ function MyTeamsPanel({ myGames, onPostForTeam, refreshKey, onTeamsLoaded, onTea
                         <p className="font-semibold text-white text-sm">
                           {team.team_name}
                         </p>
+                        <TeamIdBadge teamId={team.team_id} />
                         {team.game_name && (
                           <span className="text-xs px-2 py-0.5 rounded-full border border-red/30 bg-red/10 text-red-light">
                             🎮 {team.game_name}
@@ -1303,6 +1309,9 @@ function MyDispatchesPanel({ onChat }) {
                             ⚔️ {app.team_name}
                           </span>
                         )}
+                        {app.team_name && (
+                          <TeamIdBadge teamId={app.team_id} />
+                        )}
                         {app.role_required && (
                           <span className="badge-red text-xs">
                             {app.role_required}
@@ -1408,12 +1417,13 @@ function ApplyModal({ post, onClose, onSubmit }) {
           </div>
         </div>
         {post.team_name && (
-          <div className="mx-6 mb-3 px-3 py-2 rounded-lg border border-red/20 bg-red/5 flex items-center gap-2">
+          <div className="mx-6 mb-3 px-3 py-2 rounded-lg border border-red/20 bg-red/5 flex items-center gap-2 flex-wrap">
             <span className="text-sm">⚔️</span>
             <span className="text-xs text-gray-300">
               Recruiting for{" "}
               <span className="text-white font-semibold">{post.team_name}</span>
             </span>
+            <TeamIdBadge teamId={post.team_id} />
           </div>
         )}
         <div className="mx-6 mb-5 rounded-xl bg-navy/60 border border-surface-border px-4 py-3 flex flex-wrap gap-2 items-center">
@@ -1546,6 +1556,7 @@ function ListingCard({
     post_id,
     deadline,
     team_name,
+    team_id,
     profile_picture,
   } = post;
   const accentMap = ["#ff4655", "#3b82f6", "#8b5cf6", "#10b981", "#f59e0b"];
@@ -1593,6 +1604,7 @@ function ListingCard({
             <span className="text-xs px-2 py-0.5 rounded-full border border-red/30 bg-red/10 text-red-light font-medium">
               ⚔️ {team_name}
             </span>
+            <TeamIdBadge teamId={team_id} />
           </div>
         )}
         <div className="flex items-center gap-3 pt-1">
@@ -1745,7 +1757,7 @@ export default function TeamFinder() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [prefilledTeam, setPrefilledTeam] = useState(null);
-  const [filters, setFilters] = useState({ game_id: "", region: "" });
+  const [filters, setFilters] = useState({ game_id: "", team_id: "" });
   const [error, setError] = useState("");
   const [toast, setToast] = useState({ msg: "", type: "success" });
   const [applyPost, setApplyPost] = useState(null);
@@ -1775,7 +1787,7 @@ export default function TeamFinder() {
       try {
         const params = {};
         if (filters.game_id) params.game_id = filters.game_id;
-        if (filters.region) params.region = filters.region;
+        if (filters.team_id) params.team_id = filters.team_id;
         const res = await getPosts(params);
         setPosts(res.data.posts || []);
       } catch {
@@ -2039,7 +2051,7 @@ export default function TeamFinder() {
                     .filter((t) => t.my_role === "captain")
                     .map((t) => (
                       <option key={t.team_id} value={t.team_id}>
-                        ⚔️ {t.team_name}
+                        ⚔️ {t.team_name} (ID: {t.team_id})
                       </option>
                     ))}
                 </select>
@@ -2164,10 +2176,10 @@ export default function TeamFinder() {
           </span>
           <input
             className="input pl-9 w-52"
-            placeholder="Filter by region..."
-            value={filters.region}
+            placeholder="Filter by Team ID..."
+            value={filters.team_id}
             onChange={(e) =>
-              setFilters((f) => ({ ...f, region: e.target.value }))
+              setFilters((f) => ({ ...f, team_id: e.target.value }))
             }
           />
         </div>
@@ -2187,9 +2199,9 @@ export default function TeamFinder() {
             ))}
           </select>
         )}
-        {(filters.region || filters.game_id) && (
+        {(filters.team_id || filters.game_id) && (
           <button
-            onClick={() => setFilters({ game_id: "", region: "" })}
+            onClick={() => setFilters({ game_id: "", team_id: "" })}
             className="btn-ghost text-sm text-red-light"
           >
             ✕ Clear filters
@@ -2211,7 +2223,7 @@ export default function TeamFinder() {
             No recruitments found
           </p>
           <p className="text-gray-500 text-sm mt-2 max-w-xs">
-            {filters.region || filters.game_id
+            {filters.team_id || filters.game_id
               ? "Try removing filters"
               : "Be the first to open a recruitment draft"}
           </p>

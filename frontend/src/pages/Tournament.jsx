@@ -6,6 +6,7 @@ import {
   createTournament,
   deleteTournament,
 } from "../services/tournamentService";
+import { getMyGames } from "../services/gameService";
 import { PageLoader, ErrorMessage } from "../components/UI";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
@@ -1102,7 +1103,9 @@ function TournamentList() {
   const { isAuthenticated, user } = useAuth();
   const [tournaments, setTournaments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ status: "", region: "" });
+  const [filters, setFilters] = useState({ status: "" });
+  const [gameScope, setGameScope] = useState("all"); // "all" | "mine"
+  const [myGameIds, setMyGameIds] = useState(null); // null = not loaded yet
   const [showForm, setShowForm] = useState(false);
   const [allGames, setAllGames] = useState([]);
   const [toast, setToast] = useState("");
@@ -1119,6 +1122,22 @@ function TournamentList() {
       .catch(() => setTournaments([]))
       .finally(() => setLoading(false));
   }, [filters]);
+
+  // Fetch the games the user has added to their profile, to power the
+  // "My Games" filter option below.
+  useEffect(() => {
+    if (isAuthenticated) {
+      getMyGames()
+        .then((r) =>
+          setMyGameIds(
+            new Set((r.data.games || []).map((g) => String(g.game_id))),
+          ),
+        )
+        .catch(() => setMyGameIds(new Set()));
+    } else {
+      setMyGameIds(new Set());
+    }
+  }, [isAuthenticated]);
 
   // Fetch all games for the form dropdown
   useEffect(() => {
@@ -1150,6 +1169,14 @@ function TournamentList() {
 
   const canDelete = (t) =>
     user && (String(t.created_by) === String(user.id) || user.isAdmin);
+
+  // "My Games" scope filters the list down to tournaments for games the
+  // user has added to their profile (client-side, since myGameIds can
+  // represent multiple games at once).
+  const visibleTournaments =
+    gameScope === "mine" && myGameIds
+      ? tournaments.filter((t) => myGameIds.has(String(t.game_id)))
+      : tournaments;
 
   const featured =
     tournaments.find((t) => t.status === "ongoing") || tournaments[0];
@@ -1271,33 +1298,33 @@ function TournamentList() {
           <option value="ongoing">Ongoing</option>
           <option value="completed">Completed</option>
         </select>
-        <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">
-            &#127758;
-          </span>
-          <input
-            className="input pl-9 w-44"
-            placeholder="Region..."
-            value={filters.region}
-            onChange={(e) =>
-              setFilters((f) => ({ ...f, region: e.target.value }))
-            }
-          />
-        </div>
-        {(filters.status || filters.region) && (
+        {isAuthenticated && (
+          <select
+            className="input w-40"
+            value={gameScope}
+            onChange={(e) => setGameScope(e.target.value)}
+          >
+            <option value="all">All Games</option>
+            <option value="mine">My Games</option>
+          </select>
+        )}
+        {(filters.status || gameScope !== "all") && (
           <button
-            onClick={() => setFilters({ status: "", region: "" })}
+            onClick={() => {
+              setFilters({ status: "" });
+              setGameScope("all");
+            }}
             className="btn-ghost text-sm text-red-light"
           >
             &#10005; Clear
           </button>
         )}
-        {tournaments.length > 0 && (
+        {visibleTournaments.length > 0 && (
           <span className="text-sm text-gray-500 ml-auto">
             <span className="text-white font-semibold">
-              {tournaments.length}
+              {visibleTournaments.length}
             </span>{" "}
-            event{tournaments.length !== 1 ? "s" : ""}
+            event{visibleTournaments.length !== 1 ? "s" : ""}
           </span>
         )}
       </div>
@@ -1307,14 +1334,16 @@ function TournamentList() {
           <div className="w-10 h-10 border-2 border-surface-border border-t-red rounded-full animate-spin" />
           <p className="text-gray-500 text-sm">Loading tournaments...</p>
         </div>
-      ) : tournaments.length === 0 ? (
+      ) : visibleTournaments.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <div className="text-6xl mb-4 opacity-20">&#127942;</div>
           <p className="text-gray-300 font-medium text-xl font-display">
             No tournaments found
           </p>
           <p className="text-gray-500 text-sm mt-2 max-w-xs">
-            Try adjusting filters, or be the first to post one!
+            {gameScope === "mine"
+              ? "No tournaments for your games right now — try All Games"
+              : "Try adjusting filters, or be the first to post one!"}
           </p>
           {isAuthenticated && (
             <button
@@ -1327,7 +1356,7 @@ function TournamentList() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-          {tournaments.map((t) => (
+          {visibleTournaments.map((t) => (
             <TournamentCard
               key={t.tournament_id}
               tournament={t}

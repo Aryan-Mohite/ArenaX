@@ -8,6 +8,7 @@ import {
   getFollowStatus,
 } from "../services/userService";
 import { useAuth } from "../context/AuthContext";
+import TeamIdBadge from "../components/TeamIdBadge";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const timeAgo = (d) => {
@@ -740,6 +741,7 @@ export default function UserProfile() {
                     <p className="font-semibold text-white text-sm">
                       {team.team_name}
                     </p>
+                    <TeamIdBadge teamId={team.team_id} />
                     {team.game_name && (
                       <span className="text-xs px-2 py-0.5 rounded-full border border-red/30 bg-red/10 text-red-light">
                         🎮 {team.game_name}

@@ -3,7 +3,7 @@ import pool from "../config/db.js";
 // ─── GET POSTS ────────────────────────────────────────────────────────────────
 export const getPosts = async (req, res, next) => {
   try {
-    const { game_id, region, rank_required, limit: _rawLimit = 20, offset = 0 } = req.query;
+    const { game_id, region, team_id, rank_required, limit: _rawLimit = 20, offset = 0 } = req.query;
     const limit = Math.min(Number(_rawLimit), 100);
 
     let query = `
@@ -24,6 +24,8 @@ export const getPosts = async (req, res, next) => {
     if (game_id)       { params.push(game_id);          query += " AND tfp.game_id = ?"; }
     // ILIKE → LIKE
     if (region)        { params.push(`%${region}%`);    query += " AND tfp.region LIKE ?"; }
+    // Exact match — team_id is a unique identifier, not a fuzzy search field
+    if (team_id)        { params.push(team_id);          query += " AND tfp.team_id = ?"; }
     if (rank_required) { params.push(`%${rank_required}%`); query += " AND tfp.rank_required LIKE ?"; }
 
     params.push(limit, Number(offset));

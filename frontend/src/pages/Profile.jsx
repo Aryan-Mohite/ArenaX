@@ -15,6 +15,7 @@ import { useAuth } from "../context/AuthContext";
 import API from "../api/api";
 import { useTheme } from "../context/ThemeContext";
 import { themeStyles } from "../utils/themeStyles";
+import TeamIdBadge from "../components/TeamIdBadge";
 
 /* ============================================================
  * [COMING SOON] Stat Sync — backendFetch, FETCHERS, GAME_TO_FETCHER,
@@ -1609,6 +1610,7 @@ export default function Profile() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="font-semibold text-white">{team.team_name}</p>
+                    <TeamIdBadge teamId={team.team_id} />
                     {team.game_name && (
                       <span className="badge-red text-xs">
                         🎮 {team.game_name}
