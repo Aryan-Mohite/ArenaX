@@ -1,48 +1,5 @@
 -- ============================================================
 -- ArenaX MySQL Schema
--- ============================================================
--- FIX H6 ACTION REQUIRED: profile_picture is currently TEXT (stores raw base64).
--- This will destroy DB performance at scale — rows become huge and every SELECT
--- on the users table pulls megabytes of image data.
---
--- MIGRATION PATH:
---   1. Move image uploads to object storage (Cloudflare R2, AWS S3, Supabase Storage).
---   2. Store only the public URL in the DB.
---   3. Run this migration:
---
---   ALTER TABLE users
---     MODIFY COLUMN profile_picture VARCHAR(500) NULL DEFAULT NULL;
---
--- Until you migrate, the column will still accept base64 but you MUST migrate
--- before going to production with real users.
--- ============================================================
-
--- =============================================================================
--- ArenaX Esports Platform — Complete MySQL Schema (v3.2)
--- =============================================================================
--- FIXES IN v3.2 (over v3.1):
---   BUG 8 [CRITICAL] `rank` and `role` are reserved words in MySQL 8.0+.
---                    Used bare as column names → Error 1064 on every table
---                    that contains them. Backtick-quoted in all definitions,
---                    triggers, and any reference site.
---                    Affected: user_game_profile (rank, role),
---                              team_members (role),
---                              trg_archive_team trigger JSON_OBJECT('role', role)
---   FRESH SYSTEM:   Uses CREATE TABLE IF NOT EXISTS throughout
---                   at the top so the file is fully idempotent on a new DB.
--- =============================================================================
--- Previous fixes (v3.1):
---   BUG 1 post_votes table missing
---   BUG 2 All 6 archive tables had no PRIMARY KEY
---   BUG 3 archive_streams.peak_viewers orphaned column
---   BUG 4 comment_count never maintained by triggers
---   BUG 5 fn_purge_old_archives silent NULL failure
---   BUG 6 JSON_LENGTH() returning NULL in views
---   BUG 7 CREATE TRIGGER crashed on re-run (no DROP IF EXISTS guards)
--- =============================================================================
--- Usage (fresh install OR re-run on existing DB):
---   mysql -u root -p your_db < arenaX_schema_mysql.sql
--- =============================================================================
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
@@ -1287,7 +1244,7 @@ SET FOREIGN_KEY_CHECKS = 1;
 
 -- =============================================================================
 -- OPTIONAL — CLEANUP EVENTS (run once after import)
-SET GLOBAL event_scheduler = ON;
+
 
 CREATE EVENT IF NOT EXISTS ev_clean_pending_verifications
 ON SCHEDULE EVERY 1 HOUR DO
