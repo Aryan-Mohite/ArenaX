@@ -84,6 +84,8 @@ export default function AdminDashboard() {
     { id: "overview", label: "Overview", icon: "📊" },
     { id: "users", label: "Users", icon: "👥" },
     { id: "content", label: "Content", icon: "🗂️" },
+    { id: "billing", label: "Billing", icon: "💳" },
+    { id: "organizers", label: "Organizers", icon: "🎖️" },
     { id: "archives", label: "Archives", icon: "🗄️" },
   ];
 
@@ -147,6 +149,8 @@ export default function AdminDashboard() {
         {tab === "overview" && <OverviewTab showToast={showToast} />}
         {tab === "users" && <UsersTab showToast={showToast} />}
         {tab === "content" && <ContentTab showToast={showToast} />}
+        {tab === "billing" && <BillingTab showToast={showToast} />}
+        {tab === "organizers" && <OrganizersTab showToast={showToast} />}
       </div>
     </div>
   );
@@ -966,6 +970,235 @@ function Pagination({ page, setPage, count, pageSize }) {
       >
         Next →
       </button>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// TAB — BILLING (§1/§2)
+// ══════════════════════════════════════════════════════════════════════════════
+function BillingTab({ showToast }) {
+  const [billing, setBilling] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    apiFetch("/admin/billing")
+      .then((d) => setBilling(d.billing))
+      .catch((e) => showToast(`Failed to load billing: ${e.message}`, false))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <LoadingGrid />;
+  if (!billing) return null;
+
+  const cards = [
+    { label: "Active Subscriptions", value: billing.activeSubscriptions, icon: "📦", color: "#22c55e" },
+    { label: "MRR", value: `₹${Number(billing.mrr).toLocaleString("en-IN")}`, icon: "💰", color: "#3b82f6" },
+    { label: "Failed Payments (30d)", value: billing.failedPayments30d, icon: "⚠️", color: "#f97316" },
+    { label: "Cancellations (30d)", value: billing.canceled30d, icon: "📉", color: "#ec4899" },
+  ];
+
+  return (
+    <div>
+      <div className="mb-8">
+        <h2 className="section-title">Billing</h2>
+        <p className="section-subtitle">Subscriptions, revenue, and recent payments</p>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        {cards.map((c) => (
+          <div key={c.label} className="card relative overflow-hidden" style={{ borderColor: c.color + "33" }}>
+            <div className="relative">
+              <div className="text-2xl mb-2">{c.icon}</div>
+              <div className="text-2xl font-display font-bold text-white">{c.value}</div>
+              <div className="text-xs text-gray-500 mt-1">{c.label}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Recent Payments</h3>
+      <div className="card p-0 overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-navy border-b border-surface-border">
+            <tr>
+              {["User", "Plan", "Amount", "Gateway", "Status", "Date"].map((h) => (
+                <th key={h} className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {billing.recentPayments.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="text-center py-16 text-gray-600">No payments yet</td>
+              </tr>
+            ) : (
+              billing.recentPayments.map((p) => (
+                <tr key={p.payment_id} className="border-b border-surface-border/50 hover:bg-surface-card/40 transition-colors">
+                  <td className="px-4 py-3 text-white">@{p.username}</td>
+                  <td className="px-4 py-3 text-gray-300">{p.plan_name}</td>
+                  <td className="px-4 py-3 text-gray-300">₹{Number(p.amount).toLocaleString("en-IN")}</td>
+                  <td className="px-4 py-3 text-gray-500 capitalize">{p.gateway}</td>
+                  <td className="px-4 py-3">
+                    <span
+                      className="px-2 py-1 rounded-md text-xs font-semibold"
+                      style={{
+                        background:
+                          p.status === "success" ? "rgba(34,197,94,0.15)" :
+                          p.status === "failed"  ? "rgba(220,38,38,0.15)" :
+                                                    "rgba(234,179,8,0.15)",
+                        color:
+                          p.status === "success" ? "#22c55e" :
+                          p.status === "failed"  ? "#dc2626" : "#eab308",
+                      }}
+                    >
+                      {p.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-gray-500">{fmt(p.created_at)}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// TAB — ORGANIZERS (§2 verification queue)
+// ══════════════════════════════════════════════════════════════════════════════
+function OrganizersTab({ showToast }) {
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [rejectModal, setRejectModal] = useState(null); // verification object
+  const [rejectNote, setRejectNote] = useState("");
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await apiFetch("/admin/organizer-verifications?status=pending");
+      setRequests(data.verifications || []);
+    } catch (e) {
+      showToast(e.message, false);
+    } finally {
+      setLoading(false);
+    }
+  }, [showToast]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleApprove = async (v) => {
+    try {
+      await apiFetch(`/admin/organizer-verifications/${v.verification_id}/approve`, { method: "POST" });
+      showToast(`@${v.username} approved as a verified organizer`);
+      load();
+    } catch (e) {
+      showToast(e.message, false);
+    }
+  };
+
+  const handleReject = async () => {
+    try {
+      await apiFetch(`/admin/organizer-verifications/${rejectModal.verification_id}/reject`, {
+        method: "POST",
+        body: JSON.stringify({ note: rejectNote || undefined }),
+      });
+      showToast(`@${rejectModal.username}'s request rejected`);
+      setRejectModal(null);
+      setRejectNote("");
+      load();
+    } catch (e) {
+      showToast(e.message, false);
+    }
+  };
+
+  return (
+    <div>
+      <div className="mb-8">
+        <h2 className="section-title">Organizer Verification Queue</h2>
+        <p className="section-subtitle">
+          Pending requests from Pro/Org-tier organizers — their tournaments stay hidden from public listings until approved
+        </p>
+      </div>
+
+      {loading ? (
+        <LoadingRows />
+      ) : (
+        <div className="card p-0 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-navy border-b border-surface-border">
+              <tr>
+                {["User", "Email", "Requested", "Actions"].map((h) => (
+                  <th key={h} className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {requests.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="text-center py-16 text-gray-600">No pending requests</td>
+                </tr>
+              ) : (
+                requests.map((v) => (
+                  <tr key={v.verification_id} className="border-b border-surface-border/50 hover:bg-surface-card/40 transition-colors">
+                    <td className="px-4 py-3 font-semibold text-white">@{v.username}</td>
+                    <td className="px-4 py-3 text-gray-400">{v.email}</td>
+                    <td className="px-4 py-3 text-gray-500">{fmt(v.requested_at)}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-2">
+                        <button className="btn-primary text-xs px-3 py-1.5" onClick={() => handleApprove(v)}>
+                          Approve
+                        </button>
+                        <button
+                          className="btn-ghost text-xs px-3 py-1.5"
+                          onClick={() => setRejectModal(v)}
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Reject modal */}
+      {rejectModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="card max-w-md w-full">
+            <h3 className="font-display font-bold text-lg text-white mb-2">
+              Reject @{rejectModal.username}'s request?
+            </h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Optional note — the organizer can see this if you show it to them later.
+            </p>
+            <textarea
+              className="input w-full mb-4"
+              rows={3}
+              placeholder="Reason (optional)…"
+              value={rejectNote}
+              onChange={(e) => setRejectNote(e.target.value)}
+            />
+            <div className="flex gap-3 justify-end">
+              <button className="btn-ghost" onClick={() => { setRejectModal(null); setRejectNote(""); }}>
+                Cancel
+              </button>
+              <button className="btn-primary" style={{ background: "#dc2626" }} onClick={handleReject}>
+                Reject
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

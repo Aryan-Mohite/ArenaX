@@ -1,98 +1,84 @@
-# §2 Tournament Organizer SaaS — delivery
+# §2 Organizer Tiers — frontend
 
-Builds tiers on top of your existing tournament creation/registration flow,
-using §1's `plans`/`subscriptions`/`hasFeature` as the enforcement layer —
-no new "plan field on organizer accounts" needed, since a plan is already
-just whatever `hasFeature(user_id, ...)` resolves to.
+The UI for the backend built last round. Requires that backend delivery
+(`arenax-section2-organizer-tiers.zip`) and §1's payments infra to already
+be deployed — nothing here works without `/api/payments/*`,
+`/api/tournaments/mine`, `/api/organizers/*`, and `/api/admin/billing` +
+`/api/admin/organizer-verifications*` existing server-side.
 
 ## What's new
 
-- `database/migrations_section2_organizer_tiers.sql`:
-  - `tournaments` gets `banner_url`, `brand_primary_color`, `brand_accent_color`.
-  - New `organizer_verifications` table — the manual admin-approval queue.
-  - Backfills `unlimited_participants: true` onto the `organizer_pro` /
-    `organizer_org` plans seeded in §1 (they didn't have it yet).
-- **Free-tier participant cap** — `FREE_TIER_MAX_TEAMS = 16` in
-  `tournamentController.js`. Enforced server-side in `createTournament`
-  regardless of what the client sends (previously, omitting `max_teams`
-  meant unlimited — now it means "capped at 16" unless the organizer has
-  `unlimited_participants`).
-- **Organizer verification gate** — a Pro/Org-tier organizer
-  (`branded_page` access) who hasn't been approved yet gets their
-  tournament created as `status = 'pending_review'` instead of `'upcoming'`.
-  `GET /api/tournaments` excludes `pending_review` by default (and now
-  requires admin to request it explicitly — closed a minor info-leak while
-  I was in there). Also closed a real gap: `PATCH /:id/status` previously
-  let an organizer move their *own* tournament off any status — including
-  `pending_review` — since it only checked ownership, not current status.
-  Now only an admin can move a tournament off `pending_review`.
-  - `src/controllers/organizerController.js` + `src/routes/organizerRoutes.js`
-    (`/api/organizers/*`): request verification (`POST /verification-request`,
-    requires `email_verified` first) and check status (`GET /verification-status`).
-  - Admin queue in `adminController.js`/`adminRoutes.js`
-    (`/api/admin/organizer-verifications*`): list pending, approve, reject.
-- **Branded tournament page** (Pro/Org) — `PATCH /api/tournaments/:id/branding`,
-  gated by `requireFeature("branded_page")` + ownership.
-- **Organizer analytics** (Pro/Org) — `GET /api/tournaments/:id/analytics`:
-  registrations over time, conversion rate, no-show rate. **Note the
-  schema-level assumption**: there's no dedicated no-show status on
-  registrations, so `disqualified` is used as the closest proxy, and
-  "conversion" is `confirmed / total registrations`. Worth a real
-  `no_show` status if this metric gets used a lot.
-- **Automated announcements** (Pro/Org) — `POST /api/tournaments/:id/announce`:
-  writes a row to the existing (previously unused — nothing wrote to it
-  anywhere in the codebase) `notifications` table for every member of every
-  registered team. This is genuinely new plumbing, not a rewire of
-  something existing — flagging that since the roadmap phrased it as
-  "hook into existing... infra."
-- **Multi-tournament dashboard** (Organization tier) —
-  `GET /api/tournaments/mine` (all your tournaments, any status, not
-  gated — basic functionality) and `GET /api/tournaments/mine/summary`
-  (aggregate counts across all of them, gated by
-  `requireFeature("multi_tournament_dashboard")`).
-- **Upgrade/downgrade** — `GET /api/payments/subscription` (current plan)
-  and `POST /api/payments/cancel` (downgrade to free). **Simplification**:
-  cancel is immediate (access revoked right away), not "cancel at period
-  end" — flagging as the simpler of two reasonable designs, revisit if you
-  want prorated/grace-period behavior.
+- **`frontend/src/pages/OrganizerDashboard.jsx`** (new route: `/organizer`,
+  behind `ProtectedRoute` — any logged-in user, not gated to existing
+  organizers, since anyone can become one):
+  - Current plan card + **Upgrade/Change Plan** button opening a plans
+    modal, wired to Razorpay checkout.js (loaded on demand, script cached
+    across repeated opens) → `createOrder` → Razorpay modal → `verifyPayment`
+    on success.
+  - **Downgrade to Free** — calls the cancel endpoint, confirms first since
+    it's immediate.
+  - **Verification banner** — only shows once the plan actually grants
+    `branded_page`; offers "Request Verification" and reflects
+    pending/rejected/approved status.
+  - **My Tournaments list** — from `/tournaments/mine` (shows
+    `pending_review` status too, so organizers can see why a tournament
+    isn't public yet). Per-tournament action buttons (Branding / Analytics
+    / Announce) only render if the current plan's `feature_flags` actually
+    grant that feature — no dead buttons that 403 on click.
+  - **Multi-tournament summary** cards — only fetched/shown if
+    `multi_tournament_dashboard` is on the plan, so free/pro organizers
+    don't trigger an expected 403 on every page load.
+  - Branding, Analytics, and Announce each open a focused modal rather than
+    a separate page — this is organizer tooling used occasionally, not a
+    primary nav destination.
+- **Two new admin tabs** in `AdminDashboard.jsx` (kept in the same file,
+  matching its existing single-file-multi-tab pattern):
+  - **Billing** — the 4 stat cards from `/api/admin/billing` plus a recent
+    payments table.
+  - **Organizers** — the verification queue: approve/reject with an
+    optional rejection note (modal, mirrors the existing ban-reason modal
+    pattern in the Users tab).
+- **`frontend/src/services/paymentService.js`,
+  `frontend/src/services/organizerService.js`** — thin wrappers, same
+  one-line-per-call pattern as every other service file.
 
 ## What's modified
 
-- `src/app.js` — mounted `organizerRoutes` at `/api/organizers`.
-- `src/routes/tournamentRoutes.js` — new routes above; `/mine` and
-  `/mine/summary` are registered **before** `/:id` so they don't get
-  swallowed by the id-param route.
-- `src/routes/adminRoutes.js`, `src/routes/paymentRoutes.js` — new route
-  wiring for the endpoints above.
-- `src/controllers/tournamentController.js`, `paymentController.js`,
-  `adminController.js` — new exports, described above.
-
-## Deliberately not built this round (flagging, not hiding)
-
-- **Org-level branding as a separate entity** — the roadmap's "org
-  branding" implies an organizations concept above individual users; that
-  doesn't exist yet (Organization tier here is just a user with the
-  `organizer_org` plan). Building a real `organizations` table with
-  multiple member-users is a bigger piece — tell me if you want that now
-  or if per-user Org tier is good enough for the pilot.
-- **Read-only API key for Org tier** — needs an API-key auth path
-  alongside JWT auth, which is enough surface area I'd rather do as its
-  own pass rather than bolt on here.
-- **Phone verification** — no SMS provider wired up; the verification gate
-  currently only checks `email_verified` (which already exists). Noted in
-  a code comment in `organizerController.js`.
+- `frontend/src/App.jsx` — lazy import + `/organizer` route.
+- `frontend/src/components/Navbar.jsx` — added an "Organizer Dashboard"
+  link to the account dropdown (visible to every logged-in user, right
+  above the existing admin-only link).
 
 ## Verified
 
-- `node --check` on every new/modified backend file.
-- Imported `src/app.js` end-to-end (fake DB env vars) — loads clean.
-- Didn't touch the frontend this round — no UI yet for branding/analytics/
-  announcements/upgrade flow. Say the word and I'll build that next, or
-  keep going down the roadmap (§3 college module is next in the build order).
+- `npx vite build` — clean, no errors. New chunks:
+  `OrganizerDashboard-*.js` (~13 kB gzipped ~4 kB), updated
+  `AdminDashboard-*.js` (~26 kB gzipped ~7 kB). Both lazy-loaded, so this
+  doesn't touch the initial bundle for users who never visit either page.
+
+## Known gaps / next steps
+
+- Branding fields (`banner_url`, colors) are saved but **not yet
+  consumed anywhere** — the public Tournament page still renders the
+  site-wide theme regardless of a tournament's branding. Applying them
+  (banner in the hero, CSS custom properties scoped to that tournament's
+  page) is the natural next piece if you want branding to actually show
+  up publicly rather than just be stored.
+- No dedicated "why is my tournament pending_review" empty state beyond
+  the status badge + the verification banner — fine for now, could be
+  more prominent later.
 
 ## To deploy
 
-1. Run `database/migrations_section2_organizer_tiers.sql` (after §1's
-   migration, if you haven't already).
+1. Make sure both §1 and §2 backend deliveries (migrations + code) are
+   already live.
 2. Drop these files into your working copy at the same paths.
-3. No new npm packages this round.
+3. `npm run build` in `frontend/`, commit `frontend/dist/` per your normal
+   Hostinger auto-deploy flow.
+
+## Next up
+
+Per the roadmap's build order, **§3 (College/Campus module)** is next —
+your cheapest acquisition channel. Want me to keep going there, or pause
+here to actually test the organizer flow end-to-end first (e.g. set up a
+real Razorpay test account)?

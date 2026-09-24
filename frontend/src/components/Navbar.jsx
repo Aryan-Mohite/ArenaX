@@ -473,6 +473,21 @@ export default function Navbar() {
                       Player Card
                     </Link>
 
+                    <Link
+                      to="/organizer"
+                      onClick={() => setDropdownOpen(false)}
+                      className={dropdownItemBase}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "rgba(255,70,85,0.06)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "transparent";
+                      }}
+                    >
+                      <span className="text-base">🏆</span>
+                      Organizer Dashboard
+                    </Link>
+
                     {user?.isAdmin && (
                       <Link
                         to="/admin"

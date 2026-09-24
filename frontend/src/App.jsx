@@ -39,6 +39,7 @@ const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 // ── User pages
 const Profile     = lazy(() => import("./pages/Profile"));
 const UserProfile = lazy(() => import("./pages/UserProfile"));
+const OrganizerDashboard = lazy(() => import("./pages/OrganizerDashboard"));
 
 // ── Content pages
 const About             = lazy(() => import("./pages/About"));
@@ -122,6 +123,16 @@ export default function App() {
               <Layout>
                 <ProtectedRoute>
                   <Profile />
+                </ProtectedRoute>
+              </Layout>
+            }
+          />
+          <Route
+            path="/organizer"
+            element={
+              <Layout>
+                <ProtectedRoute>
+                  <OrganizerDashboard />
                 </ProtectedRoute>
               </Layout>
             }
