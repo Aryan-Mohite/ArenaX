@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /auth/
+Disallow: /admin/
+Allow: /*.css$
+Allow: /*.js$
+
+Sitemap: https://arenax.io/sitemap.xml

@@ -1,0 +1,1 @@
+function u(n=0,r=0){const t=n+r;return t<5?null:n/t>=.8?{label:"Trusted Teammate",icon:"🌟"}:null}function e(n=0,r=0){const t=n+r;return t===0?null:`${Math.round(n/t*100)}% positive (${t} rating${t===1?"":"s"})`}export{e as a,u as g};
