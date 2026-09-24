@@ -1,0 +1,1 @@
+import{A as e}from"./index-Dg7h4Oc_.js";const a=t=>e.get("/tournaments",{params:t}),o=t=>e.get(`/tournaments/${t}`),s=t=>e.post("/tournaments",t),r=t=>e.delete(`/archive/tournaments/${t}`);export{a,s as c,r as d,o as g};

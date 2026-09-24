@@ -1,1 +1,0 @@
-import{A as s}from"./index-D5o6jAtA.js";const a=t=>s.get("/teamfinder",{params:t}),c=t=>s.post("/teamfinder",t),p=(t,o)=>s.post(`/teamfinder/${t}/apply`,o),n=t=>s.patch(`/teamfinder/${t}/close`);export{p as a,c as b,n as c,a as g};
