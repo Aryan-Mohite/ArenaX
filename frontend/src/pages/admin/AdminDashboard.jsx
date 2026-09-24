@@ -519,7 +519,9 @@ function UsersTab({ showToast }) {
                       <div className="flex items-center gap-3">
                         {u.profile_picture ? (
                           <img
+          loading="lazy"
                             src={u.profile_picture}
+                            alt={u.username ? `${u.username}'s avatar` : "User avatar"}
                             className="w-8 h-8 rounded-full object-cover border border-surface-border"
                             onError={(e) => {
                               e.target.style.display = "none";

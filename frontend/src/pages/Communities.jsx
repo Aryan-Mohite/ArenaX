@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   getCommunities,
@@ -11,6 +11,7 @@ import {
   deleteComment,
 } from "../services/communityService";
 import { getMyGames } from "../services/gameService";
+import SEO from "../components/SEO";
 import {
   PageLoader,
   EmptyState,
@@ -18,9 +19,115 @@ import {
   Spinner,
 } from "../components/UI";
 import { useAuth } from "../context/AuthContext";
-import { useImageUpload } from "../hooks/useImageUpload";
 import { useTheme } from "../context/ThemeContext";
 import { themeStyles } from "../utils/themeStyles";
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+const MAX_POST_IMAGES = 5;
+const POST_TARGET_PX  = 1200; // wider than avatars — posts need good quality
+const POST_QUALITY    = 0.82;
+const POST_MAX_MB     = 5;
+const ALLOWED_TYPES   = [
+  "image/jpeg", "image/jpg", "image/png", "image/webp",
+  "image/gif",  "image/heic", "image/heif", "image/avif",
+  "image/bmp",  "image/tiff",
+];
+
+// ── Utility: compress a single image File → base64 data-URL ───────────────────
+async function compressPostImage(file) {
+  if (!file) throw new Error("No file provided");
+  if (!ALLOWED_TYPES.includes(file.type))
+    throw new Error(`Unsupported type: ${file.type || "unknown"}`);
+  if (file.size > POST_MAX_MB * 1024 * 1024)
+    throw new Error(`File too large (max ${POST_MAX_MB} MB)`);
+
+  // GIFs: pass through raw — canvas kills animation
+  if (file.type === "image/gif") {
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload  = (e) => res(e.target.result);
+      r.onerror = () => rej(new Error("Read failed"));
+      r.readAsDataURL(file);
+    });
+  }
+
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      if (width > POST_TARGET_PX || height > POST_TARGET_PX) {
+        if (width >= height) {
+          height = Math.round((height / width) * POST_TARGET_PX);
+          width  = POST_TARGET_PX;
+        } else {
+          width  = Math.round((width / height) * POST_TARGET_PX);
+          height = POST_TARGET_PX;
+        }
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width  = width;
+      canvas.height = height;
+      canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+      res(canvas.toDataURL("image/webp", POST_QUALITY));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      rej(new Error("Could not decode image"));
+    };
+    img.src = url;
+  });
+}
+
+// ── Utility: get ordered images array from a post ─────────────────────────────
+function getPostImages(post) {
+  if (post.image_urls) {
+    try {
+      const arr =
+        typeof post.image_urls === "string"
+          ? JSON.parse(post.image_urls)
+          : post.image_urls;
+      if (Array.isArray(arr) && arr.length > 0) return arr;
+    } catch {}
+  }
+  return post.image_url ? [post.image_url] : [];
+}
+
+// ── SVG icon components ───────────────────────────────────────────────────────
+function ThumbsUpIcon({ filled = false }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill={filled ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="w-4 h-4"
+    >
+      <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3z" />
+      <path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" />
+    </svg>
+  );
+}
+
+function ThumbsDownIcon({ filled = false }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill={filled ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="w-4 h-4"
+    >
+      <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3z" />
+      <path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17" />
+    </svg>
+  );
+}
 
 // ── Avatar ────────────────────────────────────────────────────────────────────
 function Avatar({ user, size = 9, onClick }) {
@@ -34,6 +141,7 @@ function Avatar({ user, size = 9, onClick }) {
   if (user?.profile_picture)
     return (
       <img
+          loading="lazy"
         src={user.profile_picture}
         alt={user.username}
         onClick={onClick}
@@ -51,7 +159,7 @@ function Avatar({ user, size = 9, onClick }) {
   );
 }
 
-// ── Local image map — keys = exact game_name from backend (lowercased) ──────────
+// ── Local image map — keys = exact game_name from backend (lowercased) ─────────
 const LOCAL_IMAGES = {
   "apex legends": "/ApexLegends.jpg",
   "battlegrounds mobile india": "/BGMI.jpg",
@@ -92,6 +200,7 @@ function CommunityBanner({ community, isActive, onClick }) {
       >
         {imgSrc ? (
           <img
+          loading="lazy"
             src={imgSrc}
             alt={gameName}
             className="w-full h-full object-cover"
@@ -113,6 +222,99 @@ function CommunityBanner({ community, isActive, onClick }) {
   );
 }
 
+// ── Full-screen image lightbox ─────────────────────────────────────────────────
+function ImageLightbox({ images, initialIdx, onClose }) {
+  const [idx, setIdx] = useState(initialIdx ?? 0);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowLeft")
+        setIdx((i) => (i - 1 + images.length) % images.length);
+      if (e.key === "ArrowRight") setIdx((i) => (i + 1) % images.length);
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [images.length, onClose]);
+
+  // Prevent body scroll while open
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, []);
+
+  return (
+    <div
+      className="fixed inset-0 z-[200] bg-black/95 flex items-center justify-center"
+      onClick={onClose}
+    >
+      {/* Close */}
+      <button
+        onClick={onClose}
+        className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 text-white text-xl flex items-center justify-center hover:bg-white/20 transition-colors z-10"
+      >
+        ✕
+      </button>
+
+      {/* Prev */}
+      {images.length > 1 && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setIdx((i) => (i - 1 + images.length) % images.length);
+          }}
+          className="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 text-white text-2xl flex items-center justify-center hover:bg-white/20 transition-colors z-10 font-bold"
+        >
+          ‹
+        </button>
+      )}
+
+      {/* Image */}
+      <img
+          loading="lazy"
+        src={images[idx]}
+        alt={`Image ${idx + 1} of ${images.length}`}
+        className="max-w-[88vw] max-h-[88vh] object-contain rounded-lg shadow-2xl select-none"
+        onClick={(e) => e.stopPropagation()}
+        onError={(e) => { e.target.alt = "Image failed to load"; }}
+        draggable={false}
+      />
+
+      {/* Next */}
+      {images.length > 1 && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setIdx((i) => (i + 1) % images.length);
+          }}
+          className="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 text-white text-2xl flex items-center justify-center hover:bg-white/20 transition-colors z-10 font-bold"
+        >
+          ›
+        </button>
+      )}
+
+      {/* Counter + dot indicators */}
+      {images.length > 1 && (
+        <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-10">
+          <div className="flex gap-1.5">
+            {images.map((_, i) => (
+              <button
+                key={i}
+                onClick={(e) => { e.stopPropagation(); setIdx(i); }}
+                className={`w-2 h-2 rounded-full transition-all ${i === idx ? "bg-white scale-125" : "bg-white/40 hover:bg-white/60"}`}
+              />
+            ))}
+          </div>
+          <span className="bg-black/60 text-white text-xs px-3 py-1 rounded-full">
+            {idx + 1} / {images.length}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Post Card ─────────────────────────────────────────────────────────────────
 function PostCard({
   post,
@@ -123,24 +325,38 @@ function PostCard({
   showGameTag = false,
   onViewProfile,
 }) {
-  const [imgExpanded, setImgExpanded] = useState(false);
+  const images = useMemo(() => getPostImages(post), [post.image_urls, post.image_url]);
+  const [currentImg, setCurrentImg] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIdx, setLightboxIdx] = useState(0);
+
   const isOwner = currentUserId && post.user_id === currentUserId;
+  const hasMultiple = images.length > 1;
+
+  const openLightbox = (idx) => {
+    setLightboxIdx(idx);
+    setLightboxOpen(true);
+  };
 
   return (
     <div className="card group transition-all duration-200 hover:border-red/20">
+      {/* Lightbox */}
+      {lightboxOpen && (
+        <ImageLightbox
+          images={images}
+          initialIdx={lightboxIdx}
+          onClose={() => setLightboxOpen(false)}
+        />
+      )}
+
       <div className="flex items-start gap-3">
         <Avatar
-          user={{
-            username: post.username,
-            profile_picture: post.profile_picture,
-          }}
+          user={{ username: post.username, profile_picture: post.profile_picture }}
           onClick={() => onViewProfile && onViewProfile(post.user_id)}
         />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <span className="text-sm font-semibold text-white">
-              {post.username}
-            </span>
+            <span className="text-sm font-semibold text-white">{post.username}</span>
             {showGameTag && post.game_name && (
               <span className="badge-red text-xs">🎮 {post.game_name}</span>
             )}
@@ -152,9 +368,7 @@ function PostCard({
               })}
             </span>
           </div>
-          <h3 className="font-semibold text-gray-200 mb-1 leading-snug">
-            {post.title}
-          </h3>
+          <h3 className="font-semibold text-gray-200 mb-1 leading-snug">{post.title}</h3>
           {post.content && (
             <p className="text-sm text-gray-400 line-clamp-3 leading-relaxed">
               {post.content}
@@ -162,7 +376,7 @@ function PostCard({
           )}
         </div>
 
-        {/* Delete button — only visible to post owner */}
+        {/* Delete — only for owner */}
         {isOwner && (
           <button
             onClick={() => onDelete(post.post_id)}
@@ -174,51 +388,100 @@ function PostCard({
         )}
       </div>
 
-      {post.image_url && (
-        <div
-          className="mt-3 rounded-xl overflow-hidden border border-surface-border cursor-pointer relative"
-          onClick={() => setImgExpanded(!imgExpanded)}
-        >
+      {/* ── Image carousel ──────────────────────────────────────────────────── */}
+      {images.length > 0 && (
+        <div className="mt-3 rounded-xl overflow-hidden border border-surface-border relative select-none">
+          {/* Main image */}
           <img
-            src={post.image_url}
-            alt="post media"
-            className={
-              "w-full object-cover transition-all duration-300 " +
-              (imgExpanded ? "max-h-[600px]" : "max-h-64")
-            }
-            onError={(e) => {
-              e.target.parentElement.style.display = "none";
-            }}
+          loading="lazy"
+            src={images[currentImg]}
+            alt={`Post image ${currentImg + 1}`}
+            className="w-full max-h-72 object-cover cursor-zoom-in transition-opacity duration-200"
+            onClick={() => openLightbox(currentImg)}
+            onError={(e) => { e.target.parentElement.style.display = "none"; }}
           />
-          {!imgExpanded && (
-            <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent flex items-end justify-center pb-2 pointer-events-none">
-              <span className="text-xs text-white/70 bg-black/40 px-2 py-0.5 rounded-full">
-                tap to expand
+
+          {/* Multi-image controls */}
+          {hasMultiple && (
+            <>
+              {/* Prev button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCurrentImg((i) => (i - 1 + images.length) % images.length);
+                }}
+                className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 text-white text-lg flex items-center justify-center hover:bg-black/80 transition-colors font-bold shadow"
+              >
+                ‹
+              </button>
+
+              {/* Next button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCurrentImg((i) => (i + 1) % images.length);
+                }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 text-white text-lg flex items-center justify-center hover:bg-black/80 transition-colors font-bold shadow"
+              >
+                ›
+              </button>
+
+              {/* Counter badge */}
+              <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-0.5 rounded-full">
+                {currentImg + 1} / {images.length}
+              </div>
+
+              {/* Dot indicators */}
+              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+                {images.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={(e) => { e.stopPropagation(); setCurrentImg(i); }}
+                    className={`w-1.5 h-1.5 rounded-full transition-all ${i === currentImg ? "bg-white" : "bg-white/40"}`}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Click to expand hint (single image only) */}
+          {!hasMultiple && (
+            <div
+              className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent flex items-end justify-center pb-2 pointer-events-none"
+              onClick={() => openLightbox(0)}
+            >
+              <span className="text-xs text-white/70 bg-black/40 px-2 py-0.5 rounded-full pointer-events-none">
+                click to expand
               </span>
             </div>
           )}
         </div>
       )}
 
+      {/* ── Vote & comment bar ───────────────────────────────────────────────── */}
       <div className="flex items-center gap-4 mt-4 pt-3 divider">
-        {/* Upvote — highlighted red when user has already upvoted */}
+        {/* Thumbs Up */}
         <button
           onClick={() => onVote(post.post_id, "up")}
-          className={`flex items-center gap-1.5 text-sm transition-colors group/vote ${post.userVote === "up" ? "text-red" : "text-gray-500 hover:text-red"}`}
+          className={`flex items-center gap-1.5 text-sm transition-colors group/vote ${
+            post.userVote === "up" ? "text-red" : "text-gray-500 hover:text-red"
+          }`}
         >
           <span className="group-hover/vote:scale-125 transition-transform inline-block">
-            ▲
+            <ThumbsUpIcon filled={post.userVote === "up"} />
           </span>
           <span>{post.upvotes || 0}</span>
         </button>
 
-        {/* Downvote — highlighted blue when user has already downvoted */}
+        {/* Thumbs Down */}
         <button
           onClick={() => onVote(post.post_id, "down")}
-          className={`flex items-center gap-1.5 text-sm transition-colors group/vote ${post.userVote === "down" ? "text-blue-400" : "text-gray-500 hover:text-blue-400"}`}
+          className={`flex items-center gap-1.5 text-sm transition-colors group/vote ${
+            post.userVote === "down" ? "text-blue-400" : "text-gray-500 hover:text-blue-400"
+          }`}
         >
           <span className="group-hover/vote:scale-125 transition-transform inline-block">
-            ▼
+            <ThumbsDownIcon filled={post.userVote === "down"} />
           </span>
           <span>{post.downvotes || 0}</span>
         </button>
@@ -245,6 +508,9 @@ function CommentPanel({ post, onClose, currentUserId, onViewProfile }) {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const endRef = useRef(null);
+
+  // Show first image in panel header (supports multi-image posts)
+  const firstImage = getPostImages(post)[0] || null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -283,14 +549,13 @@ function CommentPanel({ post, onClose, currentUserId, onViewProfile }) {
       >
         {/* Panel header */}
         <div className="flex items-start gap-3 px-5 py-4 border-b border-surface-border shrink-0">
-          {post.image_url && (
+          {firstImage && (
             <img
-              src={post.image_url}
+          loading="lazy"
+              src={firstImage}
               alt=""
               className="w-12 h-12 rounded-lg object-cover border border-surface-border shrink-0"
-              onError={(e) => {
-                e.target.style.display = "none";
-              }}
+              onError={(e) => { e.target.style.display = "none"; }}
             />
           )}
           <div className="flex-1 min-w-0">
@@ -317,10 +582,7 @@ function CommentPanel({ post, onClose, currentUserId, onViewProfile }) {
             comms.map((c) => (
               <div key={c.comment_id} className="flex gap-2.5 group/comment">
                 <Avatar
-                  user={{
-                    username: c.username,
-                    profile_picture: c.profile_picture,
-                  }}
+                  user={{ username: c.username, profile_picture: c.profile_picture }}
                   size={7}
                   onClick={() => onViewProfile && onViewProfile(c.user_id)}
                 />
@@ -329,7 +591,6 @@ function CommentPanel({ post, onClose, currentUserId, onViewProfile }) {
                     <span className="text-xs font-semibold text-gray-300">
                       {c.username}
                     </span>
-                    {/* Delete comment button — only for comment owner, appears on hover */}
                     {currentUserId && c.user_id === currentUserId && (
                       <button
                         onClick={() => handleDeleteComment(c.comment_id)}
@@ -384,7 +645,7 @@ function CommentPanel({ post, onClose, currentUserId, onViewProfile }) {
   );
 }
 
-// ── Drop a Post Form ─────────────────────────────────────────────────────────────
+// ── Drop a Post Form — multi-image ────────────────────────────────────────────
 function NewPostForm({ communityName, onSubmit, onCancel, error }) {
   const { theme } = useTheme();
   const ts = themeStyles(theme);
@@ -392,17 +653,59 @@ function NewPostForm({ communityName, onSubmit, onCancel, error }) {
 
   const [form, setForm] = useState({ title: "", content: "" });
   const [submitting, setSub] = useState(false);
-  const img = useImageUpload();
-  // urlMode lives locally since the hook doesn't need it
-  const [imgUrlMode, setImgUrlMode] = useState(false);
 
+  // Multi-image state
+  const [images, setImages] = useState([]); // [{ value: string, preview: string }]
+  const [imgProcessing, setImgProcessing] = useState(false);
+  const [imgError, setImgError] = useState("");
+  const [imgMode, setImgMode] = useState("upload"); // 'upload' | 'url'
+  const [urlInput, setUrlInput] = useState("");
+
+  const canAddMore = images.length < MAX_POST_IMAGES;
+  const remaining  = MAX_POST_IMAGES - images.length;
+
+  // Process selected files
+  const handleFiles = useCallback(async (files) => {
+    const toProcess = Array.from(files).slice(0, remaining);
+    if (!toProcess.length) return;
+    setImgProcessing(true);
+    setImgError("");
+    try {
+      const processed = await Promise.all(toProcess.map(compressPostImage));
+      setImages((prev) => [
+        ...prev,
+        ...processed.map((v) => ({ value: v, preview: v })),
+      ]);
+    } catch (e) {
+      setImgError(e.message || "Failed to process image");
+    } finally {
+      setImgProcessing(false);
+    }
+  }, [remaining]);
+
+  // Add URL to list
+  const addUrl = () => {
+    const url = urlInput.trim();
+    if (!url || !canAddMore) return;
+    setImages((prev) => [...prev, { value: url, preview: url }]);
+    setUrlInput("");
+  };
+
+  // Remove single image
+  const removeImage = (idx) =>
+    setImages((prev) => prev.filter((_, i) => i !== idx));
+
+  // Submit
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSub(true);
-    await onSubmit({ ...form, image_url: img.value || null });
+    await onSubmit({
+      ...form,
+      image_urls: images.map((i) => i.value),
+    });
     setSub(false);
     setForm({ title: "", content: "" });
-    img.clear();
+    setImages([]);
   };
 
   return (
@@ -426,6 +729,7 @@ function NewPostForm({ communityName, onSubmit, onCancel, error }) {
           ✕
         </button>
       </div>
+
       <div className="p-5">
         <ErrorMessage message={error} />
         <form onSubmit={handleSubmit} className="flex flex-col gap-3 mt-1">
@@ -441,40 +745,38 @@ function NewPostForm({ communityName, onSubmit, onCancel, error }) {
             rows={3}
             placeholder="Share your thoughts, clips, strategies..."
             value={form.content}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, content: e.target.value }))
-            }
+            onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))}
           />
+
+          {/* ── Image section ──────────────────────────────────────────────── */}
           <div className="rounded-xl border border-surface-border bg-navy/40 p-3">
+            {/* Header row */}
             <div className="flex items-center gap-2 mb-3">
               <span className="text-sm text-gray-400 font-medium">
-                📷 Attach Image / GIF
+                📷 Images
+                <span className="text-gray-600 text-xs ml-1">
+                  ({images.length}/{MAX_POST_IMAGES})
+                </span>
               </span>
               <div className="flex gap-1 ml-auto">
                 <button
                   type="button"
-                  onClick={() => {
-                    setImgUrlMode(false);
-                    img.clear();
-                  }}
+                  onClick={() => { setImgMode("upload"); setImgError(""); }}
                   className={
                     "px-2.5 py-1 rounded-lg text-xs font-medium transition-colors " +
-                    (!imgUrlMode
+                    (imgMode === "upload"
                       ? "bg-red/20 text-red border border-red/30"
                       : "text-gray-500 hover:text-white border border-surface-border")
                   }
                 >
-                  Upload file
+                  Upload
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setImgUrlMode(true);
-                    img.clear();
-                  }}
+                  onClick={() => { setImgMode("url"); setImgError(""); }}
                   className={
                     "px-2.5 py-1 rounded-lg text-xs font-medium transition-colors " +
-                    (imgUrlMode
+                    (imgMode === "url"
                       ? "bg-red/20 text-red border border-red/30"
                       : "text-gray-500 hover:text-white border border-surface-border")
                   }
@@ -483,88 +785,131 @@ function NewPostForm({ communityName, onSubmit, onCancel, error }) {
                 </button>
               </div>
             </div>
-            {!imgUrlMode ? (
+
+            {/* Upload area */}
+            {imgMode === "upload" && canAddMore && (
               <div>
                 <input
                   type="file"
                   accept="image/*,.gif"
+                  multiple
                   className="hidden"
                   id="comm-img-upload"
                   onChange={(e) => {
-                    img.clear();
-                    img.pickFile(e.target.files?.[0]);
+                    handleFiles(e.target.files);
                     e.target.value = "";
                   }}
                 />
                 <label
                   htmlFor="comm-img-upload"
-                  className="w-full border-2 border-dashed border-surface-border rounded-xl py-5 flex flex-col items-center gap-2 text-gray-500 hover:border-red/40 hover:text-gray-300 transition-colors cursor-pointer"
-                  style={{ display: "flex" }}
+                  className="w-full border-2 border-dashed border-surface-border rounded-xl py-4 flex flex-col items-center gap-2 text-gray-500 hover:border-red/40 hover:text-gray-300 transition-colors cursor-pointer"
                 >
                   <span className="text-2xl">
-                    {img.processing ? "⏳" : "💾"}
+                    {imgProcessing ? "⏳" : "💾"}
                   </span>
-                  <span className="text-xs">
-                    {img.processing
-                      ? "Optimising image..."
-                      : "Browse image — JPEG, PNG, GIF, WEBP, HEIC (max 100 MB)"}
+                  <span className="text-xs text-center px-2">
+                    {imgProcessing
+                      ? "Optimising images…"
+                      : `Browse images — JPEG, PNG, GIF, WEBP (max ${POST_MAX_MB} MB each)`}
                   </span>
-                  {img.processing && (
+                  {imgProcessing && (
                     <div className="w-40 h-1.5 bg-surface-border rounded-full overflow-hidden mt-1">
-                      <div
-                        className="h-full bg-red rounded-full transition-all duration-300"
-                        style={{ width: img.progress + "%" }}
-                      />
+                      <div className="h-full bg-red rounded-full animate-pulse w-2/3" />
                     </div>
                   )}
+                  {canAddMore && !imgProcessing && images.length > 0 && (
+                    <span className="text-xs text-red/70">
+                      +{remaining} more slot{remaining !== 1 ? "s" : ""}
+                    </span>
+                  )}
                 </label>
-                {img.error && (
-                  <p
-                    className="text-xs mt-1.5 flex items-center gap-1"
-                    style={{ color: "#ff4655" }}
-                  >
-                    ⚠ {img.error}
-                  </p>
-                )}
               </div>
-            ) : (
-              <input
-                className="input text-sm"
-                placeholder="https://i.imgur.com/example.gif or any image URL"
-                value={img.value}
-                onChange={(e) => img.setUrl(e.target.value)}
-              />
             )}
-            {img.preview && (
-              <div className="mt-3 relative">
-                <img
-                  src={img.preview}
-                  alt="preview"
-                  className="w-full max-h-48 object-cover rounded-lg border border-surface-border"
-                  onError={(e) => {
-                    e.target.style.display = "none";
-                  }}
+
+            {/* URL mode */}
+            {imgMode === "url" && canAddMore && (
+              <div className="flex gap-2">
+                <input
+                  className="input text-sm flex-1"
+                  placeholder="https://i.imgur.com/example.gif"
+                  value={urlInput}
+                  onChange={(e) => setUrlInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addUrl(); } }}
                 />
                 <button
                   type="button"
-                  onClick={img.clear}
-                  className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/60 text-white text-xs flex items-center justify-center hover:bg-red/80 transition-colors"
+                  onClick={addUrl}
+                  disabled={!urlInput.trim()}
+                  className="btn-secondary text-sm shrink-0"
                 >
-                  ✕
+                  Add
                 </button>
-                <div className="mt-1.5 flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                  <span className="text-xs text-green-400">Media attached</span>
-                </div>
+              </div>
+            )}
+
+            {/* Full slots message */}
+            {!canAddMore && (
+              <p className="text-xs text-gray-500 text-center py-2">
+                Maximum {MAX_POST_IMAGES} images reached
+              </p>
+            )}
+
+            {/* Error */}
+            {imgError && (
+              <p className="text-xs mt-2 flex items-center gap-1" style={{ color: "#ff4655" }}>
+                ⚠ {imgError}
+              </p>
+            )}
+
+            {/* Preview grid */}
+            {images.length > 0 && (
+              <div className="mt-3 grid grid-cols-5 gap-2">
+                {images.map((img, idx) => (
+                  <div key={idx} className="relative group/img aspect-square">
+                    <img
+          loading="lazy"
+                      src={img.preview}
+                      alt={`preview ${idx + 1}`}
+                      className="w-full h-full object-cover rounded-lg border border-surface-border"
+                      onError={(e) => { e.target.src = ""; e.target.alt = "Error"; }}
+                    />
+                    {/* Remove button */}
+                    <button
+                      type="button"
+                      onClick={() => removeImage(idx)}
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red text-white text-xs flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity shadow"
+                    >
+                      ✕
+                    </button>
+                    {/* Order badge */}
+                    <span className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] px-1 rounded">
+                      {idx + 1}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {images.length > 0 && (
+              <div className="mt-2 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                <span className="text-xs text-green-400">
+                  {images.length} image{images.length !== 1 ? "s" : ""} attached
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setImages([])}
+                  className="ml-auto text-xs text-gray-600 hover:text-red transition-colors"
+                >
+                  Clear all
+                </button>
               </div>
             )}
           </div>
+
+          {/* Actions */}
           <div className="flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="btn-secondary text-sm"
-            >
+            <button type="button" onClick={onCancel} className="btn-secondary text-sm">
               Abort
             </button>
             <button
@@ -595,19 +940,19 @@ export default function Communities() {
   const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
 
-  const [communities, setCommunities] = useState([]);
-  const [favGameIds, setFavGameIds] = useState([]);
-  const [activeCommunity, setActive] = useState(null);
-  const [posts, setPosts] = useState([]);
+  const [communities, setCommunities]   = useState([]);
+  const [favGameIds, setFavGameIds]     = useState([]);
+  const [activeCommunity, setActive]    = useState(null);
+  const [posts, setPosts]               = useState([]);
   const [allGamesPosts, setAllGamesPosts] = useState([]);
-  const [loadingCom, setLoadingCom] = useState(true);
+  const [loadingCom, setLoadingCom]     = useState(true);
   const [loadingPosts, setLoadingPosts] = useState(false);
-  const [showForm, setShowForm] = useState(false);
-  const [error, setError] = useState("");
-  const [activePost, setActivePost] = useState(null);
-  const [toast, setToast] = useState("");
-  const [postFilter, setPostFilter] = useState("all"); // 'all' | 'following'
-  const [viewMode, setViewMode] = useState("community"); // 'community' | 'all'
+  const [showForm, setShowForm]         = useState(false);
+  const [error, setError]               = useState("");
+  const [activePost, setActivePost]     = useState(null);
+  const [toast, setToast]               = useState("");
+  const [postFilter, setPostFilter]     = useState("all"); // 'all' | 'following'
+  const [viewMode, setViewMode]         = useState("community"); // 'community' | 'all'
 
   const showToast = (msg) => {
     setToast(msg);
@@ -652,15 +997,15 @@ export default function Communities() {
     }
     setLoadingPosts(true);
     getAllFavGamesPosts({
-        game_ids: favGameIds.join(","),
-        following: postFilter === "following" ? "true" : "false",
-      })
-        .then((res) => setAllGamesPosts(res.data.posts || []))
-        .catch(() => setAllGamesPosts([]))
-        .finally(() => setLoadingPosts(false));
+      game_ids: favGameIds.join(","),
+      following: postFilter === "following" ? "true" : "false",
+    })
+      .then((res) => setAllGamesPosts(res.data.posts || []))
+      .catch(() => setAllGamesPosts([]))
+      .finally(() => setLoadingPosts(false));
   }, [viewMode, favGameIds, postFilter]);
 
-  // Vote handler — one vote per user; clicking same vote toggles it off, opposite vote switches
+  // Vote handler
   const handleVote = async (postId, vote) => {
     try {
       const res = await votePost(postId, vote);
@@ -713,6 +1058,11 @@ export default function Communities() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 animate-fade-in">
+      <SEO
+        title="Esports Communities"
+        description="Join esports communities on ArenaX. Connect with players, teams, and organizers across Valorant, CS2, and more."
+        path="/communities"
+      />
       {/* Toast notification */}
       {toast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-surface-card border border-green-500/30 text-green-400 text-sm px-5 py-3 rounded-full shadow-card animate-fade-in">
@@ -745,19 +1095,13 @@ export default function Communities() {
           </p>
           <div className="flex gap-1">
             <button
-              onClick={() => {
-                setViewMode("community");
-                setShowForm(false);
-              }}
+              onClick={() => { setViewMode("community"); setShowForm(false); }}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${viewMode === "community" ? "bg-red text-white" : "text-gray-500 hover:text-white border border-surface-border"}`}
             >
               Community
             </button>
             <button
-              onClick={() => {
-                setViewMode("all");
-                setShowForm(false);
-              }}
+              onClick={() => { setViewMode("all"); setShowForm(false); }}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${viewMode === "all" ? "bg-red text-white" : "text-gray-500 hover:text-white border border-surface-border"}`}
             >
               All Games Feed
@@ -848,7 +1192,11 @@ export default function Communities() {
                 <button
                   onClick={() => activeCommunity && setShowForm(!showForm)}
                   disabled={!activeCommunity}
-                  title={!activeCommunity ? "Add games to your library to unlock communities" : undefined}
+                  title={
+                    !activeCommunity
+                      ? "Add games to your library to unlock communities"
+                      : undefined
+                  }
                   className={
                     "text-sm shrink-0 " +
                     (showForm ? "btn-secondary" : "btn-primary") +
@@ -863,9 +1211,7 @@ export default function Communities() {
 
           {viewMode === "community" && showForm && (
             <NewPostForm
-              communityName={
-                activeCommunity?.name || activeCommunity?.game_name
-              }
+              communityName={activeCommunity?.name || activeCommunity?.game_name}
               onSubmit={handleCreatePost}
               onCancel={() => setShowForm(false)}
               error={error}

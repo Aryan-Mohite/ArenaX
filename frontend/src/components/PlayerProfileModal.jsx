@@ -13,6 +13,7 @@ function Avatar({ user, size = 20 }) {
   if (user?.profile_picture)
     return (
       <img
+          loading="lazy"
         src={user.profile_picture}
         alt={user.username}
         className={`${s} rounded-full object-cover border-2 border-red/30 shrink-0`}
@@ -72,7 +73,7 @@ export default function PlayerProfileModal({ userId, onClose }) {
           setFollowStatus({
             following: statusRes.data.following,
             followers: Number(statusRes.data.followers),
-            following_count: Number(statusRes.data.following),
+            following_count: Number(statusRes.data.following_count),
           });
         } else {
           // For self or unauthenticated: just show counts from profile if available
@@ -106,8 +107,9 @@ export default function PlayerProfileModal({ userId, onClose }) {
           followers: s.followers + 1,
         }));
       }
-    } catch {
-      // silent
+    } catch (err) {
+      const status = err?.response?.status;
+      console.error("[Follow toggle error]", status, err?.response?.data);
     } finally {
       setFollowLoading(false);
     }
@@ -278,6 +280,7 @@ export default function PlayerProfileModal({ userId, onClose }) {
                       >
                         {gp.icon ? (
                           <img
+          loading="lazy"
                             src={gp.icon}
                             alt={gp.game_name}
                             className="w-7 h-7 rounded-lg object-cover"
@@ -296,13 +299,6 @@ export default function PlayerProfileModal({ userId, onClose }) {
                               {gp.rank}
                             </span>
                           )}
-                          {/* [COMING SOON] ELO — part of Player Stats feature, hidden until it ships.
-                          {gp.elo_rating && (
-                            <span className="text-xs px-2 py-0.5 rounded-full border border-surface-border bg-white/5 text-gray-400">
-                              ELO {gp.elo_rating}
-                            </span>
-                          )}
-                          */}
                           {gp.role && (
                             <span className="text-xs px-2 py-0.5 rounded-full border border-red/30 bg-red/10 text-red-light">
                               {gp.role}

@@ -98,6 +98,26 @@ export default function Footer() {
         {/* Legal links */}
         <div className="flex items-center gap-5 flex-wrap justify-center">
           <Link
+            to="/blog"
+            className="text-xs transition-colors hover:underline"
+            style={{ color: "var(--text-muted)" }}
+          >
+            Blog
+          </Link>
+          <span className="text-xs" style={{ color: "var(--border-color)" }}>
+            |
+          </span>
+          <Link
+            to="/faq"
+            className="text-xs transition-colors hover:underline"
+            style={{ color: "var(--text-muted)" }}
+          >
+            FAQ
+          </Link>
+          <span className="text-xs" style={{ color: "var(--border-color)" }}>
+            |
+          </span>
+          <Link
             to="/terms"
             className="text-xs transition-colors hover:underline"
             style={{ color: "var(--text-muted)" }}
@@ -118,11 +138,11 @@ export default function Footer() {
             |
           </span>
           <a
-            href="mailto:arenaxxtreme@gmail.com"
+            href="mailto:support@arenax.io"
             className="text-xs transition-colors hover:underline"
             style={{ color: "var(--text-muted)" }}
           >
-            arenaxxtreme@gmail.com
+            support@arenax.io
           </a>
         </div>
 

@@ -176,6 +176,9 @@ export default function ForgotPassword() {
               <p className="text-gray-400">
                 Code sent to <span className="text-white font-medium">{email}</span>
               </p>
+              <p className="text-sm mt-2 font-medium" style={{ color: "var(--red)" }}>
+                Don't see it? Please also check your spam/junk folder.
+              </p>
             </div>
             <div className="card">
               <form onSubmit={handleVerifyOtp} className="flex flex-col gap-4">

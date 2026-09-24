@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import { io } from "socket.io-client";
 import API from "../api/api";
 import { useNavigate } from "react-router-dom";
 import {
@@ -14,9 +13,12 @@ import {
 import { getMyGames } from "../services/gameService";
 import { ErrorMessage } from "../components/UI";
 import TeamIdBadge from "../components/TeamIdBadge";
+import SEO from "../components/SEO";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { themeStyles } from "../utils/themeStyles";
+import { useChatContext } from "../context/ChatContext";
+import ChatDrawer from "../components/ChatDrawer";
 
 // FIX (perf): replaced raw authFetch with the shared axios API instance.
 // Axios reuses the underlying TCP connection (keep-alive) across calls,
@@ -114,486 +116,19 @@ function GridBackground() {
   );
 }
 
-function ChatModal({ partnerId, partnerName, onClose }) {
+function RosterModal({ post, onClose, navigate }) {
   const { theme } = useTheme();
   const ts = themeStyles(theme);
   const isLight = theme === "light";
+  const { unread } = useChatContext();
 
-  const [messages, setMessages] = useState([]);
-  const [text, setText] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
-  const [connected, setConnected] = useState(false);
-  const { user } = useAuth();
-  const bottomRef = useRef(null);
-  const pollRef = useRef(null);
-  const socketRef = useRef(null);
+  const [chatOpen, setChatOpen]   = useState(false);
+  const [activeChat, setActiveChat] = useState(null);
 
-  // ── BUG FIX 1: Correct conversation URL ─────────────────────────────────
-  // Was: /messages/conversation/${partnerId}  → no such route → 404 silently swallowed
-  // Fix: /messages/${partnerId}              → matches GET /api/messages/:user_id
-  const loadMessages = useCallback(
-    async (first = false) => {
-      try {
-        const r = await authFetch(`/messages/${partnerId}?limit=60`);
-        // Replace full list from DB — this also recovers offline messages
-        setMessages(r.messages || []);
-      } catch {
-        // keep existing messages on transient failure
-      } finally {
-        if (first) setLoading(false);
-      }
-    },
-    [partnerId],
-  );
-
-  // ── BUG FIX 2: Socket.IO for real-time delivery ──────────────────────────
-  // Previously, ChatModal had no Socket.IO at all. The receiver would never see
-  // messages until the next HTTP poll tick — and with the wrong URL above,
-  // they never saw them at all.
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
-
-    // Derive socket server URL:
-    //  - Dev (Vite proxy): connect to same origin (undefined = socket.io default)
-    //  - Prod: VITE_SOCKET_URL if set, else strip /api suffix from VITE_API_URL
-    const apiUrl = import.meta.env.VITE_API_URL || "";
-    const socketUrl =
-      import.meta.env.VITE_SOCKET_URL ||
-      (apiUrl ? apiUrl.replace(/\/api\/?$/, "") : undefined);
-
-    const socket = io(socketUrl || undefined, {
-      auth: { token },
-      transports: ["websocket", "polling"],
-      reconnectionAttempts: 5,
-    });
-    socketRef.current = socket;
-
-    socket.on("connect", () => setConnected(true));
-    socket.on("disconnect", () => setConnected(false));
-
-    // Incoming message from our chat partner
-    socket.on("new_message", (msg) => {
-      const senderId = Number(msg.sender_id);
-      const numPartnerId = Number(partnerId);
-      if (senderId !== numPartnerId) return; // ignore messages from other conversations
-      setMessages((prev) => {
-        if (prev.find((m) => m.message_id === msg.message_id)) return prev; // dedupe
-        return [...prev, msg];
-      });
-    });
-
-    // Server confirms our own sent message (replace the optimistic bubble)
-    socket.on("message_sent", (msg) => {
-      setMessages((prev) => {
-        const withoutOpt = prev.filter((m) => !m._opt);
-        if (withoutOpt.find((m) => m.message_id === msg.message_id))
-          return withoutOpt; // already added by poll
-        return [...withoutOpt, msg];
-      });
-      setSending(false);
-    });
-
-    socket.on("error", () => setSending(false));
-
-    return () => {
-      socket.disconnect();
-      socketRef.current = null;
-    };
-  }, [partnerId]);
-
-  // Initial load + fallback poll (10 s) to catch any missed socket events
-  useEffect(() => {
-    loadMessages(true);
-    pollRef.current = setInterval(() => loadMessages(false), 10_000);
-    return () => clearInterval(pollRef.current);
-  }, [loadMessages]);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  const handleSend = async () => {
-    if (!text.trim() || sending) return;
-    setSending(true);
-    const content = text.trim();
-    setText("");
-
-    // Optimistic bubble
-    const opt = {
-      message_id: `opt_${Date.now()}`,
-      sender_id: user?.id,
-      receiver_id: partnerId,
-      content,
-      sent_at: new Date().toISOString(),
-      _opt: true,
-    };
-    setMessages((p) => [...p, opt]);
-
-    if (socketRef.current?.connected) {
-      // Preferred path: socket saves to DB + delivers to receiver in real-time.
-      // message_sent event will replace the optimistic bubble and clear sending.
-      socketRef.current.emit("send_message", {
-        receiverId: partnerId,
-        content,
-      });
-    } else {
-      // Fallback: REST POST (still persists to DB; receiver picks it up on next poll)
-      try {
-        await authFetch("/messages", {
-          method: "POST",
-          body: { receiver_id: partnerId, content },
-        });
-        // Reload to get the real message_id from DB
-        await loadMessages(false);
-      } catch {
-        // Remove optimistic bubble on failure
-        setMessages((p) => p.filter((m) => !m._opt));
-      } finally {
-        setSending(false);
-      }
-    }
+  const openDmChat = (app) => {
+    setActiveChat({ appId: app.application_id, partnerName: app.username });
+    setChatOpen(true);
   };
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
-      style={ts.modalBackdropSm}
-    >
-      <div
-        className="w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl border border-surface-border overflow-hidden flex flex-col animate-slide-up"
-        style={{ height: "min(90vh,580px)", ...ts.chatCard }}
-      >
-        <div
-          className="flex items-center gap-3 px-4 py-3 border-b border-surface-border shrink-0"
-          style={ts.modalHeader("rgba(59,130,246,0.08)")}
-        >
-          <div className="w-8 h-8 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-blue-400 font-bold text-sm shrink-0">
-            {partnerName?.[0]?.toUpperCase()}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-white text-sm">{partnerName}</p>
-            <p className="text-xs text-blue-400 flex items-center gap-1">
-              <span className={`w-1.5 h-1.5 rounded-full inline-block ${connected ? "bg-green-400" : "bg-yellow-400"}`} />
-              {connected ? "Live" : "Connecting…"}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:text-white hover:bg-white/10 transition-colors"
-          >
-            ✕
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2">
-          {loading ? (
-            <div className="flex items-center justify-center flex-1">
-              <div className="w-6 h-6 border-2 border-surface-border border-t-blue-400 rounded-full animate-spin" />
-            </div>
-          ) : messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center flex-1 text-center">
-              <div className="text-4xl mb-2 opacity-20">💬</div>
-              <p className="text-gray-500 text-sm">Start the conversation!</p>
-            </div>
-          ) : (
-            messages.map((msg) => {
-              const isMine = msg.sender_id === user?.id;
-              return (
-                <div
-                  key={msg.message_id}
-                  className={`flex ${isMine ? "justify-end" : "justify-start"}`}
-                >
-                  <div
-                    className={`max-w-[75%] px-3 py-2 rounded-2xl text-sm leading-relaxed ${isMine ? "rounded-br-sm bg-blue-500/20 border border-blue-500/20 text-white" : "rounded-bl-sm bg-white/5 border border-white/10 text-gray-200"} ${msg._opt ? "opacity-60" : ""}`}
-                  >
-                    <p>{msg.content}</p>
-                    <p
-                      className={`text-xs mt-0.5 ${isMine ? "text-blue-400/60" : "text-gray-600"}`}
-                    >
-                      {new Date(msg.sent_at).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </p>
-                  </div>
-                </div>
-              );
-            })
-          )}
-          <div ref={bottomRef} />
-        </div>
-        <div className="px-3 py-3 border-t border-surface-border shrink-0 flex gap-2 items-end">
-          <textarea
-            className="flex-1 resize-none rounded-xl border border-surface-border bg-white/5 text-white text-sm px-3 py-2 placeholder-gray-600 focus:outline-none focus:border-blue-500/50 transition-colors"
-            rows={1}
-            placeholder="Type a message..."
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-            style={{ minHeight: "38px", maxHeight: "96px" }}
-          />
-          <button
-            onClick={handleSend}
-            disabled={!text.trim() || sending}
-            className="w-9 h-9 rounded-xl flex items-center justify-center text-white transition-all shrink-0 disabled:opacity-30"
-            style={{ background: "linear-gradient(135deg,#3b82f6,#2563eb)" }}
-          >
-            ➤
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function TeamChatModal({ teamId, teamName, onClose }) {
-  const { theme } = useTheme();
-  const ts = themeStyles(theme);
-  const isLight = theme === "light";
-
-  const [messages, setMessages] = useState([]);
-  const [text, setText] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
-  const [connected, setConnected] = useState(false);
-  const [joined, setJoined] = useState(false);
-  const [accessError, setAccessError] = useState("");
-  const { user } = useAuth();
-  const bottomRef = useRef(null);
-  const socketRef = useRef(null);
-
-  const loadMessages = useCallback(async () => {
-    try {
-      const r = await authFetch(`/teams/${teamId}/messages?limit=60`);
-      setMessages(r.messages || []);
-    } catch (err) {
-      if (err?.response?.status === 403) {
-        setAccessError("You're no longer a member of this team.");
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [teamId]);
-
-  // Socket.IO room — joining is membership-checked server-side on every join,
-  // and again on every message send, so a kicked/left member loses access
-  // immediately rather than at next page load.
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
-
-    const apiUrl = import.meta.env.VITE_API_URL || "";
-    const socketUrl =
-      import.meta.env.VITE_SOCKET_URL ||
-      (apiUrl ? apiUrl.replace(/\/api\/?$/, "") : undefined);
-
-    const socket = io(socketUrl || undefined, {
-      auth: { token },
-      transports: ["websocket", "polling"],
-      reconnectionAttempts: 5,
-    });
-    socketRef.current = socket;
-
-    socket.on("connect", () => {
-      setConnected(true);
-      socket.emit("join_team_chat", { teamId });
-    });
-    socket.on("disconnect", () => setConnected(false));
-
-    // Once join_team_chat is accepted there's no explicit ack — we infer
-    // success unless an error event fires right after.
-    setJoined(true);
-
-    socket.on("team_chat_message", (msg) => {
-      if (Number(msg.team_id) !== Number(teamId)) return;
-      setMessages((prev) => {
-        if (prev.find((m) => m.team_message_id === msg.team_message_id)) return prev;
-        return [...prev.filter((m) => !m._opt), msg];
-      });
-      setSending(false);
-    });
-
-    socket.on("error", (err) => {
-      setSending(false);
-      if (err?.message?.toLowerCase().includes("member")) {
-        setAccessError(err.message);
-        setJoined(false);
-      }
-    });
-
-    return () => {
-      socket.emit("leave_team_chat", { teamId });
-      socket.disconnect();
-      socketRef.current = null;
-    };
-  }, [teamId]);
-
-  useEffect(() => {
-    loadMessages();
-  }, [loadMessages]);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  const handleSend = async () => {
-    if (!text.trim() || sending || accessError) return;
-    setSending(true);
-    const content = text.trim();
-    setText("");
-
-    const opt = {
-      team_message_id: `opt_${Date.now()}`,
-      team_id: teamId,
-      sender_id: user?.id,
-      sender_username: user?.username,
-      sender_picture: user?.profile_picture,
-      content,
-      sent_at: new Date().toISOString(),
-      _opt: true,
-    };
-    setMessages((p) => [...p, opt]);
-
-    if (socketRef.current?.connected) {
-      // Server broadcasts the saved message back to everyone (including us),
-      // which replaces this optimistic bubble once it arrives.
-      socketRef.current.emit("team_chat_message", { teamId, content });
-    } else {
-      try {
-        await authFetch(`/teams/${teamId}/messages`, {
-          method: "POST",
-          body: { content },
-        });
-        await loadMessages();
-      } catch {
-        setMessages((p) => p.filter((m) => !m._opt));
-      } finally {
-        setSending(false);
-      }
-    }
-  };
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
-      style={ts.modalBackdropSm}
-    >
-      <div
-        className="w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl border border-surface-border overflow-hidden flex flex-col animate-slide-up"
-        style={{ height: "min(90vh,580px)", ...ts.chatCard }}
-      >
-        <div
-          className="flex items-center gap-3 px-4 py-3 border-b border-surface-border shrink-0"
-          style={ts.modalHeader("rgba(239,68,68,0.08)")}
-        >
-          <div className="w-8 h-8 rounded-full bg-red/20 border border-red/30 flex items-center justify-center text-red font-bold text-sm shrink-0">
-            ⚔️
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 min-w-0">
-              <p className="font-semibold text-white text-sm truncate">{teamName}</p>
-              <TeamIdBadge teamId={teamId} />
-            </div>
-            <p className="text-xs text-red-light flex items-center gap-1">
-              <span className={`w-1.5 h-1.5 rounded-full inline-block ${connected ? "bg-green-400" : "bg-yellow-400"}`} />
-              {accessError ? "No access" : connected ? "Live" : "Connecting…"}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:text-white hover:bg-white/10 transition-colors"
-          >
-            ✕
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2">
-          {loading ? (
-            <div className="flex items-center justify-center flex-1">
-              <div className="w-6 h-6 border-2 border-surface-border border-t-red rounded-full animate-spin" />
-            </div>
-          ) : accessError ? (
-            <div className="flex flex-col items-center justify-center flex-1 text-center px-4">
-              <div className="text-4xl mb-2 opacity-20">🚫</div>
-              <p className="text-gray-400 text-sm">{accessError}</p>
-            </div>
-          ) : messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center flex-1 text-center">
-              <div className="text-4xl mb-2 opacity-20">💬</div>
-              <p className="text-gray-500 text-sm">Say hello to your squad!</p>
-            </div>
-          ) : (
-            messages.map((msg) => {
-              const isMine = msg.sender_id === user?.id;
-              return (
-                <div
-                  key={msg.team_message_id}
-                  className={`flex ${isMine ? "justify-end" : "justify-start"}`}
-                >
-                  <div className={`max-w-[75%] flex flex-col ${isMine ? "items-end" : "items-start"}`}>
-                    {!isMine && (
-                      <p className="text-xs text-gray-500 mb-0.5 px-1">
-                        {msg.sender_username}
-                      </p>
-                    )}
-                    <div
-                      className={`px-3 py-2 rounded-2xl text-sm leading-relaxed ${isMine ? "rounded-br-sm bg-red/20 border border-red/20 text-white" : "rounded-bl-sm bg-white/5 border border-white/10 text-gray-200"} ${msg._opt ? "opacity-60" : ""}`}
-                    >
-                      <p>{msg.content}</p>
-                      <p
-                        className={`text-xs mt-0.5 ${isMine ? "text-red-light/60" : "text-gray-600"}`}
-                      >
-                        {new Date(msg.sent_at).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          )}
-          <div ref={bottomRef} />
-        </div>
-        <div className="px-3 py-3 border-t border-surface-border shrink-0 flex gap-2 items-end">
-          <textarea
-            className="flex-1 resize-none rounded-xl border border-surface-border bg-white/5 text-white text-sm px-3 py-2 placeholder-gray-600 focus:outline-none focus:border-red/50 transition-colors disabled:opacity-50"
-            rows={1}
-            placeholder={accessError ? "Chat unavailable" : "Message your team..."}
-            value={text}
-            disabled={!!accessError}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-            style={{ minHeight: "38px", maxHeight: "96px" }}
-          />
-          <button
-            onClick={handleSend}
-            disabled={!text.trim() || sending || !!accessError}
-            className="w-9 h-9 rounded-xl flex items-center justify-center text-white transition-all shrink-0 disabled:opacity-30"
-            style={{ background: "linear-gradient(135deg,#ef4444,#dc2626)" }}
-          >
-            ➤
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function RosterModal({ post, onClose, onChat, navigate }) {
-  const { theme } = useTheme();
-  const ts = themeStyles(theme);
-  const isLight = theme === "light";
 
   const [apps, setApps] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -634,6 +169,7 @@ function RosterModal({ post, onClose, onChat, navigate }) {
     rejected: apps.filter((a) => a.status === "rejected"),
   };
   return (
+    <>
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={ts.modalBackdropSm}
@@ -724,6 +260,7 @@ function RosterModal({ post, onClose, onChat, navigate }) {
                             >
                               {app.profile_picture ? (
                                 <img
+          loading="lazy"
                                   src={app.profile_picture}
                                   alt={app.username}
                                   className="w-full h-full object-cover"
@@ -752,14 +289,7 @@ function RosterModal({ post, onClose, onChat, navigate }) {
                                     {app.game_role}
                                   </span>
                                 )}
-                                {/* [COMING SOON] ELO — part of Player Stats feature, hidden until it ships.
-                                {app.elo_rating && (
-                                  <span className="text-xs px-2 py-0.5 rounded-full border border-surface-border bg-white/5 text-gray-400">
-                                    ELO {app.elo_rating}
-                                  </span>
-                                )}
-                                */}
-                              </div>
+</div>
                               {app.message && (
                                 <p className="text-xs text-gray-400 mt-1 line-clamp-2 leading-relaxed">
                                   {app.message}
@@ -819,12 +349,15 @@ function RosterModal({ post, onClose, onChat, navigate }) {
                             {app.status === "draft_accepted" && (
                               <>
                                 <button
-                                  onClick={() =>
-                                    onChat(app.user_id, app.username)
-                                  }
-                                  className="flex-1 py-1.5 rounded-lg text-xs font-semibold border border-blue-500/30 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors flex items-center justify-center gap-1"
+                                  onClick={() => openDmChat(app)}
+                                  className="relative px-3 py-1.5 rounded-lg text-xs font-semibold border border-yellow-500/30 bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 transition-colors"
                                 >
-                                  💬 Open Chat
+                                  💬 Chat
+                                  {unread.dms[app.application_id] > 0 && (
+                                    <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red text-white text-[9px] flex items-center justify-center font-bold">
+                                      {unread.dms[app.application_id] > 9 ? "9+" : unread.dms[app.application_id]}
+                                    </span>
+                                  )}
                                 </button>
                                 <button
                                   onClick={() =>
@@ -856,16 +389,6 @@ function RosterModal({ post, onClose, onChat, navigate }) {
                                 </button>
                               </>
                             )}
-                            {app.status === "accepted" && (
-                              <button
-                                onClick={() =>
-                                  onChat(app.user_id, app.username)
-                                }
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-blue-500/30 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors"
-                              >
-                                💬 Chat
-                              </button>
-                            )}
                           </div>
                         </div>
                       );
@@ -878,13 +401,32 @@ function RosterModal({ post, onClose, onChat, navigate }) {
         </div>
       </div>
     </div>
+
+    <ChatDrawer
+      open={chatOpen}
+      onClose={() => setChatOpen(false)}
+      chatType="dm"
+      chatId={activeChat?.appId}
+      title={`Chat with ${activeChat?.partnerName || "Applicant"}`}
+      subtitle="Draft review — pending final decision"
+    />
+    </>
   );
 }
 
-function MyTeamsPanel({ myGames, onPostForTeam, refreshKey, onTeamsLoaded, onTeamChat }) {
+function MyTeamsPanel({ myGames, onPostForTeam, refreshKey, onTeamsLoaded }) {
   const { theme } = useTheme();
   const ts = themeStyles(theme);
   const isLight = theme === "light";
+  const { unread } = useChatContext();
+
+  const [chatOpen, setChatOpen]   = useState(false);
+  const [activeChat, setActiveChat] = useState(null); // { teamId, teamName }
+
+  const openTeamChat = (team) => {
+    setActiveChat({ teamId: team.team_id, teamName: team.team_name });
+    setChatOpen(true);
+  };
 
   const navigate = useNavigate();
   const [teams, setTeams] = useState([]);
@@ -942,6 +484,7 @@ function MyTeamsPanel({ myGames, onPostForTeam, refreshKey, onTeamsLoaded, onTea
     } catch {}
   };
   return (
+    <>
     <div
       className="mb-8 rounded-2xl border border-surface-border overflow-hidden"
       style={ts.cardBg}
@@ -1137,6 +680,7 @@ function MyTeamsPanel({ myGames, onPostForTeam, refreshKey, onTeamsLoaded, onTea
                             <div className="w-7 h-7 rounded-full bg-red/20 border border-red/30 flex items-center justify-center text-xs font-bold text-red overflow-hidden">
                               {m.profile_picture ? (
                                 <img
+          loading="lazy"
                                   src={m.profile_picture}
                                   alt={m.username}
                                   className="w-full h-full object-cover"
@@ -1164,13 +708,17 @@ function MyTeamsPanel({ myGames, onPostForTeam, refreshKey, onTeamsLoaded, onTea
                       </div>
                     </div>
                     <div className="flex gap-1.5 shrink-0">
+                      {/* 💬 Team Chat button */}
                       <button
-                        onClick={() =>
-                          onTeamChat(team.team_id, team.team_name)
-                        }
-                        className="px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-blue-500/30 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors whitespace-nowrap"
+                        onClick={() => openTeamChat(team)}
+                        className="relative px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-blue-500/30 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors whitespace-nowrap"
                       >
-                        💬 Team Chat
+                        💬 Chat
+                        {unread.teams[team.team_id] > 0 && (
+                          <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red text-white text-[9px] flex items-center justify-center font-bold">
+                            {unread.teams[team.team_id] > 9 ? "9+" : unread.teams[team.team_id]}
+                          </span>
+                        )}
                       </button>
                       {team.my_role === "captain" && (
                         <>
@@ -1197,13 +745,33 @@ function MyTeamsPanel({ myGames, onPostForTeam, refreshKey, onTeamsLoaded, onTea
         </div>
       )}
     </div>
+
+    {/* Team Chat Drawer */}
+    <ChatDrawer
+      open={chatOpen}
+      onClose={() => setChatOpen(false)}
+      chatType="team"
+      chatId={activeChat?.teamId}
+      title={activeChat?.teamName || "Team Chat"}
+      subtitle="Team group chat"
+    />
+    </>
   );
 }
 
-function MyDispatchesPanel({ onChat }) {
+function MyDispatchesPanel() {
   const { theme } = useTheme();
   const ts = themeStyles(theme);
   const isLight = theme === "light";
+  const { unread } = useChatContext();
+
+  const [chatOpen, setChatOpen]   = useState(false);
+  const [activeChat, setActiveChat] = useState(null); // { appId, partnerName }
+
+  const openDmChat = (app) => {
+    setActiveChat({ appId: app.application_id, partnerName: app.poster_username });
+    setChatOpen(true);
+  };
 
   const [apps, setApps] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1225,6 +793,7 @@ function MyDispatchesPanel({ onChat }) {
   }, [load]);
   if (!loading && apps.length === 0) return null;
   return (
+    <>
     <div
       className="mb-8 rounded-2xl border border-surface-border overflow-hidden"
       style={ts.cardBg}
@@ -1288,6 +857,7 @@ function MyDispatchesPanel({ onChat }) {
                     >
                       {app.poster_picture ? (
                         <img
+          loading="lazy"
                           src={app.poster_picture}
                           alt=""
                           className="w-full h-full object-cover"
@@ -1322,32 +892,31 @@ function MyDispatchesPanel({ onChat }) {
                         {timeAgo(app.applied_at)}
                       </p>
                     </div>
-                    <span
-                      className="text-xs font-semibold px-3 py-1 rounded-full shrink-0"
-                      style={{
-                        background: cfg.bg,
-                        border: `1px solid ${cfg.border}`,
-                        color: cfg.color,
-                      }}
-                    >
-                      {cfg.label}
-                    </span>
-                    {(app.status === "draft_accepted" ||
-                      app.status === "accepted") && (
-                      <button
-                        onClick={() =>
-                          onChat(app.poster_user_id, app.poster_username)
-                        }
-                        className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
+                    <div className="flex items-center gap-2 shrink-0">
+                      {app.status === "draft_accepted" && (
+                        <button
+                          onClick={() => openDmChat(app)}
+                          className="relative px-2.5 py-1 rounded-lg text-xs font-semibold border border-yellow-500/30 bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 transition-colors whitespace-nowrap"
+                        >
+                          💬 Chat
+                          {unread.dms[app.application_id] > 0 && (
+                            <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red text-white text-[9px] flex items-center justify-center font-bold">
+                              {unread.dms[app.application_id] > 9 ? "9+" : unread.dms[app.application_id]}
+                            </span>
+                          )}
+                        </button>
+                      )}
+                      <span
+                        className="text-xs font-semibold px-3 py-1 rounded-full shrink-0"
                         style={{
-                          background: "rgba(59,130,246,0.15)",
-                          border: "1px solid rgba(59,130,246,0.3)",
-                          color: "#60a5fa",
+                          background: cfg.bg,
+                          border: `1px solid ${cfg.border}`,
+                          color: cfg.color,
                         }}
                       >
-                        💬 Chat
-                      </button>
-                    )}
+                        {cfg.label}
+                      </span>
+                    </div>
                   </div>
                 );
               })}
@@ -1356,6 +925,17 @@ function MyDispatchesPanel({ onChat }) {
         </div>
       )}
     </div>
+
+    {/* DM Draft Chat Drawer */}
+    <ChatDrawer
+      open={chatOpen}
+      onClose={() => setChatOpen(false)}
+      chatType="dm"
+      chatId={activeChat?.appId}
+      title={`Chat with ${activeChat?.partnerName || "Recruiter"}`}
+      subtitle="Draft review — pending final decision"
+    />
+    </>
   );
 }
 
@@ -1398,6 +978,7 @@ function ApplyModal({ post, onClose, onSubmit }) {
             <div className="w-10 h-10 rounded-xl bg-red/20 border border-red/30 flex items-center justify-center text-red font-bold overflow-hidden">
               {post.profile_picture ? (
                 <img
+          loading="lazy"
                   src={post.profile_picture}
                   alt=""
                   className="w-full h-full object-cover"
@@ -1551,7 +1132,7 @@ function ListingCard({
     region,
     description,
     poster_rank,
-    // poster_elo, // [COMING SOON] — part of Player Stats feature, hidden until it ships
+    // poster_elo,
     created_at,
     post_id,
     deadline,
@@ -1619,6 +1200,7 @@ function ListingCard({
           >
             {profile_picture ? (
               <img
+          loading="lazy"
                 src={profile_picture}
                 alt={username}
                 className="w-full h-full object-cover"
@@ -1691,7 +1273,6 @@ function ListingCard({
           {rank_required && <span className="badge-blue">{rank_required}</span>}
           {region && <span className="badge-gray">📍 {region}</span>}
           {/* {poster_elo && <span className="badge-gray">ELO {poster_elo}</span>} */}
-          {/* [COMING SOON] ELO badge above — part of Player Stats feature, hidden until it ships. */}
           {poster_rank && <span className="badge-gray">🏅 {poster_rank}</span>}
         </div>
         {description && (
@@ -1763,8 +1344,6 @@ export default function TeamFinder() {
   const [applyPost, setApplyPost] = useState(null);
   const [appliedIds, setAppliedIds] = useState(new Set());
   const [rosterPost, setRosterPost] = useState(null);
-  const [chatPartner, setChatPartner] = useState(null);
-  const [teamChatTarget, setTeamChatTarget] = useState(null);
   const [closePost_, setClosePost] = useState(null);
   const [myTeams, setMyTeams] = useState([]);
   const [teamsRefresh, setTeamsRefresh] = useState(0);
@@ -1870,6 +1449,19 @@ export default function TeamFinder() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 animate-fade-in">
+      <SEO
+        title="Esports Team Finder — Find Teammates for Valorant, CS2 & More"
+        description="ArenaX Team Finder helps you find esports teammates fast. Match by game, rank, role, and availability across Valorant, CS2, League of Legends, and more — free team finder for competitive players."
+        path="/teamfinder"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          itemListElement: [
+            { "@type": "ListItem", position: 1, name: "Home", item: "https://arenax.io/" },
+            { "@type": "ListItem", position: 2, name: "Team Finder", item: "https://arenax.io/teamfinder" },
+          ],
+        }}
+      />
       {toast.msg && (
         <div
           className={
@@ -1893,25 +1485,7 @@ export default function TeamFinder() {
         <RosterModal
           post={rosterPost}
           onClose={() => setRosterPost(null)}
-          onChat={(uid, name) => {
-            setRosterPost(null);
-            setChatPartner({ userId: uid, username: name });
-          }}
           navigate={navigate}
-        />
-      )}
-      {chatPartner && (
-        <ChatModal
-          partnerId={chatPartner.userId}
-          partnerName={chatPartner.username}
-          onClose={() => setChatPartner(null)}
-        />
-      )}
-      {teamChatTarget && (
-        <TeamChatModal
-          teamId={teamChatTarget.teamId}
-          teamName={teamChatTarget.teamName}
-          onClose={() => setTeamChatTarget(null)}
         />
       )}
       {closePost_ && (
@@ -2155,16 +1729,10 @@ export default function TeamFinder() {
           onPostForTeam={handlePostForTeam}
           refreshKey={teamsRefresh}
           onTeamsLoaded={setMyTeams}
-          onTeamChat={(teamId, teamName) =>
-            setTeamChatTarget({ teamId, teamName })
-          }
         />
       )}
       {isAuthenticated && (
         <MyDispatchesPanel
-          onChat={(uid, name) =>
-            setChatPartner({ userId: uid, username: name })
-          }
         />
       )}
 

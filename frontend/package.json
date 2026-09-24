@@ -1,25 +1,77 @@
 {
-  "name": "esports-platform-frontend",
+  "name": "arenax-frontend",
   "private": true,
   "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "prerender": "react-snap"
   },
   "dependencies": {
-    "axios": "^1.7.2",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-router-dom": "^6.30.3",
-    "socket.io-client": "^4.7.5"
-  },
-  "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.19",
+    "axios": "^1.7.2",
+    "gsap": "^3.12.5",
+    "html-to-image": "^1.11.11",
     "postcss": "^8.4.39",
+    "qrcode": "^1.5.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-helmet-async": "^2.0.5",
+    "react-router-dom": "^6.30.3",
     "tailwindcss": "^3.4.4",
     "vite": "^5.4.0"
+  },
+  "devDependencies": {
+    "react-snap": "^1.23.0"
+  },
+  "reactSnap": {
+    "source": "dist",
+    "minifyHtml": {
+      "collapseWhitespace": false,
+      "removeComments": true
+    },
+    "puppeteerArgs": [
+      "--no-sandbox",
+      "--disable-setuid-sandbox"
+    ],
+    "include": [
+      "/",
+      "/games",
+      "/games/valorant",
+      "/games/counter-strike",
+      "/games/league-of-legends",
+      "/games/dota-2",
+      "/games/apex-legends",
+      "/games/fortnite",
+      "/games/warzone",
+      "/games/pubg-battlegrounds",
+      "/games/battlegrounds-mobile-india",
+      "/games/free-fire",
+      "/games/cod-mobile",
+      "/tournament",
+      "/teamfinder",
+      "/communities",
+      "/stream",
+      "/about",
+      "/faq",
+      "/blog",
+      "/blog/how-to-join-valorant-tournaments-online",
+      "/blog/finding-the-right-teammates-fps-games",
+      "/blog/building-a-streaming-setup-on-a-budget",
+      "/blog/understanding-tournament-formats-explained",
+      "/blog/esports-team-finder-guide",
+      "/blog/free-esports-tournaments-india-2026",
+      "/blog/valorant-vs-cs2-which-tactical-shooter-to-compete-in",
+      "/blog/how-esports-tournament-brackets-work",
+      "/blog/battle-royale-esports-guide-bgmi-free-fire-pubg",
+      "/blog/how-to-start-esports-career-in-india",
+      "/terms",
+      "/privacy",
+      "/login",
+      "/register"
+    ]
   }
 }

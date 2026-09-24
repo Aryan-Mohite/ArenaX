@@ -10,7 +10,7 @@ import GameCard from "../components/GameCard";
 import { PageLoader, EmptyState, ErrorMessage } from "../components/UI";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
-import { themeStyles } from "../utils/themeStyles";
+import SEO from "../components/SEO";
 
 // ─── Genre accent colors ──────────────────────────────────────────────────────
 const GENRE_COLORS = {
@@ -36,12 +36,14 @@ const PLATFORM_FILTERS = [
 
 // ─── Skeleton card ────────────────────────────────────────────────────────────
 function GameSkeleton() {
+  const { theme } = useTheme();
+  const isLight = theme === "light";
   return (
     <div
       className="rounded-xl overflow-hidden animate-pulse"
       style={{
-        background: "#1a2340",
-        border: "1px solid rgba(255,255,255,0.06)",
+        background: isLight ? "var(--bg-card)" : "#1a2340",
+        border: `1px solid ${isLight ? "var(--border-color)" : "rgba(255,255,255,0.06)"}`,
       }}
     >
       <div className="h-44 bg-surface-border/30" />
@@ -61,12 +63,8 @@ function GameSkeleton() {
   );
 }
 
-// ─── Cover art for spotlight ──────────────────────────────────────────────────
-function SpotlightCover({ game }) {
-  const { theme } = useTheme();
-  const ts = themeStyles(theme);
-  const isLight = theme === "light";
-
+// ─── Carousel slide background image (with graceful fallback) ─────────────────
+function CarouselSlideImage({ game }) {
   const [err, setErr] = useState(false);
   const color = genreColor(game.genre);
   const abbr = game.game_name
@@ -77,75 +75,205 @@ function SpotlightCover({ game }) {
     .toUpperCase();
   const src = !err && (game.cover_image || game.icon);
 
-  return (
-    <div className="relative w-full h-40 overflow-hidden">
-      {src ? (
-        <img
-          src={src}
-          alt={game.game_name}
-          className="w-full h-full object-cover"
-          onError={() => setErr(true)}
-        />
-      ) : (
-        <div
-          className="w-full h-full flex items-center justify-center"
-          style={{
-            background: `linear-gradient(160deg, ${color}40 0%, #0a0a1a 100%)`,
-          }}
-        >
-          <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center font-display font-black text-sm"
-            style={{
-              background: color + "25",
-              border: `1.5px solid ${color}60`,
-              color,
-            }}
-          >
-            {abbr}
-          </div>
-        </div>
-      )}
+  return src ? (
+    <img
+      loading="lazy"
+      src={src}
+      alt={game.game_name}
+      className="absolute inset-0 w-full h-full object-cover"
+      onError={() => setErr(true)}
+    />
+  ) : (
+    <div
+      className="absolute inset-0 flex items-center justify-center"
+      style={{
+        background: `linear-gradient(160deg, ${color}40 0%, #0a0a1a 100%)`,
+      }}
+    >
       <div
-        className="absolute bottom-0 left-0 right-0 h-12 pointer-events-none"
-        style={ts.cardImgOverlay}
-      />
+        className="w-20 h-20 rounded-2xl flex items-center justify-center font-display font-black text-2xl"
+        style={{
+          background: color + "25",
+          border: `2px solid ${color}60`,
+          color,
+        }}
+      >
+        {abbr}
+      </div>
     </div>
   );
 }
 
-// ─── Spotlight card ───────────────────────────────────────────────────────────
-function SpotlightCard({ game, rank }) {
-  const { theme } = useTheme();
-  const ts = themeStyles(theme);
-  const isLight = theme === "light";
-
+// ─── Single carousel slide ─────────────────────────────────────────────────────
+function CarouselSlide({ game, rank, active }) {
   const color = genreColor(game.genre);
   return (
     <div
-      className="relative rounded-xl overflow-hidden flex-shrink-0 w-36 transition-transform duration-200 hover:-translate-y-1"
-      style={ts.gameIconBox()}
+      className="absolute inset-0 transition-opacity duration-700 ease-in-out"
+      style={{
+        opacity: active ? 1 : 0,
+        pointerEvents: active ? "auto" : "none",
+      }}
     >
-      <SpotlightCover game={game} />
+      <CarouselSlideImage game={game} />
+
+      {/* Gradient overlays — left-to-right for text legibility, bottom for depth */}
       <div
-        className="absolute top-2 left-2 z-20 w-6 h-6 rounded-full flex items-center justify-center font-display font-black text-xs text-white"
-        style={{ background: color }}
-      >
-        {rank}
-      </div>
-      {game.rating && (
-        <div className="absolute bottom-[44px] left-2 z-20">
-          <span className="text-[9px] font-bold text-yellow-400">
-            {"★".repeat(Math.round(game.rating))}
-            {"☆".repeat(5 - Math.round(game.rating))}
+        className="absolute inset-0"
+        style={{
+          background:
+            "linear-gradient(90deg, rgba(6,9,20,0.92) 0%, rgba(6,9,20,0.55) 42%, rgba(6,9,20,0.15) 70%, transparent 100%)",
+        }}
+      />
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            "linear-gradient(0deg, rgba(6,9,20,0.85) 0%, transparent 35%)",
+        }}
+      />
+
+      {/* Content */}
+      <div className="relative z-10 h-full flex flex-col justify-end sm:justify-center px-6 sm:px-10 pb-14 sm:pb-0 max-w-xl">
+        <div className="flex items-center gap-2 mb-3">
+          <span
+            className="w-7 h-7 rounded-full flex items-center justify-center font-display font-black text-xs text-white shrink-0"
+            style={{ background: color }}
+          >
+            {rank}
+          </span>
+          <span
+            className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-md"
+            style={{ background: color + "25", color, border: `1px solid ${color}50` }}
+          >
+            {game.genre || "Featured"}
           </span>
         </div>
-      )}
-      <div className="p-2">
-        <p className="text-white text-[11px] font-semibold truncate">
+        <h3 className="font-display font-black text-3xl sm:text-4xl text-white tracking-tight mb-2 drop-shadow-lg">
           {game.game_name}
-        </p>
-        <p className="text-gray-500 text-[9px]">{game.genre}</p>
+        </h3>
+        {game.rating && (
+          <span className="text-sm font-bold text-yellow-400 tracking-wide">
+            {"★".repeat(Math.round(game.rating))}
+            {"☆".repeat(5 - Math.round(game.rating))}
+            <span className="text-gray-400 font-normal ml-2 text-xs">
+              {game.rating.toFixed?.(1) ?? game.rating} / 5
+            </span>
+          </span>
+        )}
       </div>
+    </div>
+  );
+}
+
+// ─── Full-width auto-playing carousel gallery ("Top Tier Games") ──────────────
+function GameCarousel({ games, loading }) {
+  const { theme } = useTheme();
+  const isLight = theme === "light";
+  const [index, setIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
+
+  useEffect(() => {
+    setIndex(0);
+  }, [games.length]);
+
+  useEffect(() => {
+    if (paused || games.length <= 1) return;
+    const t = setInterval(() => {
+      setIndex((i) => (i + 1) % games.length);
+    }, 5000);
+    return () => clearInterval(t);
+  }, [paused, games.length]);
+
+  const goTo = (i) =>
+    setIndex(((i % games.length) + games.length) % games.length);
+
+  if (loading) {
+    return (
+      <div
+        className="w-full h-[280px] sm:h-[380px] rounded-2xl overflow-hidden animate-pulse"
+        style={{
+          background: isLight ? "var(--bg-card)" : "#1a2340",
+          border: `1px solid ${isLight ? "var(--border-color)" : "rgba(255,255,255,0.06)"}`,
+        }}
+      />
+    );
+  }
+
+  if (!games.length) return null;
+
+  return (
+    <div
+      className="relative w-full h-[280px] sm:h-[380px] rounded-2xl overflow-hidden group select-none"
+      style={{ border: "1px solid rgba(255,255,255,0.08)" }}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+    >
+      {games.map((game, i) => (
+        <CarouselSlide
+          key={game.game_id}
+          game={game}
+          rank={i + 1}
+          active={i === index}
+        />
+      ))}
+
+      {/* Prev / Next arrows */}
+      {games.length > 1 && (
+        <>
+          <button
+            onClick={() => goTo(index - 1)}
+            aria-label="Previous game"
+            className="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+            style={{
+              background: "rgba(0,0,0,0.45)",
+              border: "1px solid rgba(255,255,255,0.15)",
+              backdropFilter: "blur(4px)",
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+          <button
+            onClick={() => goTo(index + 1)}
+            aria-label="Next game"
+            className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+            style={{
+              background: "rgba(0,0,0,0.45)",
+              border: "1px solid rgba(255,255,255,0.15)",
+              backdropFilter: "blur(4px)",
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
+        </>
+      )}
+
+      {/* Dot indicators */}
+      {games.length > 1 && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2">
+          {games.map((g, i) => (
+            <button
+              key={g.game_id}
+              onClick={() => goTo(i)}
+              aria-label={`Go to ${g.game_name}`}
+              className="h-1.5 rounded-full transition-all duration-300"
+              style={{
+                width: i === index ? "22px" : "7px",
+                background: i === index ? "#ff4655" : "rgba(255,255,255,0.35)",
+              }}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* "By Player Rating" badge, top-right */}
+      <span className="absolute top-4 right-4 z-20 text-[10px] font-semibold text-gray-300 bg-black/40 px-2.5 py-1 rounded-full backdrop-blur-sm">
+        By Player Rating
+      </span>
     </div>
   );
 }
@@ -197,9 +325,6 @@ function SyncBanner({ gameCount, onSync, syncing, syncResult }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function Games() {
-  const { theme } = useTheme();
-  const ts = themeStyles(theme);
-  const isLight = theme === "light";
   const { isAuthenticated } = useAuth();
 
   const [games, setGames] = useState([]);
@@ -330,6 +455,11 @@ export default function Games() {
 
   return (
     <div className="animate-fade-in">
+      <SEO
+        title="Browse Games — Valorant, CS2, PUBG & More"
+        description="Browse all games supported on ArenaX including Valorant, CS2, PUBG, BGMI, Free Fire, and more. Join tournaments and find teammates for your favorite game."
+        path="/games"
+      />
       {/* ── Hero banner ── */}
       <div className="relative border-b border-surface-border bg-surface-card/40 overflow-hidden">
         <div
@@ -385,8 +515,8 @@ export default function Games() {
         />
       )}
 
-      {/* ── Popular Games Spotlight ── */}
-      {spotlightGames.length > 0 && (
+      {/* ── Top Tier Games — image carousel gallery ── */}
+      {(loading || spotlightGames.length > 0) && (
         <div className="border-b border-surface-border bg-surface-card/20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
             <div className="flex items-center justify-between mb-4">
@@ -394,37 +524,8 @@ export default function Games() {
                 <span className="w-1 h-4 bg-red rounded-full inline-block" />
                 Top Tier Games
               </h2>
-              <span className="text-xs text-gray-500">By Player Rating</span>
             </div>
-            <div
-              className="flex gap-3 overflow-x-auto pb-2"
-              style={{ scrollbarWidth: "none" }}
-            >
-              {loading
-                ? [...Array(5)].map((_, i) => (
-                    <div
-                      key={i}
-                      className="w-36 flex-shrink-0 rounded-xl overflow-hidden animate-pulse"
-                      style={{
-                        background: "#1a2340",
-                        border: "1px solid rgba(255,255,255,0.06)",
-                      }}
-                    >
-                      <div className="h-40 bg-surface-border/30" />
-                      <div className="p-2 space-y-1">
-                        <div className="h-2.5 w-3/4 rounded bg-surface-border/40" />
-                        <div className="h-2 w-1/2 rounded bg-surface-border/40" />
-                      </div>
-                    </div>
-                  ))
-                : spotlightGames.map((game, i) => (
-                    <SpotlightCard
-                      key={game.game_id}
-                      game={game}
-                      rank={i + 1}
-                    />
-                  ))}
-            </div>
+            <GameCarousel games={spotlightGames} loading={loading} />
           </div>
         </div>
       )}

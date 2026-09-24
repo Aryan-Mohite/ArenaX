@@ -2,7 +2,12 @@ import { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { getTournaments } from "../services/tournamentService";
 import { getLiveStreams } from "../services/streamService";
+import { getPlatformStats } from "../services/platformService";
 import TournamentCard from "../components/TournamentCard";
+import SEO from "../components/SEO";
+import DailyCheckinButton from "../components/DailyCheckinButton";
+import DailiesPromoButton from "../components/DailiesPromoButton";
+import GameShowcase from "../components/GameShowcase";
 
 // ─── Skeleton loaders ────────────────────────────────────────────────────────
 function SkeletonCard({ className = "" }) {
@@ -113,6 +118,12 @@ export default function Home() {
   const [errorTournaments, setErrorTournaments] = useState(false);
   const [errorStreams, setErrorStreams] = useState(false);
   const [statsTriggered, setStatsTriggered] = useState(false);
+  // FIX: stats bar and hero social-proof line used to be hardcoded copy
+  // ("1K+ players already competing", "1000+ Active Players") regardless
+  // of real usage — swapped for real DB counts from /api/platform/stats.
+  // `platformStats` stays null until the call resolves; every read below
+  // falls back to 0 so nothing renders a stale/fake number while loading.
+  const [platformStats, setPlatformStats] = useState(null);
 
   const statsRef = useRef(null);
 
@@ -143,9 +154,42 @@ export default function Home() {
     }
   };
 
+  const loadPlatformStats = async () => {
+    try {
+      const res = await getPlatformStats();
+      setPlatformStats(res.data);
+    } catch {
+      // Stats bar/hero just fall back to 0s below — not worth a
+      // dedicated error state for a non-critical homepage widget.
+      setPlatformStats(null);
+    }
+  };
+
   useEffect(() => {
     loadTournaments();
     loadStreams();
+    loadPlatformStats();
+  }, []);
+
+  // ── Web fonts (Rajdhani/Inter) can swap in after the pinned scroll
+  //    sections below have already measured the page. Force one more
+  //    recalculation once fonts + the page are fully settled so their
+  //    trigger positions stay accurate. ──
+  useEffect(() => {
+    let cancelled = false;
+    const refresh = () => {
+      import("gsap/ScrollTrigger").then(({ ScrollTrigger }) => {
+        if (!cancelled) ScrollTrigger.refresh();
+      });
+    };
+    if (document.fonts?.ready) {
+      document.fonts.ready.then(refresh);
+    }
+    window.addEventListener("load", refresh);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("load", refresh);
+    };
   }, []);
 
   // ── Intersection observer for count-up animation ──
@@ -162,6 +206,24 @@ export default function Home() {
 
   return (
     <div className="animate-fade-in">
+      {/* FIX: Home.jsx previously had NO <SEO /> — it silently relied on the
+          static tags baked into index.html, so a 404, redirect, or future
+          index.html change could leave the homepage without page-specific
+          tags. Explicit is better than implicit here. */}
+      <SEO
+        title="ArenaX — Free Esports Tournaments & Team Finder Platform"
+        description="ArenaX is the all-in-one esports platform for competitive FPS players — join free esports tournaments, use our team finder to build your squad, watch live streams, and track your stats."
+        path="/"
+      />
+      {/* ══════════════════════════════════════════════════════
+          DAILIES PROMO — sits right under the navbar so it's
+          visible above the fold, instead of buried below the
+          stats bar. Mobile: stacks + full-width button.
+      ══════════════════════════════════════════════════════ */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-4 sm:pt-6">
+        <DailiesPromoButton />
+      </div>
+
       {/* ══════════════════════════════════════════════════════
           HERO
       ══════════════════════════════════════════════════════ */}
@@ -215,32 +277,46 @@ export default function Home() {
                 </Link>
               </div>
 
-              {/* Social proof */}
-              <div className="flex items-center gap-3">
-                <div className="flex -space-x-2">
-                  {["A", "K", "R", "M", "J"].map((l, i) => (
-                    <div
-                      key={i}
-                      className="w-8 h-8 rounded-full border-2 border-surface-card flex items-center justify-center text-xs font-bold text-white"
-                      style={{
-                        background: [
-                          "#ff4655",
-                          "#f4a523",
-                          "#00d4ff",
-                          "#c89b3c",
-                          "#fc4b08",
-                        ][i],
-                      }}
-                    >
-                      {l}
-                    </div>
-                  ))}
+              {/* Social proof — real count once loaded; early-access badge
+                  instead of a number until there's real traction to show. */}
+              {platformStats?.isEarlyAccess ? (
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-red/30 bg-red/10 text-xs font-semibold text-red tracking-wide uppercase">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red animate-pulse" />
+                    MVP Live · Early Access
+                  </span>
                 </div>
-                <p className="text-sm text-gray-400">
-                  Join <span className="text-white font-semibold">50+</span>{" "}
-                  players already competing
-                </p>
-              </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <div className="flex -space-x-2">
+                    {["A", "K", "R", "M", "J"].map((l, i) => (
+                      <div
+                        key={i}
+                        className="w-8 h-8 rounded-full border-2 border-surface-card flex items-center justify-center text-xs font-bold text-white"
+                        style={{
+                          background: [
+                            "#ff4655",
+                            "#f4a523",
+                            "#00d4ff",
+                            "#c89b3c",
+                            "#fc4b08",
+                          ][i],
+                        }}
+                      >
+                        {l}
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-sm text-gray-400">
+                    Join Now{" "}
+                    <span className="text-white font-semibold">
+                      {" "}
+                      {(platformStats?.stats?.activePlayers ?? 0).toLocaleString()}+
+                    </span>{" "}
+                    players already competing
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Right: game art panel */}
@@ -337,30 +413,10 @@ export default function Home() {
       </section>
 
       {/* ══════════════════════════════════════════════════════
-          GAMES STRIP
+          GAME SHOWCASE — scroll-pinned horizontal scroll,
+          real games + cover art from the API
       ══════════════════════════════════════════════════════ */}
-      <div className="border-y border-surface-border bg-surface-card/30 py-5 overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <p className="text-xs text-gray-600 uppercase tracking-widest mb-4">
-            Supported games
-          </p>
-          <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
-            {GAMES.map((g) => (
-              <div
-                key={g.name}
-                className="shrink-0 px-4 py-2 rounded-full border text-xs font-semibold tracking-wide transition-all duration-200 cursor-default hover:scale-105"
-                style={{
-                  borderColor: g.color + "40",
-                  color: g.color,
-                  background: g.color + "12",
-                }}
-              >
-                {g.name}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+      <GameShowcase />
 
       {/* ══════════════════════════════════════════════════════
           STATS BAR
@@ -371,10 +427,22 @@ export default function Home() {
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-7 grid grid-cols-2 md:grid-cols-4 gap-6 divide-x divide-surface-border/40">
           {[
-            { label: "Active Players", value: "50+" },
-            { label: "Tournaments Hosted", value: "100+" },
-            { label: "Teams Assembeled", value: "20+" },
-            { label: "Games Supported", value: "10+" },
+            {
+              label: "Active Players",
+              value: `${platformStats?.stats?.activePlayers ?? 0}`,
+            },
+            {
+              label: "Tournaments Hosted",
+              value: `${platformStats?.stats?.tournamentsHosted ?? 0}`,
+            },
+            {
+              label: "Teams Assembled",
+              value: `${platformStats?.stats?.teamsAssembled ?? 0}`,
+            },
+            {
+              label: "Games Supported",
+              value: `${platformStats?.stats?.gamesSupported ?? 0}`,
+            },
           ].map((s) => (
             <AnimatedStat key={s.label} {...s} triggered={statsTriggered} />
           ))}
@@ -382,6 +450,8 @@ export default function Home() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16 space-y-20">
+        <DailyCheckinButton />
+
         {/* ══════════════════════════════════════════════════════
             UPCOMING TOURNAMENTS
         ══════════════════════════════════════════════════════ */}
@@ -475,6 +545,7 @@ export default function Home() {
                     <div className="relative w-full aspect-video bg-gradient-to-br from-surface-border/60 to-surface-card flex items-center justify-center overflow-hidden">
                       {s.thumbnail_url ? (
                         <img
+                          loading="lazy"
                           src={s.thumbnail_url}
                           alt={s.title}
                           className="w-full h-full object-cover"
@@ -606,7 +677,7 @@ export default function Home() {
                 ))}
               </div>
               <p className="text-sm text-gray-400 ml-1">
-                50,000+ players competing
+                1000+ players competing
               </p>
             </div>
 

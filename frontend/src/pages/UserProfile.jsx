@@ -8,7 +8,11 @@ import {
   getFollowStatus,
 } from "../services/userService";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
+import { themeStyles } from "../utils/themeStyles";
 import TeamIdBadge from "../components/TeamIdBadge";
+import { GameIdsDisplay } from "./Profile";
+import { getKarmaBadge } from "../utils/karma";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const timeAgo = (d) => {
@@ -40,6 +44,7 @@ function Avatar({ user, sizePx = 96 }) {
   if (user?.profile_picture)
     return (
       <img
+          loading="lazy"
         src={user.profile_picture}
         alt={user.username}
         className="rounded-full object-cover border-2 border-red/40 shrink-0"
@@ -58,10 +63,15 @@ function Avatar({ user, sizePx = 96 }) {
 
 // ─── Stat Pill ─────────────────────────────────────────────────────────────────
 function StatPill({ icon, label, value, accent = "#ff4655" }) {
+  const { theme } = useTheme();
+  const cardBg =
+    theme === "light"
+      ? "var(--bg-card)"
+      : "linear-gradient(145deg,#1a2340,#131a2e)";
   return (
     <div
       className="flex flex-col items-center gap-1 px-5 py-4 rounded-2xl border border-surface-border flex-1"
-      style={{ background: "linear-gradient(145deg,#1a2340,#131a2e)" }}
+      style={{ background: cardBg }}
     >
       <span className="text-2xl">{icon}</span>
       <span className="text-xl font-bold text-white tabular-nums">
@@ -76,10 +86,15 @@ function StatPill({ icon, label, value, accent = "#ff4655" }) {
 
 // ─── Community Post Card ───────────────────────────────────────────────────────
 function CommunityPostCard({ post }) {
+  const { theme } = useTheme();
+  const cardBg =
+    theme === "light"
+      ? "var(--bg-card)"
+      : "linear-gradient(145deg,#1a2340,#131a2e)";
   return (
     <div
       className="rounded-xl border border-surface-border p-4 transition-all hover:border-red/30"
-      style={{ background: "linear-gradient(145deg,#1a2340,#131a2e)" }}
+      style={{ background: cardBg }}
     >
       <div className="flex items-start justify-between gap-3 mb-2">
         <div className="min-w-0">
@@ -104,6 +119,7 @@ function CommunityPostCard({ post }) {
         </div>
         {post.image_url && (
           <img
+          loading="lazy"
             src={post.image_url}
             alt=""
             className="w-14 h-14 rounded-lg object-cover border border-surface-border shrink-0"
@@ -130,6 +146,11 @@ function CommunityPostCard({ post }) {
 
 // ─── Team Finder Card ─────────────────────────────────────────────────────────
 function TeamFinderCard({ post }) {
+  const { theme } = useTheme();
+  const cardBg =
+    theme === "light"
+      ? "var(--bg-card)"
+      : "linear-gradient(145deg,#1a2340,#131a2e)";
   const accentMap = ["#ff4655", "#3b82f6", "#8b5cf6", "#10b981", "#f59e0b"];
   const accent = accentMap[(post.post_id || 0) % accentMap.length];
   const dl = deadlineBadge(post.deadline);
@@ -138,7 +159,7 @@ function TeamFinderCard({ post }) {
   return (
     <div
       className="rounded-xl border border-surface-border overflow-hidden transition-all hover:border-red/30"
-      style={{ background: "linear-gradient(145deg,#1a2340,#131a2e)" }}
+      style={{ background: cardBg }}
     >
       <div
         className="h-0.5"
@@ -207,13 +228,19 @@ function TeamFinderCard({ post }) {
 
 // ─── Game Profile Row ─────────────────────────────────────────────────────────
 function GameProfileRow({ gp }) {
+  const { theme } = useTheme();
+  const cardBg =
+    theme === "light"
+      ? "var(--bg-card)"
+      : "linear-gradient(145deg,#1a2340,#131a2e)";
   return (
     <div
       className="flex items-center gap-3 px-4 py-3 rounded-xl border border-surface-border"
-      style={{ background: "linear-gradient(145deg,#1a2340,#131a2e)" }}
+      style={{ background: cardBg }}
     >
       {gp.icon ? (
         <img
+          loading="lazy"
           src={gp.icon}
           alt={gp.game_name}
           className="w-8 h-8 rounded-lg object-cover shrink-0"
@@ -237,18 +264,6 @@ function GameProfileRow({ gp }) {
             {gp.role}
           </span>
         )}
-        {/* [COMING SOON] ELO / Win Rate — part of Player Stats feature, hidden until it ships.
-        {gp.elo_rating && (
-          <span className="text-xs px-2 py-0.5 rounded-full border border-surface-border bg-white/5 text-gray-400">
-            ELO {gp.elo_rating}
-          </span>
-        )}
-        {gp.win_rate && (
-          <span className="text-xs px-2 py-0.5 rounded-full border border-green-500/30 bg-green-500/10 text-green-400">
-            {Number(gp.win_rate).toFixed(1)}% WR
-          </span>
-        )}
-        */}
         {gp.matches_played > 0 && (
           <span className="text-xs text-gray-600">
             {gp.matches_played} matches
@@ -261,11 +276,16 @@ function GameProfileRow({ gp }) {
 
 // ─── Skeleton Loader ──────────────────────────────────────────────────────────
 function Skeleton() {
+  const { theme } = useTheme();
+  const cardBg =
+    theme === "light"
+      ? "var(--bg-card)"
+      : "linear-gradient(145deg,#1a2340,#131a2e)";
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 animate-pulse">
       <div
         className="rounded-2xl border border-surface-border p-6 mb-6"
-        style={{ background: "linear-gradient(145deg,#1a2340,#131a2e)" }}
+        style={{ background: cardBg }}
       >
         <div className="flex gap-5">
           <div className="w-24 h-24 rounded-full bg-white/5 shrink-0" />
@@ -295,6 +315,12 @@ export default function UserProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { isAuthenticated, user: currentUser } = useAuth();
+  const { theme } = useTheme();
+  const ts = themeStyles(theme);
+  const isLight = theme === "light";
+  const cardBg = isLight
+    ? "var(--bg-card)"
+    : "linear-gradient(145deg,#1a2340,#131a2e)";
 
   const [profile, setProfile] = useState(null);
   const [activity, setActivity] = useState({
@@ -353,7 +379,7 @@ export default function UserProfile() {
         setFollowStatus({
           following: d.following,
           followers: Number(d.followers),
-          following_count: Number(d.following),
+          following_count: Number(d.following_count),
           community_posts: Number(d.community_posts),
         });
       }
@@ -405,8 +431,14 @@ export default function UserProfile() {
         }));
         showToast("Now following!");
       }
-    } catch {
-      showToast("Action failed, try again");
+    } catch (err) {
+      const status = err?.response?.status;
+      showToast(
+        status === 401
+          ? "Session expired — please log in again"
+          : "Action failed, try again",
+      );
+      console.error("[Follow toggle error]", status, err?.response?.data);
     } finally {
       setFollowLoading(false);
     }
@@ -427,7 +459,6 @@ export default function UserProfile() {
       </div>
     );
 
-  // [COMING SOON] totalMatches / avgWinRate — part of Player Stats feature, hidden until it ships.
   // const totalMatches = activity.game_profiles.reduce(
   //   (s, g) => s + (g.matches_played || 0),
   //   0,
@@ -454,6 +485,18 @@ export default function UserProfile() {
       count: activity.team_finder_posts.length,
     },
     { id: "teams", label: "🛡️ Teams", count: activity.teams.length },
+    ...(isAuthenticated &&
+    !isSelf &&
+    profile?.game_ids &&
+    Object.keys(profile.game_ids).length > 0
+      ? [
+          {
+            id: "gameids",
+            label: "🆔 Game IDs",
+            count: Object.keys(profile.game_ids).length,
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -479,7 +522,11 @@ export default function UserProfile() {
       {/* ── Profile Header Card ── */}
       <div
         className="rounded-2xl border border-surface-border overflow-hidden mb-6 relative"
-        style={{ background: "linear-gradient(145deg,#1a2340,#0f172a)" }}
+        style={{
+          background: isLight
+            ? "var(--bg-card)"
+            : "linear-gradient(145deg,#1a2340,#0f172a)",
+        }}
       >
         {/* Hero gradient strip */}
         <div
@@ -510,7 +557,10 @@ export default function UserProfile() {
                 display: "inline-block",
               }}
             >
-              <div className="p-0.5 rounded-full bg-[#0f172a]">
+              <div
+                className="p-0.5 rounded-full"
+                style={{ background: isLight ? "var(--bg-card)" : "#0f172a" }}
+              >
                 <Avatar user={profile} sizePx={80} />
               </div>
             </div>
@@ -521,6 +571,14 @@ export default function UserProfile() {
                   <h1 className="font-display font-bold text-3xl text-white leading-tight">
                     {profile?.username}
                   </h1>
+                  {(() => {
+                    const badge = getKarmaBadge(profile?.karma_positive, profile?.karma_negative);
+                    return badge ? (
+                      <p className="text-xs font-semibold mt-1" style={{ color: "#4ade80" }}>
+                        {badge.icon} {badge.label}
+                      </p>
+                    ) : null;
+                  })()}
                   <div className="flex flex-wrap gap-2 mt-1.5">
                     {profile?.country && (
                       <span className="text-xs text-gray-500">
@@ -615,15 +673,6 @@ export default function UserProfile() {
           label="Games Played"
           value={activity.game_profiles.length}
         />
-        {/* [COMING SOON] Total Matches / Avg Win Rate — part of Player Stats feature, hidden until it ships.
-        Restore grid-cols-4 above when re-enabling both.
-        <StatPill icon="⚔️" label="Total Matches" value={totalMatches || "—"} />
-        <StatPill
-          icon="📈"
-          label="Avg Win Rate"
-          value={avgWinRate ? avgWinRate + "%" : "—"}
-        />
-        */}
         <StatPill
           icon="💬"
           label="Posts"
@@ -665,7 +714,7 @@ export default function UserProfile() {
           {activity.game_profiles.length === 0 ? (
             <div
               className="rounded-2xl border border-surface-border flex flex-col items-center justify-center py-16 text-center"
-              style={{ background: "linear-gradient(145deg,#1a2340,#131a2e)" }}
+              style={{ background: cardBg }}
             >
               <div className="text-5xl mb-3 opacity-20">🎮</div>
               <p className="text-gray-400 font-medium">No service record yet</p>
@@ -687,7 +736,7 @@ export default function UserProfile() {
           {activity.community_posts.length === 0 ? (
             <div
               className="rounded-2xl border border-surface-border flex flex-col items-center justify-center py-16 text-center"
-              style={{ background: "linear-gradient(145deg,#1a2340,#131a2e)" }}
+              style={{ background: cardBg }}
             >
               <div className="text-5xl mb-3 opacity-20">💬</div>
               <p className="text-gray-400 font-medium">No comms yet</p>
@@ -711,7 +760,7 @@ export default function UserProfile() {
           {activity.teams.length === 0 ? (
             <div
               className="rounded-2xl border border-surface-border flex flex-col items-center justify-center py-16 text-center"
-              style={{ background: "linear-gradient(145deg,#1a2340,#131a2e)" }}
+              style={{ background: cardBg }}
             >
               <div className="text-5xl mb-3 opacity-20">🛡️</div>
               <p className="text-gray-400 font-medium">Not on any teams yet</p>
@@ -722,12 +771,13 @@ export default function UserProfile() {
                 key={team.team_id || i}
                 className="rounded-xl border border-surface-border px-4 py-3 flex items-center gap-3 hover:border-red/30 transition-all"
                 style={{
-                  background: "linear-gradient(145deg,#1a2340,#131a2e)",
+                  background: cardBg,
                 }}
               >
                 <div className="w-10 h-10 rounded-xl bg-red/20 border border-red/30 flex items-center justify-center text-lg shrink-0">
                   {team.game_icon ? (
                     <img
+          loading="lazy"
                       src={team.game_icon}
                       alt=""
                       className="w-full h-full rounded-xl object-cover"
@@ -786,7 +836,7 @@ export default function UserProfile() {
           {activity.team_finder_posts.length === 0 ? (
             <div
               className="rounded-2xl border border-surface-border flex flex-col items-center justify-center py-16 text-center"
-              style={{ background: "linear-gradient(145deg,#1a2340,#131a2e)" }}
+              style={{ background: cardBg }}
             >
               <div className="text-5xl mb-3 opacity-20">⚔️</div>
               <p className="text-gray-400 font-medium">No recruitments yet</p>
@@ -831,6 +881,28 @@ export default function UserProfile() {
               )}
             </>
           )}
+        </div>
+      )}
+
+      {/* ── Tab: Game IDs (only for logged-in users viewing someone else) ── */}
+      {activeTab === "gameids" && isAuthenticated && !isSelf && (
+        <div className="animate-fade-in space-y-4">
+          <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 px-4 py-3 flex items-start gap-3">
+            <span className="text-blue-400 text-lg shrink-0 mt-0.5">🔒</span>
+            <p className="text-sm text-gray-400 leading-relaxed">
+              In-game IDs are only visible to logged-in players. Click any ID to
+              copy it to your clipboard.
+            </p>
+          </div>
+          <div
+            className="rounded-xl border border-surface-border p-5"
+            style={{ background: cardBg }}
+          >
+            <h3 className="font-display font-bold text-base text-white mb-4">
+              {profile?.username}'s Game IDs
+            </h3>
+            <GameIdsDisplay gameIds={profile?.game_ids || {}} />
+          </div>
         </div>
       )}
     </div>

@@ -262,6 +262,9 @@ export default function Register() {
                 We sent a 6-digit code to{" "}
                 <span className="text-white font-medium">{form.email}</span>
               </p>
+              <p className="text-sm mt-2 font-medium" style={{ color: "var(--red)" }}>
+                Don't see it? Please also check your spam/junk folder.
+              </p>
             </div>
 
             <div className="card">

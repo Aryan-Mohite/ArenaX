@@ -728,3 +728,23 @@ header.sticky {
 .app-loader [class*="text-white"] {
   color: #ffffff !important;
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   DAILIES PAGE — always dark, regardless of theme (by design: it's a
+   full-bleed "arena" experience outside the normal Layout/Navbar, not
+   a themed page). The light-theme rules above target `.text-white`,
+   `.text-gray-4/5/600` etc. globally so dark *sections on an otherwise
+   light page* stay readable — but Dailies' own background never turns
+   light, so those same rules were flipping its text near-black on a
+   still-dark background. Re-pin the Dailies palette here, after the
+   light-theme blocks, so it always wins regardless of `data-theme`.
+═══════════════════════════════════════════════════════════════════ */
+.dailies-page .text-white,
+.dailies-page [class*="text-white"] {
+  color: #ffffff !important;
+}
+.dailies-page .text-gray-300 { color: #d1d5db !important; }
+.dailies-page .text-gray-400 { color: #9ca3af !important; }
+.dailies-page .text-gray-500 { color: #6b7280 !important; }
+.dailies-page .text-gray-600 { color: #4b5563 !important; }
+.dailies-page .hover\:text-white:hover { color: #ffffff !important; }

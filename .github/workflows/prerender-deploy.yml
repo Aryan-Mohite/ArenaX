@@ -1,0 +1,51 @@
+name: Prerender frontend
+
+# Runs on every push to main that touches source/config files.
+# Ignores pushes that only touch frontend/dist (the bot's own commit)
+# so this workflow doesn't trigger itself in a loop.
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "frontend/dist/**"
+
+permissions:
+  contents: write
+
+jobs:
+  prerender:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci --include=dev
+
+      - name: Build (Vite)
+        working-directory: frontend
+        run: npm run build
+
+      - name: Prerender static routes (react-snap)
+        working-directory: frontend
+        run: npm run prerender
+
+      - name: Commit prerendered dist back to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f frontend/dist
+          if git diff --cached --quiet; then
+            echo "No changes in frontend/dist — nothing to commit."
+            exit 0
+          fi
+          git commit -m "chore: prerendered build [automated]"
+          git push

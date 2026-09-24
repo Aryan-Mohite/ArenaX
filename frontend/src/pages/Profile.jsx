@@ -4,10 +4,10 @@ import { Link } from "react-router-dom";
 import { getMe } from "../services/authService";
 import {
   updateProfile,
-  // upsertGameProfile, // [COMING SOON] — re-enable with stat sync feature
-  getMyStats,
   getFollowers,
   getFollowing,
+  getMyGameIds,
+  updateGameIds,
 } from "../services/userService";
 import { getMyGames } from "../services/gameService";
 import { PageLoader, ErrorMessage, StatCard } from "../components/UI";
@@ -15,804 +15,130 @@ import { useAuth } from "../context/AuthContext";
 import API from "../api/api";
 import { useTheme } from "../context/ThemeContext";
 import { themeStyles } from "../utils/themeStyles";
+import { useChatContext } from "../context/ChatContext";
+import ChatDrawer from "../components/ChatDrawer";
 import TeamIdBadge from "../components/TeamIdBadge";
+import FollowStatsModal from "../components/FollowStatsModal";
+import AchievementsTab from "../components/AchievementsTab";
 
-/* ============================================================
- * [COMING SOON] Stat Sync — backendFetch, FETCHERS, GAME_TO_FETCHER,
- * detectFetcher, GameStatsFetcher — temporarily disabled.
- * Uncomment when the feature is ready.
- * ============================================================
+// ─── Platform config ──────────────────────────────────────────────────────────
+export const GAME_PLATFORMS = [
+  { key: "steam",     label: "Steam",           icon: "🖥️",  placeholder: "76561198XXXXXXXXX" },
+  { key: "riot",      label: "Riot ID",         icon: "⚔️",  placeholder: "Username#TAG" },
+  { key: "epic",      label: "Epic Games",      icon: "🎯",  placeholder: "EpicUsername" },
+  { key: "battlenet", label: "Battle.net",      icon: "🔵",  placeholder: "Username#1234" },
+  { key: "psn",       label: "PSN",             icon: "🎮",  placeholder: "PSN_Username" },
+  { key: "xbox",      label: "Xbox Gamertag",   icon: "🟢",  placeholder: "XboxGamertag" },
+  { key: "ubisoft",   label: "Ubisoft Connect", icon: "🟠",  placeholder: "UbisoftUsername" },
+  { key: "ea",        label: "EA / Origin",     icon: "🟡",  placeholder: "EA_Username" },
+  { key: "faceit",    label: "Faceit",          icon: "🔶",  placeholder: "FaceitUsername" },
+  { key: "bgmi",      label: "BGMI / PUBG",     icon: "🪖",  placeholder: "Player ID" },
+];
 
-async function backendFetch(path) {
-  const res = await fetch(`/api/stats${path}`);
-  const data = await res.json();
-  if (!res.ok || !data.success)
-    throw new Error(data.message || `Stats fetch failed (${res.status})`);
-  return data.data;
-}
-
-const FETCHERS = {
-  // ── No key needed ─────────────────────────────────────────────────────────
-  chess: {
-    label: "Chess.com username",
-    placeholder: "e.g. hikaru",
-    icon: "♟",
-    async fetch(username) {
-      const [statsRes, profileRes] = await Promise.all([
-        fetch(
-          `https://api.chess.com/pub/player/${username.toLowerCase()}/stats`,
-        ),
-        fetch(`https://api.chess.com/pub/player/${username.toLowerCase()}`),
-      ]);
-      if (!statsRes.ok) throw new Error("Chess.com player not found");
-      const [stats, profile] = await Promise.all([
-        statsRes.json(),
-        profileRes.json(),
-      ]);
-      const rapid = stats?.chess_rapid?.last;
-      const blitz = stats?.chess_blitz?.last;
-      const bullet = stats?.chess_bullet?.last;
-      const best = rapid || blitz || bullet;
-      return {
-        rank:
-          profile.title ||
-          (best?.rating >= 2000
-            ? "Expert"
-            : best?.rating >= 1500
-              ? "Intermediate"
-              : "Beginner"),
-        elo_rating: best?.rating || null,
-        role: profile.title || "Player",
-        extra: [
-          { label: "Rapid", value: rapid?.rating || "—" },
-          { label: "Blitz", value: blitz?.rating || "—" },
-          { label: "Bullet", value: bullet?.rating || "—" },
-          {
-            label: "Country",
-            value: profile.country?.split("/").pop()?.toUpperCase() || "—",
-          },
-          { label: "Followers", value: profile.followers || "—" },
-        ],
-        avatar: profile.avatar || null,
-        label: `Chess.com: ${profile.username || username}`,
-      };
-    },
-  },
-  minecraft: {
-    label: "Minecraft username",
-    placeholder: "e.g. Notch",
-    icon: "⛏",
-    async fetch(username) {
-      const res = await fetch(
-        `https://playerdb.co/api/player/minecraft/${encodeURIComponent(username)}`,
-      );
-      if (!res.ok) throw new Error("Minecraft player not found");
-      const data = await res.json();
-      if (!data.success) throw new Error("Player not found");
-      const p = data.data.player;
-      return {
-        rank: "Verified",
-        elo_rating: null,
-        role: "Minecrafter",
-        extra: [
-          { label: "UUID", value: p.id?.slice(0, 8) + "..." },
-          { label: "Username", value: p.username },
-          { label: "Edition", value: "Java" },
-        ],
-        avatar: `https://crafatar.com/avatars/${p.id}?size=64&overlay`,
-        label: p.username || username,
-      };
-    },
-  },
-  roblox: {
-    label: "Roblox username",
-    placeholder: "e.g. Builderman",
-    icon: "🟥",
-    async fetch(username) {
-      const searchRes = await fetch(
-        "https://users.roblox.com/v1/usernames/users",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            usernames: [username],
-            excludeBannedUsers: true,
-          }),
-        },
-      );
-      if (!searchRes.ok) throw new Error("Roblox API error");
-      const searchData = await searchRes.json();
-      const user = searchData.data?.[0];
-      if (!user) throw new Error("Roblox user not found");
-      const profileRes = await fetch(
-        `https://users.roblox.com/v1/users/${user.id}`,
-      );
-      const profile = await profileRes.json();
-      return {
-        rank: profile.hasVerifiedBadge ? "Verified" : "Player",
-        elo_rating: null,
-        role: "Roblox Player",
-        extra: [
-          { label: "Display Name", value: profile.displayName },
-          { label: "User ID", value: profile.id },
-          { label: "Verified", value: profile.hasVerifiedBadge ? "Yes" : "No" },
-          { label: "Joined", value: new Date(profile.created).getFullYear() },
-        ],
-        avatar: null,
-        label: profile.displayName || username,
-      };
-    },
-  },
-  fortnite: {
-    label: "Epic Games username",
-    placeholder: "e.g. Ninja",
-    icon: "🏗️",
-    async fetch(u) {
-      return backendFetch(`/fortnite/${encodeURIComponent(u)}`);
-    },
-  },
-  dota2: {
-    label: "OpenDota / Steam32 ID",
-    placeholder: "e.g. 87278757",
-    icon: "🛡️",
-    async fetch(u) {
-      return backendFetch(`/dota2/${encodeURIComponent(u)}`);
-    },
-  },
-  pubg: {
-    label: "PUBG PC username",
-    placeholder: "e.g. shroud",
-    icon: "🪖",
-    async fetch(u) {
-      return backendFetch(`/pubg/${encodeURIComponent(u)}`);
-    },
-  },
-  r6: {
-    label: "Ubisoft username",
-    placeholder: "e.g. Pengu",
-    icon: "🔫",
-    async fetch(u) {
-      return backendFetch(`/r6/${encodeURIComponent(u)}`);
-    },
-  },
-  brawlstars: {
-    label: "Brawl Stars player tag",
-    placeholder: "e.g. 2PP (no # needed)",
-    icon: "⭐",
-    async fetch(tag) {
-      return backendFetch(
-        `/brawlstars/${encodeURIComponent(tag.replace(/^#/, ""))}`,
-      );
-    },
-  },
-  steam: {
-    label: "Steam custom URL / Steam64 ID (CS2)",
-    placeholder: "e.g. gabelogannewell",
-    icon: "🎮",
-    async fetch(u) {
-      return backendFetch(`/steam/${encodeURIComponent(u)}`);
-    },
-  },
-  // ── Needs HENRIKDEV_KEY in backend .env ───────────────────────────────────
-  valorant: {
-    label: "Riot ID (Name#Tag)",
-    placeholder: "e.g. Nexus Shivaay#7277",
-    icon: "🎯",
-    async fetch(riotId) {
-      const h = riotId.lastIndexOf("#");
-      if (h === -1) throw new Error("Format must be Name#Tag");
-      return backendFetch(
-        `/valorant/${encodeURIComponent(riotId.slice(0, h).trim())}/${encodeURIComponent(riotId.slice(h + 1).trim())}`,
-      );
-    },
-  },
-  lol: {
-    label: "Riot ID (Name#Tag)",
-    placeholder: "e.g. Faker#KR1",
-    icon: "⚔️",
-    async fetch(riotId) {
-      const h = riotId.lastIndexOf("#");
-      const name = h !== -1 ? riotId.slice(0, h).trim() : riotId.trim();
-      const tag = h !== -1 ? riotId.slice(h + 1).trim() : "EUW";
-      return backendFetch(
-        `/lol/${encodeURIComponent(name)}/${encodeURIComponent(tag)}`,
-      );
-    },
-  },
-  // ── Needs TRACKER_GG_KEY in backend .env ─────────────────────────────────
-  apex: {
-    label: "EA / Origin username",
-    placeholder: "e.g. shroud",
-    icon: "🔥",
-    async fetch(u) {
-      return backendFetch(`/apex/${encodeURIComponent(u)}`);
-    },
-  },
-  rocketleague: {
-    label: "Epic Games username (Rocket League)",
-    placeholder: "e.g. Jstn",
-    icon: "🚀",
-    async fetch(u) {
-      return backendFetch(`/rocketleague/${encodeURIComponent(u)}`);
-    },
-  },
-  cod: {
-    label: "Activision ID (name#1234567)",
-    placeholder: "e.g. shroud#1234567",
-    icon: "💣",
-    async fetch(u) {
-      return backendFetch(`/cod/${encodeURIComponent(u)}`);
-    },
-  },
-  // ── Mobile games — no public API, shows "no API" info card ───────────────
-  bgmi: {
-    label: "BGMI username",
-    placeholder: "e.g. YourUsername",
-    icon: "🪖",
-    async fetch(u) {
-      return backendFetch(`/bgmi/${encodeURIComponent(u)}`);
-    },
-  },
-  freefire: {
-    label: "Free Fire username",
-    placeholder: "e.g. YourUsername",
-    icon: "🔥",
-    async fetch(u) {
-      return backendFetch(`/freefire/${encodeURIComponent(u)}`);
-    },
-  },
-  codmobile: {
-    label: "CoD Mobile username",
-    placeholder: "e.g. YourUsername",
-    icon: "💣",
-    async fetch(u) {
-      return backendFetch(`/codmobile/${encodeURIComponent(u)}`);
-    },
-  },
-  mlbb: {
-    label: "MLBB Player ID (numeric)",
-    placeholder: "e.g. 123456789",
-    icon: "⚡",
-    async fetch(u) {
-      return backendFetch(`/mlbb/${encodeURIComponent(u)}`);
-    },
-  },
-  easportsfc: {
-    label: "EA Sports FC username",
-    placeholder: "e.g. YourUsername",
-    icon: "⚽",
-    async fetch(u) {
-      return backendFetch(`/easportsfc/${encodeURIComponent(u)}`);
-    },
-  },
-};
-
-const GAME_TO_FETCHER = {
-  chess: "chess",
-  "chess.com": "chess",
-  minecraft: "minecraft",
-  roblox: "roblox",
-  valorant: "valorant",
-  "league of legends": "lol",
-  league: "lol",
-  fortnite: "fortnite",
-  "dota 2": "dota2",
-  dota2: "dota2",
-  dota: "dota2",
-  "pubg: battlegrounds": "pubg",
-  pubg: "pubg",
-  battlegrounds: "pubg",
-  "counter-strike 2": "steam",
-  "counter-strike": "steam",
-  "counter strike": "steam",
-  cs2: "steam",
-  "rainbow six siege": "r6",
-  "rainbow six": "r6",
-  "rainbow 6": "r6",
-  siege: "r6",
-  "brawl stars": "brawlstars",
-  brawlstars: "brawlstars",
-  "apex legends": "apex",
-  apex: "apex",
-  "rocket league": "rocketleague",
-  rocketleague: "rocketleague",
-  "call of duty: warzone": "cod",
-  warzone: "cod",
-  steam: "steam",
-  // Mobile — routes exist but return informational response (no public API)
-  "battlegrounds mobile india": "bgmi",
-  bgmi: "bgmi",
-  "free fire": "freefire",
-  freefire: "freefire",
-  "garena free fire": "freefire",
-  "call of duty: mobile": "codmobile",
-  "cod mobile": "codmobile",
-  "mobile legends: bang bang": "mlbb",
-  "mobile legends": "mlbb",
-  mlbb: "mlbb",
-  "ea sports fc": "easportsfc",
-  // Truly no support
-  "mech arena": null,
-  "street fighter": null,
-  madden: null,
-  "ea sports": null,
-};
-
-function detectFetcher(gameName = "") {
-  const lower = gameName.toLowerCase().trim();
-  if (GAME_TO_FETCHER.hasOwnProperty(lower)) return GAME_TO_FETCHER[lower];
-  for (const [key, fetcherKey] of Object.entries(GAME_TO_FETCHER)) {
-    if (lower.includes(key)) return fetcherKey;
-  }
-  return null;
-}
-
-*/
-
-// ── Share Player Card Modal ────────────────────────────────────────────────────────
-function ShareModal({ profile, onClose }) {
-  const { theme } = useTheme();
-  const ts = themeStyles(theme);
-  const isLight = theme === "light";
-
-  const [copied, setCopied] = useState(false);
-  const profileUrl = `${window.location.origin}/users/${profile?.user_id}`;
-  const handleCopy = () => {
-    navigator.clipboard.writeText(profileUrl).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  };
-  const shareOptions = [
-    {
-      label: "Twitter / X",
-      icon: "𝕏",
-      color: "hover:bg-black/40 hover:border-white/20",
-      action: () =>
-        window.open(
-          `https://twitter.com/intent/tweet?text=Check+out+${profile?.username}'s+gaming+profile!&url=${encodeURIComponent(profileUrl)}`,
-          "_blank",
-        ),
-    },
-    {
-      label: "WhatsApp",
-      icon: "💬",
-      color: "hover:bg-green-500/10 hover:border-green-500/30",
-      action: () =>
-        window.open(
-          `https://wa.me/?text=Check+out+${profile?.username}'s+gaming+profile:+${encodeURIComponent(profileUrl)}`,
-          "_blank",
-        ),
-    },
-    {
-      label: "Copy Link",
-      icon: "🔗",
-      color: "hover:bg-blue-500/10 hover:border-blue-500/30",
-      action: handleCopy,
-    },
-  ];
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={ts.modalBackdropSm}
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-sm rounded-2xl border border-surface-border overflow-hidden animate-slide-up"
-        style={ts.cardBg}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-surface-border">
-          <div>
-            <h3 className="font-display font-bold text-white">
-              Share Player Card
-            </h3>
-            <p className="text-xs text-gray-500 mt-0.5">@{profile?.username}</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-500 hover:text-white hover:bg-white/10 transition-colors text-lg"
-          >
-            ✕
-          </button>
-        </div>
-        <div className="p-5 space-y-4">
-          <div className="flex gap-2">
-            <div className="flex-1 bg-navy border border-surface-border rounded-lg px-3 py-2.5 text-sm text-gray-400 truncate">
-              {profileUrl}
-            </div>
-            <button
-              onClick={handleCopy}
-              className={`shrink-0 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${copied ? "bg-green-500/20 text-green-400 border border-green-500/30" : "btn-primary"}`}
-            >
-              {copied ? "✓ Copied!" : "Copy"}
-            </button>
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            {shareOptions.map((opt) => (
-              <button
-                key={opt.label}
-                onClick={opt.action}
-                className={`flex flex-col items-center gap-2 px-3 py-3 rounded-xl border border-surface-border transition-all ${opt.color}`}
-              >
-                <span className="text-2xl">{opt.icon}</span>
-                <span className="text-xs text-gray-400">{opt.label}</span>
-              </button>
-            ))}
-          </div>
-          <div
-            className="rounded-xl border border-red/15 p-4 flex items-center gap-3"
-            style={{
-              background:
-                "linear-gradient(135deg,rgba(255,70,85,0.06),rgba(26,35,64,0.8))",
-            }}
-          >
-            {profile?.profile_picture ? (
-              <img
-                src={profile.profile_picture}
-                alt=""
-                className="w-10 h-10 rounded-full object-cover border border-red/30 shrink-0"
-              />
-            ) : (
-              <div className="w-10 h-10 rounded-full bg-red/20 border border-red/30 flex items-center justify-center text-red font-bold shrink-0">
-                {profile?.username?.[0]?.toUpperCase()}
-              </div>
-            )}
-            <div className="min-w-0">
-              <p className="font-semibold text-white text-sm">
-                {profile?.username}
-              </p>
-              <p className="text-xs text-gray-500 truncate">
-                {profile?.bio || "Gaming Profile"}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Follow Stats Modal ─────────────────────────────────────────────────────────
-function FollowStatsModal({ type, userId, onClose }) {
-  const { theme } = useTheme();
-  const ts = themeStyles(theme);
-  const isLight = theme === "light";
-
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    let cancelled = false;
-    const fetcher = type === "followers" ? getFollowers : getFollowing;
-
-    const load = async () => {
-      setLoading(true);
-      setError("");
-      try {
-        const res = await fetcher(userId);
-        if (!cancelled) setUsers(res.data.users || []);
-      } catch {
-        if (!cancelled) setError("Couldn't load this list. Try again later.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    if (userId) load();
-    return () => {
-      cancelled = true;
-    };
-  }, [type, userId]);
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={ts.modalBackdropSm}
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-sm rounded-2xl border border-surface-border overflow-hidden animate-slide-up"
-        style={ts.cardBg}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-surface-border">
-          <h3 className="font-display font-bold text-white capitalize">
-            {type}
-          </h3>
-          <button
-            onClick={onClose}
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-500 hover:text-white hover:bg-white/10 transition-colors text-lg"
-          >
-            ✕
-          </button>
-        </div>
-
-        <div className="max-h-96 overflow-y-auto">
-          {loading ? (
-            <div className="px-5 py-10 text-center text-gray-500 text-sm">
-              Loading…
-            </div>
-          ) : error ? (
-            <div className="px-5 py-10 text-center text-gray-500 text-sm">
-              {error}
-            </div>
-          ) : users.length === 0 ? (
-            <div className="px-5 py-10 text-center text-gray-500 text-sm">
-              <span className="text-3xl block mb-3">👥</span>
-              {type === "followers"
-                ? "No followers yet."
-                : "Not following anyone yet."}
-            </div>
-          ) : (
-            <ul className="divide-y divide-surface-border">
-              {users.map((u) => (
-                <li key={u.user_id}>
-                  <Link
-                    to={`/users/${u.user_id}`}
-                    onClick={onClose}
-                    className="flex items-center gap-3 px-5 py-3 hover:bg-white/5 transition-colors"
-                  >
-                    {u.profile_picture ? (
-                      <img
-                        src={u.profile_picture}
-                        alt={u.username}
-                        className="w-10 h-10 rounded-full object-cover border border-surface-border shrink-0"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-red/20 border border-red/40 flex items-center justify-center text-red font-display font-bold text-sm shrink-0">
-                        {u.username?.[0]?.toUpperCase()}
-                      </div>
-                    )}
-                    <div className="min-w-0">
-                      <p className="text-white text-sm font-medium truncate">
-                        {u.username}
-                      </p>
-                      {(u.country || u.region) && (
-                        <p className="text-gray-500 text-xs truncate">
-                          {[u.country, u.region].filter(Boolean).join(" · ")}
-                        </p>
-                      )}
-                    </div>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── GameStatsFetcher ───────────────────────────────────────────────────────────
-function GameStatsFetcher({ game, onSave }) {
-  const { theme } = useTheme();
-  const ts = themeStyles(theme);
-  const isLight = theme === "light";
-
-  const fetcherKey = detectFetcher(game.game_name);
-  const fetcher = FETCHERS[fetcherKey];
-
-  const [query, setQuery] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState("");
-  const [saved, setSaved] = useState(false);
-
-  // ── No fetcher at all (truly unsupported game) ────────────────────────────
-  if (!fetcher)
-    return (
-      <div className="rounded-xl border border-surface-border bg-navy/40 px-4 py-3 flex items-center gap-3">
-        <span className="text-2xl opacity-60">📊</span>
-        <div className="flex-1">
-          <p className="text-sm font-semibold text-white">{game.game_name}</p>
-          <p className="text-xs text-gray-500 mt-0.5">
-            No public API available — rank updated via tournaments &amp;
-            matches.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-1.5 shrink-0">
-          {game.rank && <span className="badge-blue">{game.rank}</span>}
-          {game.elo_rating && (
-            <span className="badge-gray">ELO {game.elo_rating}</span>
-          )}
-        </div>
-      </div>
-    );
-
-  const handleFetch = async () => {
-    if (!query.trim()) return;
-    setLoading(true);
-    setError("");
-    setResult(null);
-    setSaved(false);
-    try {
-      setResult(await fetcher.fetch(query.trim()));
-    } catch (err) {
-      setError(err.message || "Failed to fetch stats");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSave = async () => {
-    try {
-      await onSave({
-        game_id: game.game_id,
-        rank: result.rank,
-        role: result.role,
-        elo_rating: result.elo_rating,
-      });
-      setSaved(true);
-    } catch {
-      setError("Failed to save stats");
-    }
-  };
-
-  // ── noApi result — mobile game, show info card only (no save button) ──────
-  const NoApiResult = ({ result }) => (
-    <div
-      className="mx-5 mb-5 rounded-xl border border-yellow-500/20 overflow-hidden"
-      style={{
-        background: isLight
-          ? "rgba(251,191,36,0.05)"
-          : "linear-gradient(135deg,rgba(244,165,35,0.06),rgba(26,35,64,0.8))",
-      }}
-    >
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-surface-border/50">
-        <span className="text-2xl">📵</span>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-white">{result.label}</p>
-          <p className="text-xs text-yellow-500/80 mt-0.5">No public API</p>
-        </div>
-      </div>
-      <div className="p-4 space-y-2">
-        {result.extra.map(({ label, value }) => (
-          <div key={label} className="bg-navy/60 rounded-lg px-3 py-2.5">
-            <p className="text-xs text-gray-500 mb-0.5">{label}</p>
-            <p className="text-sm text-white">{value}</p>
-          </div>
-        ))}
-      </div>
-    </div>
+// ─── GameIdsTab component ─────────────────────────────────────────────────────
+function GameIdsTab({ gameIds, gameIdsForm, setGameIdsForm, savingGameIds, onSave }) {
+  const hasAny = GAME_PLATFORMS.some(p => gameIds[p.key]);
+  const isDirty = GAME_PLATFORMS.some(
+    p => (gameIdsForm[p.key] || "") !== (gameIds[p.key] || "")
   );
 
   return (
-    <div
-      className="rounded-2xl border border-surface-border overflow-hidden"
-      style={ts.cardBg}
-    >
-      <div className="flex items-center gap-3 px-5 py-4 border-b border-surface-border">
-        <div className="w-10 h-10 rounded-xl bg-red/10 border border-red/20 flex items-center justify-center text-xl shrink-0">
-          {fetcher.icon}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-white text-sm">{game.game_name}</p>
-          <p className="text-xs text-gray-500">Sync enabled</p>
-        </div>
-        <div className="flex flex-wrap gap-1.5 shrink-0">
-          {game.rank && <span className="badge-blue">{game.rank}</span>}
-          {game.elo_rating && (
-            <span className="badge-gray">ELO {game.elo_rating}</span>
-          )}
-        </div>
+    <div className="animate-fade-in space-y-4">
+      {/* Info banner */}
+      <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 px-4 py-3 flex items-start gap-3">
+        <span className="text-blue-400 text-lg shrink-0 mt-0.5">💡</span>
+        <p className="text-sm text-gray-400 leading-relaxed">
+          Add your in-game IDs so teammates can find and add you after being matched.
+          Only logged-in players can see this section on other profiles.
+        </p>
       </div>
 
-      <div className="px-5 py-4">
-        <label className="block text-xs text-gray-500 uppercase tracking-wider mb-2">
-          {fetcher.label}
-        </label>
-        <div className="flex gap-2">
-          <input
-            className="input flex-1 text-sm"
-            placeholder={fetcher.placeholder}
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setResult(null);
-              setError("");
-              setSaved(false);
-            }}
-            onKeyDown={(e) => e.key === "Enter" && handleFetch()}
-          />
-          <button
-            onClick={handleFetch}
-            disabled={loading || !query.trim()}
-            className="btn-primary flex items-center gap-2 px-4 shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? (
-              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            ) : (
-              <span>🔍</span>
-            )}
-            {loading ? "" : "Fetch"}
-          </button>
-        </div>
-        {error && (
-          <p className="text-red text-xs mt-2 flex items-start gap-1.5">
-            <span>⚠</span>
-            <span>{error}</span>
-          </p>
-        )}
-      </div>
-
-      {result && result.noApi && <NoApiResult result={result} />}
-
-      {result && !result.noApi && (
-        <div
-          className="mx-5 mb-5 rounded-xl border border-red/20 overflow-hidden"
-          style={{
-            background:
-              "linear-gradient(135deg,rgba(255,70,85,0.06),rgba(26,35,64,0.8))",
-          }}
-        >
-          <div className="flex items-center gap-3 px-4 py-3 border-b border-surface-border/50">
-            {result.avatar ? (
-              <img
-                src={result.avatar}
-                alt=""
-                className="w-10 h-10 rounded-full border border-surface-border object-cover shrink-0"
-              />
-            ) : (
-              <div className="w-10 h-10 rounded-full bg-red/20 border border-red/30 flex items-center justify-center text-red font-bold shrink-0">
-                {query[0]?.toUpperCase()}
-              </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-white truncate">
-                {result.label}
-              </p>
-              <div className="flex gap-1.5 mt-0.5 flex-wrap">
-                {result.rank && (
-                  <span className="badge-blue text-xs">{result.rank}</span>
-                )}
-                {result.role && (
-                  <span className="badge-gray text-xs">{result.role}</span>
-                )}
-                {result.elo_rating && (
-                  <span className="badge-red text-xs">
-                    ELO {result.elo_rating}
+      {/* Platform grid */}
+      <div className="card">
+        <h3 className="font-display font-bold text-lg text-white mb-4">Your Game IDs</h3>
+        <div className="grid sm:grid-cols-2 gap-3">
+          {GAME_PLATFORMS.map(({ key, label, icon, placeholder }) => (
+            <div key={key}>
+              <label className="flex items-center gap-2 text-sm text-gray-400 mb-1.5">
+                <span>{icon}</span>
+                <span>{label}</span>
+                {gameIds[key] && (
+                  <span className="ml-auto text-xs text-green-400 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block" />
+                    Set
                   </span>
                 )}
-              </div>
+              </label>
+              <input
+                className="input text-sm"
+                placeholder={placeholder}
+                value={gameIdsForm[key] || ""}
+                onChange={e => setGameIdsForm(f => ({ ...f, [key]: e.target.value }))}
+              />
             </div>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-4">
-            {result.extra.map(({ label, value }) => (
-              <div key={label} className="bg-navy/60 rounded-lg px-3 py-2.5">
-                <p className="text-xs text-gray-500 mb-0.5">{label}</p>
-                <p className="text-sm font-semibold text-white truncate">
-                  {value}
-                </p>
-              </div>
-            ))}
-          </div>
-          <div className="px-4 pb-4 flex items-center justify-between gap-3">
-            <p className="text-xs text-gray-500">
-              {saved
-                ? "✓ Saved to your game profile"
-                : "Save rank & ELO to your profile?"}
-            </p>
-            {saved ? (
-              <span className="badge-green text-xs">✓ Saved!</span>
-            ) : (
-              <button
-                onClick={handleSave}
-                className="btn-primary text-xs px-4 py-2 flex items-center gap-1.5"
-              >
-                💾 Sync to Loadout
-              </button>
-            )}
-          </div>
+          ))}
+        </div>
+
+        <div className="flex items-center justify-between mt-5 pt-4 border-t border-surface-border">
+          <p className="text-xs text-gray-600">Clear a field and save to remove that ID</p>
+          <button
+            onClick={onSave}
+            disabled={savingGameIds || !isDirty}
+            className="btn-primary text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {savingGameIds ? "Saving..." : "Save IDs"}
+          </button>
+        </div>
+      </div>
+
+      {/* Preview — what others will see */}
+      {hasAny && (
+        <div className="card">
+          <h3 className="font-display font-bold text-base text-white mb-3">
+            👁️ Preview — what teammates see
+          </h3>
+          <GameIdsDisplay gameIds={gameIds} />
         </div>
       )}
     </div>
   );
 }
 
-// ── Main Profile ───────────────────────────────────────────────────────────────
+// ─── GameIdsDisplay — shared read-only display ────────────────────────────────
+export function GameIdsDisplay({ gameIds }) {
+  const [copied, setCopied] = useState(null);
+  const entries = GAME_PLATFORMS.filter(p => gameIds?.[p.key]);
+  if (entries.length === 0) return null;
+
+  const copy = (key, val) => {
+    navigator.clipboard.writeText(val).catch(() => {});
+    setCopied(key);
+    setTimeout(() => setCopied(null), 1500);
+  };
+
+  return (
+    <div className="grid sm:grid-cols-2 gap-2">
+      {entries.map(({ key, label, icon }) => (
+        <button
+          key={key}
+          onClick={() => copy(key, gameIds[key])}
+          title="Click to copy"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-surface-border bg-navy/40 hover:border-red/30 hover:bg-red/5 transition-all group text-left w-full"
+        >
+          <span className="text-lg shrink-0">{icon}</span>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs text-gray-500 leading-none mb-0.5">{label}</p>
+            <p className="text-sm font-semibold text-white truncate">{gameIds[key]}</p>
+          </div>
+          <span className="text-xs text-gray-600 group-hover:text-gray-400 transition-colors shrink-0">
+            {copied === key ? "✓ Copied!" : "copy"}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function Profile() {
   const { theme } = useTheme();
   const ts = themeStyles(theme);
@@ -837,6 +163,12 @@ export default function Profile() {
   const [showShare, setShowShare] = useState(false);
   const [followModal, setFollowModal] = useState(null);
   const [myTeams, setMyTeams] = useState([]);
+  const [gameIds, setGameIds] = useState({});
+  const [gameIdsForm, setGameIdsForm] = useState({});
+  const [savingGameIds, setSavingGameIds] = useState(false);
+  const [teamChatOpen, setTeamChatOpen] = useState(false);
+  const [activeChatTeam, setActiveChatTeam] = useState(null);
+  const { unread } = useChatContext();
 
   const showToast = (msg) => {
     setToast(msg);
@@ -859,14 +191,24 @@ export default function Profile() {
         if (p.profile_picture) setAvatarPreview(p.profile_picture);
         setGames(gamesRes.data.games || []);
         try {
-          const sr = await getMyStats();
-          setFollowStats(
-            sr.data.stats || { followers: 0, following: 0, community_posts: 0 },
-          );
-        } catch {}
-        try {
           const td = await API.get("/teams/mine");
           setMyTeams(td.data.teams || []);
+        } catch {}
+        try {
+          const gidsRes = await getMyGameIds();
+          const ids = gidsRes.data.game_ids || {};
+          setGameIds(ids);
+          setGameIdsForm(ids);
+        } catch {}
+        try {
+          const statsRes = await API.get("/users/me/stats");
+          if (statsRes.data?.stats) {
+            setFollowStats({
+              followers: Number(statsRes.data.stats.followers) || 0,
+              following: Number(statsRes.data.stats.following) || 0,
+              community_posts: Number(statsRes.data.stats.community_posts) || 0,
+            });
+          }
         } catch {}
       } catch {
         setError("Failed to load profile");
@@ -924,18 +266,7 @@ export default function Profile() {
     }
   };
 
-  /* [COMING SOON] handleGameStatsSave — temporarily disabled
-  const handleGameStatsSave = async (data) => {
-    await upsertGameProfile(data);
-    const res = await getMyGames();
-    setGames(res.data.games || []);
-    showToast("Stats synced!");
-  };
-  */
-
   if (loading) return <PageLoader />;
-
-  // [COMING SOON] totalMatches / avgWinRate / avgElo — part of Player Stats feature, hidden until it ships.
   // const totalMatches = games.reduce((s, g) => s + (g.matches_played || 0), 0);
   // const avgWinRate = games.length
   //   ? (
@@ -950,7 +281,8 @@ export default function Profile() {
   const TABS = [
     { id: "overview", label: "Service Record" },
     { id: "games", label: "Arsenal" },
-    { id: "gamestats", label: "⚡ Live Sync" },
+    { id: "gameids", label: "🎮 Game IDs" },
+    { id: "achievements", label: "🏆 Achievements" },
     {
       id: "teams",
       label: `🛡️ Teams${myTeams.length ? ` (${myTeams.length})` : ""}`,
@@ -983,6 +315,7 @@ export default function Profile() {
           <div className="relative w-20 h-20 shrink-0 group">
             {profile?.profile_picture ? (
               <img
+          loading="lazy"
                 src={profile.profile_picture}
                 alt={profile.username}
                 className="w-20 h-20 rounded-full object-cover border-2 border-red/40 glow-red"
@@ -1124,6 +457,7 @@ export default function Profile() {
               <div className="w-16 h-16 rounded-full border-2 border-surface-border overflow-hidden shrink-0 bg-red/10 flex items-center justify-center relative">
                 {avatarPreview ? (
                   <img
+          loading="lazy"
                     src={avatarPreview}
                     alt="preview"
                     className="w-full h-full object-cover"
@@ -1316,19 +650,6 @@ export default function Profile() {
         </div>
       )}
 
-      {/* Stats row — [COMING SOON] entire Player Stats feature hidden until it ships.
-      Restore this block (and the totalMatches/avgWinRate/avgElo consts above) when re-enabling. */}
-      {/*
-      <div className="grid grid-cols-1 gap-4 mb-6">
-        <StatCard label="Total Matches" value={totalMatches} />
-        <StatCard
-          label="Avg Win Rate"
-          value={avgWinRate ? avgWinRate + "%" : "—"}
-        />
-        <StatCard label="Avg ELO" value={avgElo} />
-      </div>
-      */}
-
       {/* Tabs */}
       <div className="flex gap-1 bg-surface-card rounded-lg p-1 mb-6 self-start w-fit">
         {TABS.map((t) => (
@@ -1370,24 +691,6 @@ export default function Profile() {
                 <div className="flex flex-wrap gap-3">
                   {game.rank && <span className="badge-blue">{game.rank}</span>}
                   {game.role && <span className="badge-gray">{game.role}</span>}
-                  {/* [COMING SOON] ELO / Win Rate — part of Player Stats feature, hidden until it ships.
-                  {game.elo_rating && (
-                    <div className="text-center">
-                      <p className="text-xs text-gray-500">ELO</p>
-                      <p className="font-bold text-white text-sm">
-                        {game.elo_rating}
-                      </p>
-                    </div>
-                  )}
-                  {game.win_rate && (
-                    <div className="text-center">
-                      <p className="text-xs text-gray-500">Win Rate</p>
-                      <p className="font-bold text-red text-sm">
-                        {Number(game.win_rate).toFixed(1)}%
-                      </p>
-                    </div>
-                  )}
-                  */}
                   {game.matches_played > 0 && (
                     <div className="text-center">
                       <p className="text-xs text-gray-500">Matches</p>
@@ -1433,148 +736,35 @@ export default function Profile() {
         </div>
       )}
 
-      {activeTab === "gamestats" && (
-        <div className="animate-fade-in">
-          {/* ============================================================
-              [COMING SOON] Live Stat Sync — temporarily replaced with banner.
-              Original implementation is commented out above (backendFetch,
-              FETCHERS, GAME_TO_FETCHER, detectFetcher, GameStatsFetcher).
-              Restore when the feature is ready.
-          ============================================================ */}
-          <div
-            className="rounded-2xl border border-red/20 p-10 flex flex-col items-center justify-center text-center gap-4"
-            style={{
-              background:
-                "linear-gradient(135deg,rgba(255,70,85,0.08),rgba(26,35,64,0.6))",
-            }}
-          >
-            <div className="w-16 h-16 rounded-2xl bg-red/15 border border-red/25 flex items-center justify-center text-4xl">
-              ⚡
-            </div>
-            <div>
-              <p className="font-display font-bold text-2xl text-white mb-1">
-                Coming Soon!!
-              </p>
-              <p className="text-red font-semibold text-sm tracking-widest uppercase mb-3">
-                Stay Tuned
-              </p>
-              <p className="text-gray-400 text-sm max-w-sm leading-relaxed">
-                Live Stat Sync is on its way — connect your in-game IDs to pull
-                live rank &amp; ELO directly from official game APIs.
-              </p>
-            </div>
-            <div className="flex flex-wrap justify-center gap-2 mt-2">
-              {[
-                { icon: "🎯", name: "Valorant" },
-                { icon: "🏗️", name: "Fortnite" },
-                { icon: "🛡️", name: "Dota 2" },
-                { icon: "⭐", name: "Brawl Stars" },
-                { icon: "🔥", name: "Apex Legends" },
-                { icon: "🪖", name: "PUBG" },
-                { icon: "🔫", name: "Rainbow Six" },
-                { icon: "💣", name: "COD" },
-                { icon: "⚡", name: "MLBB" },
-                { icon: "🎮", name: "Steam/CS2" },
-                { icon: "♟", name: "Chess.com" },
-                { icon: "⛏", name: "Minecraft" },
-                { icon: "🟥", name: "Roblox" },
-                { icon: "🚀", name: "Rocket League" },
-                { icon: "🪖", name: "BGMI" },
-                { icon: "🔥", name: "Free Fire" },
-                { icon: "💣", name: "CoD Mobile" },
-                { icon: "⚽", name: "EA Sports FC" },
-              ].map((g) => (
-                <span
-                  key={g.name}
-                  className="inline-flex items-center gap-1 badge-gray text-xs opacity-60"
-                >
-                  {g.icon} {g.name}
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
+      {activeTab === "gameids" && (
+        <GameIdsTab
+          gameIds={gameIds}
+          gameIdsForm={gameIdsForm}
+          setGameIdsForm={setGameIdsForm}
+          savingGameIds={savingGameIds}
+          onSave={async () => {
+            setSavingGameIds(true);
+            try {
+              const res = await updateGameIds(gameIdsForm);
+              const updated = res.data.game_ids || {};
+              setGameIds(updated);
+              setGameIdsForm(updated);
+              showToast("Game IDs saved!");
+            } catch {
+              showToast("Failed to save Game IDs");
+            } finally {
+              setSavingGameIds(false);
+            }
+          }}
+        />
       )}
 
-      {/* [COMING SOON] Original gamestats tab implementation — preserved below for restoration.
-      {activeTab === "gamestats" && (
-        <div className="animate-fade-in">
-          <div
-            className="rounded-2xl border border-red/20 mb-6 px-5 py-4 flex gap-4 items-start"
-            style={{
-              background:
-                "linear-gradient(135deg,rgba(255,70,85,0.08),rgba(26,35,64,0.6))",
-            }}
-          >
-            <div className="w-10 h-10 rounded-xl bg-red/15 border border-red/25 flex items-center justify-center text-xl shrink-0">
-              ⚡
-            </div>
-            <div>
-              <p className="font-semibold text-white text-sm mb-0.5">
-                ⚡ Live Stat Sync
-              </p>
-              <p className="text-xs text-gray-400 leading-relaxed">
-                Enter your username for supported games to pull live rank &amp;
-                ELO from official APIs. Hit{" "}
-                <strong className="text-white">Sync to Loadout</strong> to sync.
-              </p>
-              <div className="flex flex-wrap gap-2 mt-3">
-                {[
-                  { icon: "🎯", name: "Valorant" },
-                  { icon: "🏗️", name: "Fortnite" },
-                  { icon: "🛡️", name: "Dota 2" },
-                  { icon: "⭐", name: "Brawl Stars" },
-                  { icon: "🔥", name: "Apex Legends" },
-                  { icon: "🪖", name: "PUBG" },
-                  { icon: "🔫", name: "Rainbow Six" },
-                  { icon: "💣", name: "COD" },
-                  { icon: "⚡", name: "MLBB" },
-                  { icon: "🎮", name: "Steam/CS2" },
-                  { icon: "♟", name: "Chess.com" },
-                  { icon: "⛏", name: "Minecraft" },
-                  { icon: "🟥", name: "Roblox" },
-                  { icon: "🚀", name: "Rocket League" },
-                  { icon: "🪖", name: "BGMI" },
-                  { icon: "🔥", name: "Free Fire" },
-                  { icon: "💣", name: "CoD Mobile" },
-                  { icon: "⚽", name: "EA Sports FC" },
-                ].map((g) => (
-                  <span
-                    key={g.name}
-                    className="inline-flex items-center gap-1 badge-gray text-xs"
-                  >
-                    {g.icon} {g.name}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-          {games.length === 0 ? (
-            <div className="card text-center py-10 text-gray-500">
-              No games in library.{" "}
-              <a href="/games" className="text-red hover:underline">
-                Add games
-              </a>{" "}
-              to use auto-fetch.
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {games.map((game) => (
-                <GameStatsFetcher
-                  key={game.game_id}
-                  game={game}
-                  onSave={handleGameStatsSave}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+      {activeTab === "achievements" && (
+        <AchievementsTab username={profile?.username} />
       )}
-
-
-      End of commented-out gamestats implementation. */}
 
       {activeTab === "teams" && (
+        <>
         <div className="space-y-3 animate-fade-in">
           {myTeams.length === 0 ? (
             <div className="card text-center py-10 text-gray-500">
@@ -1599,6 +789,7 @@ export default function Profile() {
                 <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 flex items-center justify-center bg-red/10 border border-red/20">
                   {team.game_icon ? (
                     <img
+          loading="lazy"
                       src={team.game_icon}
                       alt=""
                       className="w-full h-full object-cover"
@@ -1634,6 +825,7 @@ export default function Profile() {
                         <div className="w-6 h-6 rounded-full bg-red/20 border border-red/30 flex items-center justify-center text-xs font-bold text-red overflow-hidden">
                           {m.profile_picture ? (
                             <img
+          loading="lazy"
                               src={m.profile_picture}
                               alt={m.username}
                               className="w-full h-full object-cover"
@@ -1665,6 +857,17 @@ export default function Profile() {
                   >
                     {team.my_role === "captain" ? "⭐ Captain" : "Member"}
                   </span>
+                  <button
+                    onClick={() => { setActiveChatTeam(team); setTeamChatOpen(true); }}
+                    className="relative text-xs px-2.5 py-1 rounded-lg border border-blue-500/30 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors"
+                  >
+                    💬 Chat
+                    {unread.teams[team.team_id] > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red text-white text-[9px] flex items-center justify-center font-bold">
+                        {unread.teams[team.team_id] > 9 ? "9+" : unread.teams[team.team_id]}
+                      </span>
+                    )}
+                  </button>
                   <a
                     href="/teamfinder"
                     className="text-xs px-2.5 py-1 rounded-lg border border-surface-border text-gray-500 hover:text-white hover:border-red/30 transition-colors"
@@ -1676,6 +879,15 @@ export default function Profile() {
             ))
           )}
         </div>
+        <ChatDrawer
+          open={teamChatOpen}
+          onClose={() => setTeamChatOpen(false)}
+          chatType="team"
+          chatId={activeChatTeam?.team_id}
+          title={activeChatTeam?.team_name || "Team Chat"}
+          subtitle="Team group chat"
+        />
+        </>
       )}
     </div>
   );

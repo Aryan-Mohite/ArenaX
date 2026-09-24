@@ -1,0 +1,1541 @@
+{
+  "game_slug": "valorant",
+  "questions": [
+    {
+      "difficulty": "easy",
+      "question_text": "How many players are on each team in a standard Valorant competitive match?",
+      "media_url": null,
+      "options": {
+        "a": "4",
+        "b": "5",
+        "c": "6",
+        "d": "7"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "easy",
+      "question_text": "What is the name of the bomb-like object that Attackers must plant to win a round?",
+      "media_url": null,
+      "options": {
+        "a": "Spike",
+        "b": "Core",
+        "c": "Detonator",
+        "d": "Charge"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "easy",
+      "question_text": "In a standard competitive match (no overtime), how many rounds does a team need to win the match?",
+      "media_url": null,
+      "options": {
+        "a": "10",
+        "b": "12",
+        "c": "13",
+        "d": "16"
+      },
+      "correct_option": "c"
+    },
+    {
+      "difficulty": "easy",
+      "question_text": "What is the in-game currency used to buy weapons, armor, and abilities called?",
+      "media_url": null,
+      "options": {
+        "a": "Credits",
+        "b": "Gold",
+        "c": "Points",
+        "d": "Coins"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "easy",
+      "question_text": "How many seconds does it take a Defender to defuse the Spike (without any ability effects)?",
+      "media_url": null,
+      "options": {
+        "a": "4 seconds",
+        "b": "5 seconds",
+        "c": "7 seconds",
+        "d": "10 seconds"
+      },
+      "correct_option": "c"
+    },
+    {
+      "difficulty": "easy",
+      "question_text": "What is the default maximum health of any Agent (before shields)?",
+      "media_url": null,
+      "options": {
+        "a": "80",
+        "b": "90",
+        "c": "100",
+        "d": "120"
+      },
+      "correct_option": "c"
+    },
+    {
+      "difficulty": "easy",
+      "question_text": "What term describes a player winning a round alone against multiple surviving opponents?",
+      "media_url": null,
+      "options": {
+        "a": "Ace",
+        "b": "Clutch",
+        "c": "Wipe",
+        "d": "Solo-kill"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "easy",
+      "question_text": "What term describes a single player eliminating all 5 members of the enemy team in one round?",
+      "media_url": null,
+      "options": {
+        "a": "Clutch",
+        "b": "Ace",
+        "c": "Sweep",
+        "d": "Rampage"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "How many seconds does it take to plant the Spike (without any ability effects)?",
+      "media_url": null,
+      "options": {
+        "a": "2 seconds",
+        "b": "4 seconds",
+        "c": "6 seconds",
+        "d": "8 seconds"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Once planted, how many seconds until the Spike detonates if not defused?",
+      "media_url": null,
+      "options": {
+        "a": "30 seconds",
+        "b": "35 seconds",
+        "c": "45 seconds",
+        "d": "60 seconds"
+      },
+      "correct_option": "c"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "What is the maximum amount of Creds a player can hold at once?",
+      "media_url": null,
+      "options": {
+        "a": "6000",
+        "b": "8000",
+        "c": "9000",
+        "d": "10000"
+      },
+      "correct_option": "c"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which of these is the most expensive sniper rifle in the game, capable of one-shot kills almost anywhere on the body?",
+      "media_url": null,
+      "options": {
+        "a": "Marshal",
+        "b": "Guardian",
+        "c": "Operator",
+        "d": "Outlaw"
+      },
+      "correct_option": "c"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "What is the maximum shield value granted by a Heavy Shield purchase?",
+      "media_url": null,
+      "options": {
+        "a": "25",
+        "b": "50",
+        "c": "75",
+        "d": "100"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Duplicate Agents on the same team are allowed in which queue types?",
+      "media_url": null,
+      "options": {
+        "a": "Competitive and Unrated",
+        "b": "Only Competitive",
+        "c": "Unrated, Spike Rush, and Deathmatch but not Competitive",
+        "d": "Never allowed in any mode"
+      },
+      "correct_option": "c"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "What is the free-for-all warm-up mode where players compete for the most eliminations called?",
+      "media_url": null,
+      "options": {
+        "a": "Spike Rush",
+        "b": "Deathmatch",
+        "c": "Escalation",
+        "d": "Replication"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "In Spike Rush, what do players receive randomly each round to spice up gameplay?",
+      "media_url": null,
+      "options": {
+        "a": "Extra credits",
+        "b": "Orbs granting random abilities",
+        "c": "Double health",
+        "d": "Free ultimates"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "hard",
+      "question_text": "In Overtime, by what margin must a team win rounds to secure victory?",
+      "media_url": null,
+      "options": {
+        "a": "Win by exactly 1 round",
+        "b": "Win by 2 rounds",
+        "c": "First to 3 rounds outright",
+        "d": "Sudden death, single round only"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "hard",
+      "question_text": "What tactical-shooter term describes the advantage held by the player moving into an angle versus the player holding it?",
+      "media_url": null,
+      "options": {
+        "a": "Holder's advantage",
+        "b": "Peeker's advantage",
+        "c": "Angle priority",
+        "d": "First-shot bias"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "hard",
+      "question_text": "Which of these purchasable items reduces fall damage and footstep sound?",
+      "media_url": null,
+      "options": {
+        "a": "Regen Shield",
+        "b": "Light Shield",
+        "c": "There is no such universal item; this is an Agent-specific ability",
+        "d": "Ghost pistol"
+      },
+      "correct_option": "c"
+    },
+    {
+      "difficulty": "hard",
+      "question_text": "After the 12th round of a standard half, what happens to team sides?",
+      "media_url": null,
+      "options": {
+        "a": "Nothing changes",
+        "b": "Teams swap Attacker/Defender sides",
+        "c": "The match ends",
+        "d": "Both teams become Attackers"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "easy",
+      "question_text": "Which Agent role specializes in deploying smokes to block enemy sightlines?",
+      "media_url": null,
+      "options": {
+        "a": "Duelist",
+        "b": "Controller",
+        "c": "Initiator",
+        "d": "Sentinel"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "easy",
+      "question_text": "Which Agent role is built around gathering information and setting up teammates for kills?",
+      "media_url": null,
+      "options": {
+        "a": "Duelist",
+        "b": "Controller",
+        "c": "Initiator",
+        "d": "Sentinel"
+      },
+      "correct_option": "c"
+    },
+    {
+      "difficulty": "easy",
+      "question_text": "Which Agent role excels at locking down and defending a specific area with traps?",
+      "media_url": null,
+      "options": {
+        "a": "Duelist",
+        "b": "Controller",
+        "c": "Initiator",
+        "d": "Sentinel"
+      },
+      "correct_option": "d"
+    },
+    {
+      "difficulty": "easy",
+      "question_text": "Which Agent role is best suited for entry fragging and creating space for the team?",
+      "media_url": null,
+      "options": {
+        "a": "Duelist",
+        "b": "Controller",
+        "c": "Initiator",
+        "d": "Sentinel"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Cypher, Killjoy, and Sage all share which Agent role?",
+      "media_url": null,
+      "options": {
+        "a": "Duelist",
+        "b": "Controller",
+        "c": "Initiator",
+        "d": "Sentinel"
+      },
+      "correct_option": "d"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Sova, Skye, and Fade all share which Agent role?",
+      "media_url": null,
+      "options": {
+        "a": "Duelist",
+        "b": "Controller",
+        "c": "Initiator",
+        "d": "Sentinel"
+      },
+      "correct_option": "c"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Omen, Viper, and Astra all share which Agent role?",
+      "media_url": null,
+      "options": {
+        "a": "Duelist",
+        "b": "Controller",
+        "c": "Initiator",
+        "d": "Sentinel"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Jett, Reyna, and Raze all share which Agent role?",
+      "media_url": null,
+      "options": {
+        "a": "Duelist",
+        "b": "Controller",
+        "c": "Initiator",
+        "d": "Sentinel"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which role does the Agent Miks, released in 2026, belong to?",
+      "media_url": null,
+      "options": {
+        "a": "Duelist",
+        "b": "Controller",
+        "c": "Initiator",
+        "d": "Sentinel"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which role does Deadlock, known for her Barrier Mesh, belong to?",
+      "media_url": null,
+      "options": {
+        "a": "Duelist",
+        "b": "Controller",
+        "c": "Initiator",
+        "d": "Sentinel"
+      },
+      "correct_option": "d"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which role does Iso, known for his 1v1 duel Ultimate, belong to?",
+      "media_url": null,
+      "options": {
+        "a": "Duelist",
+        "b": "Controller",
+        "c": "Initiator",
+        "d": "Sentinel"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "hard",
+      "question_text": "Which role is most associated with 'lurking' - quietly rotating alone to flank or gather intel?",
+      "media_url": null,
+      "options": {
+        "a": "Any role, but Duelists and Initiators are most common",
+        "b": "Only Controllers",
+        "c": "Only Sentinels",
+        "d": "Only Duelists"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "hard",
+      "question_text": "Which role's players are described as best for those who 'like studying maps, lineups, and denying information'?",
+      "media_url": null,
+      "options": {
+        "a": "Duelist",
+        "b": "Controller",
+        "c": "Initiator",
+        "d": "Sentinel"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "hard",
+      "question_text": "As a general team composition guideline, how many Controllers do most competitive teams run?",
+      "media_url": null,
+      "options": {
+        "a": "0",
+        "b": "1",
+        "c": "2",
+        "d": "3"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "hard",
+      "question_text": "Which role description matches: 'excel as Defenders holding a site, but as Attackers can cover flanks or clear off-angles'?",
+      "media_url": null,
+      "options": {
+        "a": "Duelist",
+        "b": "Controller",
+        "c": "Initiator",
+        "d": "Sentinel"
+      },
+      "correct_option": "d"
+    },
+    {
+      "difficulty": "easy",
+      "question_text": "Which Valorant map was one of the first to feature three bomb sites instead of two?",
+      "media_url": null,
+      "options": {
+        "a": "Ascent",
+        "b": "Haven",
+        "c": "Split",
+        "d": "Bind"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "easy",
+      "question_text": "Which map is set in Morocco and is known for having no middle area?",
+      "media_url": null,
+      "options": {
+        "a": "Bind",
+        "b": "Icebox",
+        "c": "Breeze",
+        "d": "Pearl"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "easy",
+      "question_text": "Which map is the most open of the map pool, favoring long-range sniping duels?",
+      "media_url": null,
+      "options": {
+        "a": "Split",
+        "b": "Fracture",
+        "c": "Breeze",
+        "d": "Ascent"
+      },
+      "correct_option": "c"
+    },
+    {
+      "difficulty": "easy",
+      "question_text": "How many bomb sites does a standard two-site Valorant map have?",
+      "media_url": null,
+      "options": {
+        "a": "1",
+        "b": "2",
+        "c": "3",
+        "d": "4"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which map's signature mechanic is a pair of one-way teleporters connecting each site to the middle area?",
+      "media_url": null,
+      "options": {
+        "a": "Bind",
+        "b": "Haven",
+        "c": "Lotus",
+        "d": "Sunset"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which map is themed around an Arctic Kingdom excavation site, known for tight corners and verticality?",
+      "media_url": null,
+      "options": {
+        "a": "Fracture",
+        "b": "Icebox",
+        "c": "Pearl",
+        "d": "Corrode"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which map, set in Brazil, has an H-shaped layout where Attackers can approach sites from two opposite directions?",
+      "media_url": null,
+      "options": {
+        "a": "Fracture",
+        "b": "Split",
+        "c": "Ascent",
+        "d": "Haven"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which map features rotating stone doors that unlock alternate routes to its three sites?",
+      "media_url": null,
+      "options": {
+        "a": "Lotus",
+        "b": "Bind",
+        "c": "Pearl",
+        "d": "Abyss"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which map is set in an underwater city off the coast of Portugal?",
+      "media_url": null,
+      "options": {
+        "a": "Pearl",
+        "b": "Breeze",
+        "c": "Sunset",
+        "d": "Icebox"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which map is themed around a sun-drenched Los Angeles setting on the west coast of the US?",
+      "media_url": null,
+      "options": {
+        "a": "Sunset",
+        "b": "Pearl",
+        "c": "Breeze",
+        "d": "Ascent"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Icebox and Fracture are both considered strong maps for which kind of utility, due to their tight spaces and verticality?",
+      "media_url": null,
+      "options": {
+        "a": "Long-range sniper utility",
+        "b": "Explosive/area-denial and vertical mobility utility",
+        "c": "Only healing utility",
+        "d": "No utility, purely gunskill maps"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "hard",
+      "question_text": "Which map, added to the competitive pool in 2026, introduced destructible walls at A, Mid, and B that permanently seal routes once dropped?",
+      "media_url": null,
+      "options": {
+        "a": "Corrode",
+        "b": "Abyss",
+        "c": "Summit",
+        "d": "Sunset"
+      },
+      "correct_option": "c"
+    },
+    {
+      "difficulty": "hard",
+      "question_text": "Which map is notable for having no back walls at its bomb sites, meaning players can fall to their death off the edges?",
+      "media_url": null,
+      "options": {
+        "a": "Abyss",
+        "b": "Split",
+        "c": "Bind",
+        "d": "Haven"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "hard",
+      "question_text": "Which two maps were removed from the competitive pool to make way for Summit and Sunset in Patch 13.00 (mid-2026)?",
+      "media_url": null,
+      "options": {
+        "a": "Ascent and Split",
+        "b": "Fracture and Pearl",
+        "c": "Icebox and Bind",
+        "d": "Haven and Lotus"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "hard",
+      "question_text": "Which map's design philosophy is based on giving Attackers a 'default' isolated approach to Mid before splitting to either site?",
+      "media_url": null,
+      "options": {
+        "a": "Split",
+        "b": "Ascent",
+        "c": "Bind",
+        "d": "Fracture"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "As of Season 2026 Act 4, roughly how many standard plant-and-defuse maps exist in Valorant's total map roster?",
+      "media_url": null,
+      "options": {
+        "a": "6",
+        "b": "9",
+        "c": "13",
+        "d": "20"
+      },
+      "correct_option": "c"
+    },
+    {
+      "difficulty": "easy",
+      "question_text": "Which practice area lets players test weapons and Agent abilities freely outside of a match?",
+      "media_url": null,
+      "options": {
+        "a": "The Range",
+        "b": "The Arena",
+        "c": "Training Grounds",
+        "d": "The Proving Ground"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "How often does Riot Games typically rotate the seven-map competitive pool?",
+      "media_url": null,
+      "options": {
+        "a": "Every week",
+        "b": "Every Act",
+        "c": "Only once a year",
+        "d": "Never, it is fixed"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "hard",
+      "question_text": "Corrode, added to Valorant in 2025, is thematically built around which kind of setting?",
+      "media_url": null,
+      "options": {
+        "a": "A tropical beach resort",
+        "b": "An industrial mining facility",
+        "c": "A snowy mountain temple",
+        "d": "A futuristic space station"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which of these is NOT an official Valorant map?",
+      "media_url": null,
+      "options": {
+        "a": "Lotus",
+        "b": "Corrode",
+        "c": "Inferno",
+        "d": "Abyss"
+      },
+      "correct_option": "c"
+    },
+    {
+      "difficulty": "easy",
+      "question_text": "What is the name of Valorant's global professional esports circuit run by Riot Games?",
+      "media_url": null,
+      "options": {
+        "a": "Valorant Pro League",
+        "b": "Valorant Champions Tour (VCT)",
+        "c": "Valorant World Series",
+        "d": "Valorant Masters Cup"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "easy",
+      "question_text": "What is the name of the season-ending world championship event of the VCT calendar?",
+      "media_url": null,
+      "options": {
+        "a": "VCT Finals",
+        "b": "Valorant Masters",
+        "c": "Valorant Champions",
+        "d": "VCT Grand Slam"
+      },
+      "correct_option": "c"
+    },
+    {
+      "difficulty": "easy",
+      "question_text": "Which company organizes and hosts the Valorant Champions Tour?",
+      "media_url": null,
+      "options": {
+        "a": "Valve",
+        "b": "Riot Games",
+        "c": "ESL",
+        "d": "Blizzard"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "easy",
+      "question_text": "What are the mid-season international VCT events (smaller than Champions) called?",
+      "media_url": null,
+      "options": {
+        "a": "Masters",
+        "b": "Kickoffs",
+        "c": "Ascension",
+        "d": "Showdowns"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which four international leagues make up the core of the VCT franchised structure?",
+      "media_url": null,
+      "options": {
+        "a": "NA, EU, APAC, SA",
+        "b": "Americas, EMEA, Pacific, China",
+        "c": "East, West, North, South",
+        "d": "Region 1, 2, 3, 4"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which team won VALORANT Champions 2023?",
+      "media_url": null,
+      "options": {
+        "a": "Evil Geniuses",
+        "b": "LOUD",
+        "c": "DRX",
+        "d": "Fnatic"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which team won VALORANT Champions 2025 in Paris, defeating Fnatic 3-2 in the grand final?",
+      "media_url": null,
+      "options": {
+        "a": "Sentinels",
+        "b": "NRG",
+        "c": "Paper Rex",
+        "d": "G2 Esports"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "In which city was VALORANT Champions 2025 held?",
+      "media_url": null,
+      "options": {
+        "a": "Los Angeles",
+        "b": "Seoul",
+        "c": "Paris",
+        "d": "Tokyo"
+      },
+      "correct_option": "c"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "How many teams competed in the VALORANT Champions 2025 main event?",
+      "media_url": null,
+      "options": {
+        "a": "8",
+        "b": "12",
+        "c": "16",
+        "d": "24"
+      },
+      "correct_option": "c"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which team delivered mainland China's first-ever VCT international title?",
+      "media_url": null,
+      "options": {
+        "a": "Bilibili Gaming",
+        "b": "EDward Gaming (EDG)",
+        "c": "Trace Esports",
+        "d": "FunPlus Phoenix"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which team won Masters Santiago in early 2026?",
+      "media_url": null,
+      "options": {
+        "a": "Paper Rex",
+        "b": "Nongshim RedForce",
+        "c": "T1",
+        "d": "Gen.G"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which team finished as runner-up at Masters Santiago 2026?",
+      "media_url": null,
+      "options": {
+        "a": "Sentinels",
+        "b": "Fnatic",
+        "c": "Paper Rex",
+        "d": "DRX"
+      },
+      "correct_option": "c"
+    },
+    {
+      "difficulty": "hard",
+      "question_text": "Who became the first player to win a Valorant Champions title twice?",
+      "media_url": null,
+      "options": {
+        "a": "Derke",
+        "b": "TenZ",
+        "c": "Ethan (with Evil Geniuses)",
+        "d": "Aspas"
+      },
+      "correct_option": "c"
+    },
+    {
+      "difficulty": "hard",
+      "question_text": "Who was named Finals MVP of VALORANT Champions 2025, noted for his use of the Odin?",
+      "media_url": null,
+      "options": {
+        "a": "Brock 'brawk' Somerhalder",
+        "b": "Boaster",
+        "c": "Marved",
+        "d": "Something"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "hard",
+      "question_text": "Which player swept the 2025 EMEA VCT Awards, winning Player of the Year, Rookie of the Year, and Duelist of the Year?",
+      "media_url": null,
+      "options": {
+        "a": "Derke (Fnatic)",
+        "b": "kaajak (Fnatic)",
+        "c": "Leo (Fnatic)",
+        "d": "Alfajer (Fnatic)"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "hard",
+      "question_text": "Who was named Season MVP of Masters Santiago 2026?",
+      "media_url": null,
+      "options": {
+        "a": "Dambi (Nongshim RedForce)",
+        "b": "Aspas (Paper Rex)",
+        "c": "f0rsakeN (Paper Rex)",
+        "d": "Xccurate (Nongshim RedForce)"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "What competitive structure did the VCT adopt starting in its third season (2023), guaranteeing partnered orgs a permanent league slot?",
+      "media_url": null,
+      "options": {
+        "a": "Open qualifiers only",
+        "b": "Franchising",
+        "c": "Relegation-only system",
+        "d": "Invite-only exhibition format"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "hard",
+      "question_text": "The 2026 VCT season was announced to be the final season under which system before returning to open qualifiers in 2027?",
+      "media_url": null,
+      "options": {
+        "a": "Franchising",
+        "b": "Regional lock",
+        "c": "Ascension-only",
+        "d": "Wildcard system"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "What is the name of the secondary VCT pathway tournament that promotes non-partnered teams into the franchised league?",
+      "media_url": null,
+      "options": {
+        "a": "Challengers Cup",
+        "b": "Ascension",
+        "c": "Rising Stars",
+        "d": "Contenders"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "easy",
+      "question_text": "In competitive Valorant esports, what format is most commonly used for playoff/bracket matches (best of how many maps)?",
+      "media_url": null,
+      "options": {
+        "a": "Best of 1",
+        "b": "Best of 3",
+        "c": "Best of 5 for finals, Best of 3 for earlier rounds",
+        "d": "Best of 7"
+      },
+      "correct_option": "c"
+    },
+    {
+      "difficulty": "easy",
+      "question_text": "What is Jett's Ultimate ability called, which equips throwing knives that recharge on a kill?",
+      "media_url": null,
+      "options": {
+        "a": "Blade Storm",
+        "b": "Tailwind",
+        "c": "Updraft",
+        "d": "Cloudburst"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "easy",
+      "question_text": "Which ability lets Jett dash quickly in the direction she's moving?",
+      "media_url": null,
+      "options": {
+        "a": "Updraft",
+        "b": "Tailwind",
+        "c": "Cloudburst",
+        "d": "Blade Storm"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "easy",
+      "question_text": "What is Sage's Ultimate ability, which revives a fallen teammate?",
+      "media_url": null,
+      "options": {
+        "a": "Healing Orb",
+        "b": "Barrier Orb",
+        "c": "Resurrection",
+        "d": "Slow Orb"
+      },
+      "correct_option": "c"
+    },
+    {
+      "difficulty": "easy",
+      "question_text": "Which Sentinel Agent's Signature ability places a wall that fortifies into a solid barrier?",
+      "media_url": null,
+      "options": {
+        "a": "Cypher",
+        "b": "Sage",
+        "c": "Killjoy",
+        "d": "Deadlock"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "easy",
+      "question_text": "What is Phoenix's Ultimate ability, which lets him respawn at a marked location if killed within a set time?",
+      "media_url": null,
+      "options": {
+        "a": "Hot Hands",
+        "b": "Blaze",
+        "c": "Curveball",
+        "d": "Run It Back"
+      },
+      "correct_option": "d"
+    },
+    {
+      "difficulty": "easy",
+      "question_text": "Which Duelist can heal himself using his own fire abilities like Blaze and Hot Hands?",
+      "media_url": null,
+      "options": {
+        "a": "Reyna",
+        "b": "Phoenix",
+        "c": "Yoru",
+        "d": "Raze"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "easy",
+      "question_text": "What is Reyna's Ultimate ability that grants infinite uses of her soul-consuming abilities for a short time?",
+      "media_url": null,
+      "options": {
+        "a": "Devour",
+        "b": "Dismiss",
+        "c": "Leer",
+        "d": "Empress"
+      },
+      "correct_option": "d"
+    },
+    {
+      "difficulty": "easy",
+      "question_text": "Which Agent's abilities let her consume 'soul orbs' from fallen enemies to heal or turn intangible?",
+      "media_url": null,
+      "options": {
+        "a": "Reyna",
+        "b": "Fade",
+        "c": "Iso",
+        "d": "Vyse"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "easy",
+      "question_text": "What is Sova's Ultimate ability, equipping a bow that fires long-range blasts through walls?",
+      "media_url": null,
+      "options": {
+        "a": "Recon Bolt",
+        "b": "Shock Bolt",
+        "c": "Owl Drone",
+        "d": "Hunter's Fury"
+      },
+      "correct_option": "d"
+    },
+    {
+      "difficulty": "easy",
+      "question_text": "Which Initiator's Signature ability reveals enemies caught in the line of a fired arrow?",
+      "media_url": null,
+      "options": {
+        "a": "Skye",
+        "b": "Sova",
+        "c": "Fade",
+        "d": "Gekko"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "easy",
+      "question_text": "Which Agent's Ultimate, Orbital Strike, calls down a massive damage-over-time laser strike on a chosen location?",
+      "media_url": null,
+      "options": {
+        "a": "Viper",
+        "b": "Brimstone",
+        "c": "Omen",
+        "d": "Astra"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "easy",
+      "question_text": "Which Controller Agent's kit is entirely gas-themed, including Toxic Screen and Viper's Pit?",
+      "media_url": null,
+      "options": {
+        "a": "Viper",
+        "b": "Omen",
+        "c": "Harbor",
+        "d": "Clove"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "easy",
+      "question_text": "Which Agent's Ultimate, Lockdown, creates a large dome that detains all enemies caught inside when it activates?",
+      "media_url": null,
+      "options": {
+        "a": "Cypher",
+        "b": "Killjoy",
+        "c": "Deadlock",
+        "d": "Vyse"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "easy",
+      "question_text": "Which Duelist Agent's kit revolves entirely around explosives, including Boom Bot and Showstopper?",
+      "media_url": null,
+      "options": {
+        "a": "Raze",
+        "b": "Neon",
+        "c": "Iso",
+        "d": "Yoru"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which Agent's Signature ability, Rendezvous, places a teleport anchor he can return to?",
+      "media_url": null,
+      "options": {
+        "a": "Cypher",
+        "b": "Chamber",
+        "c": "Yoru",
+        "d": "Omen"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "What is Chamber's Ultimate ability, a powerful precision rifle that slows enemies killed with it?",
+      "media_url": null,
+      "options": {
+        "a": "Headhunter",
+        "b": "Trademark",
+        "c": "Tour de Force",
+        "d": "Rendezvous"
+      },
+      "correct_option": "c"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which Agent's Ultimate, Cosmic Divide, creates a giant wall that blocks bullets and dampens audio between two points?",
+      "media_url": null,
+      "options": {
+        "a": "Omen",
+        "b": "Astra",
+        "c": "Harbor",
+        "d": "Viper"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which Controller places stars from an RTS-style overhead view to activate her abilities?",
+      "media_url": null,
+      "options": {
+        "a": "Astra",
+        "b": "Clove",
+        "c": "Miks",
+        "d": "Brimstone"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which Agent's Ultimate, Neural Theft, reveals the location of all living enemies after being used on a corpse?",
+      "media_url": null,
+      "options": {
+        "a": "Killjoy",
+        "b": "Cypher",
+        "c": "Sova",
+        "d": "Fade"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which Agent's kit is built around a Spycam, Trapwire, and Cyber Cage?",
+      "media_url": null,
+      "options": {
+        "a": "Cypher",
+        "b": "Killjoy",
+        "c": "Chamber",
+        "d": "Deadlock"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which Agent's Ultimate, Annihilation, cocoons an enemy and drags them along a path to their death?",
+      "media_url": null,
+      "options": {
+        "a": "Vyse",
+        "b": "Deadlock",
+        "c": "Killjoy",
+        "d": "Sage"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which Agent's Signature ability, Guiding Light, sends a hawk that flashes enemies?",
+      "media_url": null,
+      "options": {
+        "a": "Fade",
+        "b": "Skye",
+        "c": "Gekko",
+        "d": "Sage"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which Agent's Ultimate, Seekers, fires three tracking orbs that nearsight the three closest enemies?",
+      "media_url": null,
+      "options": {
+        "a": "Fade",
+        "b": "Skye",
+        "c": "Cypher",
+        "d": "Sova"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which Agent's kit is themed around fear and nightmares, including Haunt and Nightfall?",
+      "media_url": null,
+      "options": {
+        "a": "Fade",
+        "b": "Omen",
+        "c": "Yoru",
+        "d": "Astra"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which Agent's Ultimate, Nightfall, deafens, decays, and marks enemies caught in a wave of energy?",
+      "media_url": null,
+      "options": {
+        "a": "Fade",
+        "b": "Viper",
+        "c": "Harbor",
+        "d": "Sova"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which Initiator sends small creature-like helpers that turn into pickable 'Globules' after use, and can plant or defuse the Spike?",
+      "media_url": null,
+      "options": {
+        "a": "Gekko",
+        "b": "Skye",
+        "c": "Tejo",
+        "d": "KAY/O"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "What is Gekko's Ultimate ability, which detains enemies in a blast radius and can be used twice per round?",
+      "media_url": null,
+      "options": {
+        "a": "Dizzy",
+        "b": "Mosh Pit",
+        "c": "Wingman",
+        "d": "Thrash"
+      },
+      "correct_option": "d"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which Agent's Signature ability, ZERO/POINT, suppresses enemies caught in a thrown blade's blast?",
+      "media_url": null,
+      "options": {
+        "a": "KAY/O",
+        "b": "Breach",
+        "c": "Fade",
+        "d": "Tejo"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which Agent's Ultimate, NULL/CMD, suppresses enemy abilities in its area and puts the Agent into a revivable downed state instead of eliminating them?",
+      "media_url": null,
+      "options": {
+        "a": "Breach",
+        "b": "KAY/O",
+        "c": "Deadlock",
+        "d": "Cypher"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which Agent's Ultimate, Rolling Thunder, sends a cascading quake that dazes and knocks up enemies?",
+      "media_url": null,
+      "options": {
+        "a": "Breach",
+        "b": "Raze",
+        "c": "Neon",
+        "d": "Gekko"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which Duelist's High Gear ability grants increased movement speed and an electric slide, fueled by a regenerating resource bar?",
+      "media_url": null,
+      "options": {
+        "a": "Jett",
+        "b": "Neon",
+        "c": "Raze",
+        "d": "Waylay"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "What is Neon's Ultimate ability, granting increased speed and replacing her gunfire with headshot-capable electric zaps?",
+      "media_url": null,
+      "options": {
+        "a": "Fast Lane",
+        "b": "Relay Bolt",
+        "c": "Overdrive",
+        "d": "High Gear"
+      },
+      "correct_option": "c"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which Agent's Ultimate, Dimensional Drift, lets him see and move between dimensions while remaining unseen to enemies?",
+      "media_url": null,
+      "options": {
+        "a": "Omen",
+        "b": "Yoru",
+        "c": "Astra",
+        "d": "Iso"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which Agent's Ultimate, Kill Contract, pulls himself and the first enemy hit into a 1v1 duel-to-the-death arena?",
+      "media_url": null,
+      "options": {
+        "a": "Iso",
+        "b": "Reyna",
+        "c": "Chamber",
+        "d": "Raze"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which Agent's Signature ability, Double Tap, grants a damage-absorbing shield when shooting a spawned orb after a kill?",
+      "media_url": null,
+      "options": {
+        "a": "Iso",
+        "b": "Neon",
+        "c": "Waylay",
+        "d": "Chamber"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which Sentinel's Ultimate, Steel Garden, jams the primary weapons of all enemies in a large circular area?",
+      "media_url": null,
+      "options": {
+        "a": "Vyse",
+        "b": "Deadlock",
+        "c": "Killjoy",
+        "d": "Cypher"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which Agent's kit features Arc Rose, Razorvine, and Shear, focused on hidden traps and pre-round setups?",
+      "media_url": null,
+      "options": {
+        "a": "Vyse",
+        "b": "Killjoy",
+        "c": "Cypher",
+        "d": "Deadlock"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which Agent's Ultimate, Evolution, grants a stim, regeneration, and debuff immunity?",
+      "media_url": null,
+      "options": {
+        "a": "Vyse",
+        "b": "Veto",
+        "c": "Clove",
+        "d": "Sage"
+      },
+      "correct_option": "b"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which Agent's Signature ability, Interceptor, destroys enemy utility that bounces or can be shot down?",
+      "media_url": null,
+      "options": {
+        "a": "Veto",
+        "b": "Killjoy",
+        "c": "Cypher",
+        "d": "Chamber"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which Duelist's Signature ability, Refract, lets her become invulnerable and instantly return to a placed beacon?",
+      "media_url": null,
+      "options": {
+        "a": "Waylay",
+        "b": "Neon",
+        "c": "Jett",
+        "d": "Iso"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "What is Waylay's Ultimate ability, which grants a speed boost while heavily slowing enemies in the area?",
+      "media_url": null,
+      "options": {
+        "a": "Saturate",
+        "b": "Lightspeed",
+        "c": "Convergent Paths",
+        "d": "Refract"
+      },
+      "correct_option": "c"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which Agent's Ultimate, Not Dead Yet, lets them resurrect after dying and must then secure a kill or damaging assist to survive permanently?",
+      "media_url": null,
+      "options": {
+        "a": "Clove",
+        "b": "Sage",
+        "c": "Reyna",
+        "d": "Phoenix"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which Agent can use their Signature smoke ability, Ruse, even after they have died?",
+      "media_url": null,
+      "options": {
+        "a": "Clove",
+        "b": "Omen",
+        "c": "Brimstone",
+        "d": "Astra"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which Agent's Ultimate, Armageddon, fires a targeted series of lethal explosions, especially strong in post-plant situations?",
+      "media_url": null,
+      "options": {
+        "a": "Tejo",
+        "b": "Raze",
+        "c": "Breach",
+        "d": "KAY/O"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which Initiator's kit is built around missile strikes, a suppressing/revealing drone, and a concussive grenade named Special Delivery?",
+      "media_url": null,
+      "options": {
+        "a": "Tejo",
+        "b": "Sova",
+        "c": "Gekko",
+        "d": "Skye"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which newest (2026) Controller Agent can toggle a single device between concussing enemies and healing allies?",
+      "media_url": null,
+      "options": {
+        "a": "Miks",
+        "b": "Clove",
+        "c": "Harbor",
+        "d": "Astra"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "What effects does Miks's Ultimate ability, Bassquake, apply to enemies hit by its Sonic Radiance?",
+      "media_url": null,
+      "options": {
+        "a": "Knocks back, deafens, and slows",
+        "b": "Only deals damage",
+        "c": "Blinds and silences",
+        "d": "Suppresses abilities only"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "hard",
+      "question_text": "Which Controller received a rework in November 2025 that made Cove his Signature ability and improved his Ultimate, Reckoning?",
+      "media_url": null,
+      "options": {
+        "a": "Harbor",
+        "b": "Viper",
+        "c": "Omen",
+        "d": "Astra"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "hard",
+      "question_text": "Which Agent's number in Riot's official Agent roster remains publicly unconfirmed/unknown ('Agent #8')?",
+      "media_url": null,
+      "options": {
+        "a": "It has never been officially revealed",
+        "b": "Breach",
+        "c": "Raze",
+        "d": "Sage"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "hard",
+      "question_text": "As of the 2026 roster, how many total playable Agents are there in Valorant?",
+      "media_url": null,
+      "options": {
+        "a": "24",
+        "b": "27",
+        "c": "29",
+        "d": "32"
+      },
+      "correct_option": "c"
+    },
+    {
+      "difficulty": "hard",
+      "question_text": "Which five Agents are available to every brand-new Valorant account by default before any unlocking?",
+      "media_url": null,
+      "options": {
+        "a": "Jett, Sova, Brimstone, Phoenix, Sage",
+        "b": "Reyna, Killjoy, Omen, Raze, Cypher",
+        "c": "Jett, Raze, Viper, Sage, Sova",
+        "d": "Phoenix, Breach, Omen, Killjoy, Jett"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "hard",
+      "question_text": "Which Agent's kit revolves around illusions, including a decoy clone (Fakeout) that flashes when destroyed?",
+      "media_url": null,
+      "options": {
+        "a": "Yoru",
+        "b": "Omen",
+        "c": "Clove",
+        "d": "Chamber"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "hard",
+      "question_text": "Which Agent is generally considered ideal for defensive holds and post-plant setups due to abilities that deafen, decay, and nearsight, drawing comparisons to a mix of Sova and Omen?",
+      "media_url": null,
+      "options": {
+        "a": "Fade",
+        "b": "Skye",
+        "c": "Astra",
+        "d": "Vyse"
+      },
+      "correct_option": "a"
+    }
+  ]
+}

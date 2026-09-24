@@ -4,6 +4,7 @@ import { getMyGames } from "../services/gameService";
 import { PageLoader, EmptyState, ErrorMessage } from "../components/UI";
 import { useAuth } from "../context/AuthContext";
 import API from "../api/api";
+import SEO from "../components/SEO";
 
 function StreamCard({ stream }) {
   return (
@@ -123,6 +124,11 @@ export default function Stream() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 animate-fade-in">
+      <SEO
+        title="Live Esports Streams"
+        description="Watch live esports streams from top FPS players on ArenaX. Follow tournaments in real time and connect with the gaming community."
+        path="/stream"
+      />
       {/* Header */}
       <div className="flex items-start justify-between gap-4 mb-8">
         <div>

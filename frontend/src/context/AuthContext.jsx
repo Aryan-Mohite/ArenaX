@@ -20,7 +20,7 @@ export const AuthProvider = ({ children }) => {
   });
 
   const [token, setToken] = useState(
-    () => localStorage.getItem("token") || null
+    () => localStorage.getItem("token") || null,
   );
 
   // FIX M8: session-expiry toast state
@@ -43,7 +43,14 @@ export const AuthProvider = ({ children }) => {
           const raw = res.data.user;
           const serverUser = { ...raw, id: raw.id ?? raw.user_id };
           setUser(serverUser);
-          localStorage.setItem("user", JSON.stringify(serverUser));
+          try {
+            localStorage.setItem("user", JSON.stringify(serverUser));
+          } catch {
+            try {
+              const { profile_picture: _p, ...slim } = serverUser;
+              localStorage.setItem("user", JSON.stringify(slim));
+            } catch {}
+          }
         }
       })
       .catch(() => {
@@ -65,7 +72,8 @@ export const AuthProvider = ({ children }) => {
       }, 3000);
     };
     window.addEventListener("arenaX:session-expired", handleExpiry);
-    return () => window.removeEventListener("arenaX:session-expired", handleExpiry);
+    return () =>
+      window.removeEventListener("arenaX:session-expired", handleExpiry);
   }, [clearSession]);
 
   const login = useCallback((userData, authToken) => {
@@ -82,7 +90,9 @@ export const AuthProvider = ({ children }) => {
   const isAuthenticated = !!token;
 
   return (
-    <AuthContext.Provider value={{ user, token, isAuthenticated, login, logout }}>
+    <AuthContext.Provider
+      value={{ user, token, isAuthenticated, login, logout }}
+    >
       {/* FIX M8: Session-expired notification toast */}
       {sessionExpiredToast && (
         <div

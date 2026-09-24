@@ -11,6 +11,7 @@ import { PageLoader, ErrorMessage } from "../components/UI";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { themeStyles } from "../utils/themeStyles";
+import SEO from "../components/SEO";
 // ── Shared helpers ────────────────────────────────────────────────────────────
 const STATUS_STYLES = {
   upcoming: {
@@ -414,6 +415,7 @@ function OrganizerPostModal({ games, onClose, onCreated }) {
                 {form.image_url && (
                   <div className="mt-2 rounded-xl overflow-hidden border border-surface-border h-36">
                     <img
+          loading="lazy"
                       src={form.image_url}
                       alt="preview"
                       className="w-full h-full object-cover"
@@ -602,6 +604,7 @@ function TournamentCard({ tournament, onDelete }) {
       <div className="relative h-36 overflow-hidden bg-navy shrink-0">
         {image_url ? (
           <img
+          loading="lazy"
             src={image_url}
             alt={name}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
@@ -824,6 +827,12 @@ function TournamentDetail({ id }) {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 animate-fade-in">
+      <SEO
+        title={t.name}
+        description={`${t.name} — ${t.format ? t.format.replace(/_/g, " ") : "esports"} tournament on ArenaX. ${prizeStr ? `Prize pool: ${prizeStr}.` : ""} ${t.region ? `Region: ${t.region}.` : ""} Starts ${startFull}.`}
+        path={`/tournament/${t.tournament_id}`}
+        image={t.image_url || undefined}
+      />
       <Link
         to="/tournament"
         className="inline-flex items-center gap-1.5 text-gray-500 hover:text-white text-sm mb-6 transition-colors group"
@@ -838,6 +847,7 @@ function TournamentDetail({ id }) {
       {t.image_url && (
         <div className="rounded-2xl overflow-hidden mb-6 h-56 sm:h-72 relative border border-surface-border">
           <img
+          loading="lazy"
             src={t.image_url}
             alt={t.name}
             className="w-full h-full object-cover"
@@ -1186,6 +1196,19 @@ function TournamentList() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 animate-fade-in">
+      <SEO
+        title="Esports Tournaments — Valorant, CS2 & FPS Tournaments"
+        description="Join free esports tournaments on ArenaX — Valorant, CS2, League of Legends, Fortnite, Dota 2, and Apex Legends. Compete in online tournaments worldwide, win prizes, and track your rank."
+        path="/tournament"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          itemListElement: [
+            { "@type": "ListItem", position: 1, name: "Home", item: "https://arenax.io/" },
+            { "@type": "ListItem", position: 2, name: "Tournaments", item: "https://arenax.io/tournament" },
+          ],
+        }}
+      />
       {/* Toast */}
       {toast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-surface-card border border-green-500/30 text-green-400 text-sm px-5 py-3 rounded-full shadow-card animate-fade-in">

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import SEO from "../components/SEO";
 
 // ── Data ─────────────────────────────────────────────────────────────────────
 
@@ -13,7 +14,6 @@ const FEATURES = [
   {
     icon: "🎮",
     title: "Game Library",
-    // [COMING SOON] Original copy referenced live stat/rank sync — removed until Player Stats ships.
     // desc: "Browse the Grid of supported titles. Add games to your Loadout and let ArenaX live-sync your in-game stats and rank.",
     desc: "Browse the Grid of supported titles and add your favourites to your Loadout.",
     to: "/games",
@@ -39,7 +39,7 @@ const FEATURES = [
 ];
 
 const STATS = [
-  { value: "50+", label: "Registered players" },
+  { value: "1000+", label: "Registered players" },
   { value: "100+", label: "Tournaments forged" },
   { value: "10+", label: "Games in the Grid" },
   { value: "24 / 7", label: "Live streams" },
@@ -55,7 +55,7 @@ const TEAM = [
     email: "arenaxxtreme@gmail.com",
   },
   {
-    name: "Aditya",
+    name: "Aditya Suryawanshi",
     role: "Head of Product",
     emoji: "🚀",
     linkedin: "https://www.linkedin.com/in/aditya-suryavanshi-16b6a7409",
@@ -63,12 +63,21 @@ const TEAM = [
     email: "adiyasuryawanshi091@gmail.com",
   },
   {
-    name: "Aryan",
+    name: "Aryan Mohite",
     role: "Lead Engineer",
     emoji: "⚡",
     linkedin: "www.linkedin.com/in/aryan-mohite-068736315",
     instagram: "https://www.instagram.com/shivaay_xyz_07/",
     email: "shivaaymohite7@gmail.com",
+  },
+  {
+    name: "Atharva Shrivastava",
+    role: "Collabrative Video Editor",
+    emoji: "🎥",
+    linkedin:
+      "https://www.linkedin.com/in/atharva-shrivastava-4a7266335?utm_source=share_via&utm_content=profile&utm_medium=member_android",
+    instagram: "",
+    email: "imatharva19@gmail.com",
   },
 ];
 
@@ -91,7 +100,6 @@ const VALUES = [
   {
     icon: "📈",
     title: "Grow Continuously",
-    // [COMING SOON] Original copy referenced Service Record/rank tracking (Player Stats feature) — removed until it ships.
     // desc: "Study your Service Record, learn from every loss, and watch your rank climb. Data is your coach.",
     desc: "Learn from every match, sharpen your strategy, and keep pushing toward your next win.",
   },
@@ -187,7 +195,6 @@ function MissionSection() {
           <p className="text-gray-400 leading-relaxed mb-4">
             We envision a world where competitive gaming is as accessible and
             rewarding as playing itself. A world where every player can find
-            {/* [COMING SOON] Original copy: "their community, test their skills, and rise through the ranks — all" — rank mention removed until Player Stats ships. */}
             their community, test their skills, and compete at the highest level
             — all without leaving the platform.
           </p>
@@ -232,7 +239,6 @@ function FeaturesSection() {
             Everything on one platform
           </h2>
           <p className="text-gray-400 max-w-xl mx-auto">
-            {/* [COMING SOON] Original copy: "Your tournament wins show on your profile. Your stats power your team listing. It all fits together." — stats reference removed until Player Stats ships. */}
             Six core features, all interconnected. Your tournament history shows
             on your profile, and it all fits together.
           </p>
@@ -427,6 +433,11 @@ function CtaSection() {
 export default function About() {
   return (
     <div className="min-h-screen">
+      <SEO
+        title="About ArenaX"
+        description="ArenaX is built for competitive FPS players — tournaments, team finding, live streams, and a real esports community."
+        path="/about"
+      />
       <HeroSection />
       <StatsBar />
       <MissionSection />

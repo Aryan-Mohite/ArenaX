@@ -1,0 +1,44 @@
+{
+  "//": "Copy this file to <game_slug>.json (e.g. valorant.json) and fill in real questions.",
+  "//_game_slug": "Must match the `slug` column of an existing row in the `games` table.",
+  "//_per_game_minimum": "You need at least 2 easy, 2 medium, and 1 hard question PER GAME for the daily draw to work at all. More than that lets the seeded draw avoid repeats across days.",
+  "game_slug": "example-game-slug",
+  "questions": [
+    {
+      "difficulty": "easy",
+      "question_text": "What is the maximum player count in a standard ranked match?",
+      "media_url": null,
+      "options": {
+        "a": "5v5",
+        "b": "4v4",
+        "c": "6v6",
+        "d": "3v3"
+      },
+      "correct_option": "a"
+    },
+    {
+      "difficulty": "medium",
+      "question_text": "Which of these is NOT a valid in-game currency?",
+      "media_url": null,
+      "options": {
+        "a": "Credits",
+        "b": "Points",
+        "c": "Shards",
+        "d": "Gems"
+      },
+      "correct_option": "d"
+    },
+    {
+      "difficulty": "hard",
+      "question_text": "In what year was the game's first competitive world championship held?",
+      "media_url": null,
+      "options": {
+        "a": "2019",
+        "b": "2020",
+        "c": "2021",
+        "d": "2022"
+      },
+      "correct_option": "b"
+    }
+  ]
+}

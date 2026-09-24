@@ -1,17 +1,27 @@
-import { Link, NavLink, useNavigate } from "react-router-dom";
+import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
+import { useDailiesTransition } from "./dailies/DailiesTransition";
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 
-const NAV_LINKS = [
+const PRIMARY_LINKS = [
   { to: "/", label: "Home" },
   { to: "/games", label: "Games" },
   { to: "/tournament", label: "The Arena" },
   { to: "/teamfinder", label: "TeamUP Arena" },
+  { to: "/squadmatch", label: "Squad Match", isNew: true },
   { to: "/stream", label: "Spectate" },
+];
+
+const MORE_LINKS = [
   { to: "/communities", label: "The Nexus" },
+  { to: "/blog", label: "Blog" },
+  { to: "/faq", label: "FAQ" },
   { to: "/about", label: "About" },
 ];
+
+// Flat list — used for the mobile menu, which has room to show everything.
+const NAV_LINKS = [...PRIMARY_LINKS, ...MORE_LINKS];
 
 /* ── Moon icon (dark mode) ── */
 function MoonIcon() {
@@ -157,9 +167,22 @@ export default function Navbar() {
   const { isAuthenticated, user, logout } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();
+  const { triggerTransition } = useDailiesTransition();
+
+  // The Dailies link gets a dramatic glitch/wipe transition instead of a
+  // plain route swap — every other nav link behaves as a normal <NavLink>.
+  const handleNavClick = (e, to) => {
+    if (to === "/dailies") {
+      e.preventDefault();
+      triggerTransition(() => navigate(to));
+    }
+  };
+  const location = useLocation();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const moreRef = useRef(null);
 
   const isLight = theme === "light";
 
@@ -167,6 +190,9 @@ export default function Navbar() {
     const handler = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setDropdownOpen(false);
+      }
+      if (moreRef.current && !moreRef.current.contains(e.target)) {
+        setMoreOpen(false);
       }
     };
     document.addEventListener("mousedown", handler);
@@ -212,16 +238,31 @@ export default function Navbar() {
 
         {/* Desktop nav links */}
         <div className="hidden lg:flex items-center gap-0.5">
-          {NAV_LINKS.map(({ to, label }) => (
+          {PRIMARY_LINKS.map(({ to, label, isNew }) => (
             <NavLink
               key={to}
               to={to}
               end={to === "/"}
+              onClick={(e) => handleNavClick(e, to)}
               className={({ isActive }) => navLinkBase(isActive)}
             >
               {({ isActive }) => (
                 <>
-                  {label}
+                  <span className="inline-flex items-center gap-1.5">
+                    {label}
+                    {isNew && (
+                      <span
+                        className="text-[9px] font-bold tracking-wide px-1.5 py-[1px] rounded-full leading-none"
+                        style={{
+                          background: "rgba(255,70,85,0.15)",
+                          color: "#ff6b77",
+                          border: "1px solid rgba(255,70,85,0.35)",
+                        }}
+                      >
+                        NEW
+                      </span>
+                    )}
+                  </span>
                   <span
                     className={
                       "absolute bottom-0 left-1/2 -translate-x-1/2 h-[2px] rounded-full bg-red transition-all duration-200 " +
@@ -234,6 +275,67 @@ export default function Navbar() {
               )}
             </NavLink>
           ))}
+
+          {/* "More" dropdown — houses lower-traffic links so the primary
+              nav stays scannable instead of every route competing for
+              space in one long row. */}
+          <div className="relative" ref={moreRef}>
+            <button
+              onClick={() => setMoreOpen((v) => !v)}
+              className={
+                "relative px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-1 border " +
+                (moreOpen || MORE_LINKS.some((l) => l.to === location.pathname)
+                  ? "text-[var(--text-primary)] bg-[var(--bg-card)] border-red/30"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-transparent hover:border-red/25 hover:bg-[var(--bg-card)]")
+              }
+            >
+              More
+              <svg
+                className={"w-3.5 h-3.5 transition-transform duration-200 " + (moreOpen ? "rotate-180" : "")}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {moreOpen && (
+              <div
+                className="absolute right-0 top-11 w-44 rounded-xl border overflow-hidden animate-fade-in py-1"
+                style={{
+                  background: "var(--bg-card)",
+                  borderColor: "var(--border-color)",
+                  boxShadow: "var(--shadow-dropdown)",
+                }}
+              >
+                {MORE_LINKS.map(({ to, label }) => (
+                  <NavLink
+                    key={to}
+                    to={to}
+                    onClick={() => setMoreOpen(false)}
+                    className={({ isActive }) => dropdownItemBase}
+                    style={({ isActive }) => ({
+                      color: isActive ? "var(--text-primary)" : "var(--text-secondary)",
+                      background: isActive ? "rgba(255,70,85,0.06)" : "transparent",
+                    })}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "rgba(255,70,85,0.06)";
+                      e.currentTarget.style.color = "var(--text-primary)";
+                    }}
+                    onMouseLeave={(e) => {
+                      if (location.pathname !== to) {
+                        e.currentTarget.style.background = "transparent";
+                        e.currentTarget.style.color = "var(--text-secondary)";
+                      }
+                    }}
+                  >
+                    {label}
+                  </NavLink>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Right area: theme toggle + auth */}
@@ -481,14 +583,17 @@ export default function Navbar() {
             borderColor: "var(--border-color)",
           }}
         >
-          {NAV_LINKS.map(({ to, label }) => (
+          {NAV_LINKS.map(({ to, label, isNew }) => (
             <NavLink
               key={to}
               to={to}
               end={to === "/"}
-              onClick={() => setMobileOpen(false)}
+              onClick={(e) => {
+                handleNavClick(e, to);
+                setMobileOpen(false);
+              }}
               className={({ isActive }) =>
-                "px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 border " +
+                "px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 border flex items-center gap-2 " +
                 (isActive
                   ? "border-red/30"
                   : "border-transparent hover:border-red/25")
@@ -501,6 +606,18 @@ export default function Navbar() {
               })}
             >
               {label}
+              {isNew && (
+                <span
+                  className="text-[9px] font-bold tracking-wide px-1.5 py-[1px] rounded-full leading-none"
+                  style={{
+                    background: "rgba(255,70,85,0.15)",
+                    color: "#ff6b77",
+                    border: "1px solid rgba(255,70,85,0.35)",
+                  }}
+                >
+                  NEW
+                </span>
+              )}
             </NavLink>
           ))}
 
