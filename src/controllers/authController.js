@@ -4,6 +4,7 @@ import { generateToken } from "../utils/jwt.js";
 import { generateOtp, compareOtp } from "../utils/otp.js";
 import { sendOtpEmail, sendPasswordResetEmail } from "../utils/mailer.js";
 import { updateLoginStreak } from "../services/achievementService.js";
+import { generateReferralCode, resolveReferrer } from "../services/referralService.js";
 
 const SALT_ROUNDS        = 12;
 const OTP_TTL_MS         = 10 * 60 * 1000;  // 10 minutes
@@ -14,7 +15,7 @@ const MAX_RESENDS        = 3;              // maximum resends before requiring f
 // ─── STEP 1: SEND REGISTRATION OTP ───────────────────────────────────────────
 export const sendRegisterOtp = async (req, res, next) => {
   try {
-    const { username, email, password } = req.body;
+    const { username, email, password, referral_code } = req.body;
 
     const [existing] = await pool.query(
       "SELECT user_id, email, username FROM users WHERE email = ? OR username = ?",
@@ -32,17 +33,18 @@ export const sendRegisterOtp = async (req, res, next) => {
     const expires_at    = new Date(Date.now() + OTP_TTL_MS);
 
     await pool.query(
-      `INSERT INTO pending_verifications (email, username, password_hash, otp, expires_at, attempts, resend_count, last_resent_at)
-       VALUES (?, ?, ?, ?, ?, 0, 0, NULL)
+      `INSERT INTO pending_verifications (email, username, password_hash, otp, expires_at, attempts, resend_count, last_resent_at, referral_code_input)
+       VALUES (?, ?, ?, ?, ?, 0, 0, NULL, ?)
        ON DUPLICATE KEY UPDATE
-         username        = VALUES(username),
-         password_hash   = VALUES(password_hash),
-         otp             = VALUES(otp),
-         expires_at      = VALUES(expires_at),
-         attempts        = 0,
-         resend_count    = 0,
-         last_resent_at  = NULL`,
-      [email, username, password_hash, otp, expires_at]
+         username             = VALUES(username),
+         password_hash        = VALUES(password_hash),
+         otp                  = VALUES(otp),
+         expires_at           = VALUES(expires_at),
+         attempts             = 0,
+         resend_count         = 0,
+         last_resent_at       = NULL,
+         referral_code_input  = VALUES(referral_code_input)`,
+      [email, username, password_hash, otp, expires_at, referral_code || null]
     );
 
     await sendOtpEmail(email, otp);
@@ -95,8 +97,28 @@ export const verifyRegisterOtp = async (req, res, next) => {
     );
 
     const userId = insertResult.insertId;
+
+    // §7: every user gets their own shareable referral code, and — if they
+    // signed up through someone else's code — a pending reward row is
+    // created for that referrer. An unknown/mistyped code just means no
+    // referral is recorded; it never blocks account creation.
+    const ownReferralCode = await generateReferralCode(pool, pending.username);
+    const referrerId = await resolveReferrer(pending.referral_code_input);
+
+    await pool.query(
+      "UPDATE users SET referral_code = ?, referred_by = ? WHERE user_id = ?",
+      [ownReferralCode, referrerId, userId]
+    );
+
+    if (referrerId && referrerId !== userId) {
+      await pool.query(
+        "INSERT INTO referral_rewards (referrer_id, referred_user_id, status) VALUES (?, ?, 'pending')",
+        [referrerId, userId]
+      );
+    }
+
     const [userRows] = await pool.query(
-      "SELECT user_id, username, email, created_at FROM users WHERE user_id = ?",
+      "SELECT user_id, username, email, created_at, referral_code FROM users WHERE user_id = ?",
       [userId]
     );
     const user = userRows[0];

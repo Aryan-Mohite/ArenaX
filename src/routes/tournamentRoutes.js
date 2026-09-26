@@ -11,6 +11,7 @@ import {
   announceToTournament,
   getMyTournaments,
   getMyTournamentsSummary,
+  getCollegeStandings,
 } from "../controllers/tournamentController.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 import { validateCreateTournament, validateIdParam } from "../utils/validators.js";
@@ -35,6 +36,9 @@ router.get(
   requireFeature("multi_tournament_dashboard"),
   getMyTournamentsSummary
 );
+
+// GET /api/tournaments/:id/college-standings  (§3, public)
+router.get("/:id/college-standings", validateIdParam, validate, getCollegeStandings);
 
 // GET /api/tournaments/:id
 router.get("/:id", validateIdParam, validate, getTournamentById);

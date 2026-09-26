@@ -8,18 +8,25 @@ const FREE_TIER_MAX_TEAMS = 16;
 // ─── GET ALL TOURNAMENTS ──────────────────────────────────────────────────────
 export const getTournaments = async (req, res, next) => {
   try {
-    const { game_id, region, status, limit: _rawLimit = 20, offset = 0 } = req.query;
+    const { game_id, region, status, college_id, limit: _rawLimit = 20, offset = 0 } = req.query;
     const limit = Math.min(Number(_rawLimit), 100);
 
     let query = `
       SELECT t.*, g.game_name, g.icon AS game_icon,
-             COUNT(tr.registration_id) AS registered_teams
+             COUNT(DISTINCT tr.registration_id) AS registered_teams
       FROM tournaments t
       JOIN games g ON g.game_id = t.game_id
       LEFT JOIN tournament_registrations tr ON tr.tournament_id = t.tournament_id
-      WHERE 1=1
     `;
+    // §3: college-scoped tournament view — "tournaments this college's teams
+    // are registered in". Needs its own join (kept separate from the
+    // registered_teams count join above, which must stay unfiltered).
+    if (college_id) {
+      query += " JOIN teams ct ON ct.team_id = tr.team_id AND ct.college_id = ?";
+    }
+    query += " WHERE 1=1";
     const params = [];
+    if (college_id) params.push(college_id);
 
     if (game_id) { params.push(game_id); query += " AND t.game_id = ?"; }
     if (region)  { params.push(region);  query += " AND t.region LIKE ?"; }
@@ -88,7 +95,7 @@ export const createTournament = async (req, res, next) => {
       name, game_id, prize_pool, entry_fee, region, format,
       start_date, end_date, registration_deadline,
       image_url, description, organizer_name, location, join_link,
-      max_teams,
+      max_teams, is_inter_college,
     } = req.body;
 
     const userId = req.user?.id || null;
@@ -129,14 +136,15 @@ export const createTournament = async (req, res, next) => {
       `INSERT INTO tournaments
          (name, game_id, prize_pool, entry_fee, region, format,
           start_date, end_date, registration_deadline, status,
-          image_url, description, organizer_name, location, join_link, created_by, max_teams)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+          image_url, description, organizer_name, location, join_link, created_by, max_teams,
+          is_inter_college)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         name, game_id, prize_pool || 0, entry_fee || 0, region || null, format,
         start_date, end_date, registration_deadline || null, initialStatus,
         image_url || null, description || null,
         organizer_name || null, location || null, join_link || null,
-        userId, effectiveMaxTeams,
+        userId, effectiveMaxTeams, !!is_inter_college,
       ]
     );
 
@@ -457,6 +465,48 @@ export const getMyTournamentsSummary = async (req, res, next) => {
         completedTournaments: Number(summary.completedTournaments),
         totalRegistrations: Number(summary.totalRegistrations),
       },
+    });
+  } catch (err) { next(err); }
+};
+
+// ─── INTER-COLLEGE STANDINGS (§3) ──────────────────────────────────────────
+// GET /api/tournaments/:id/college-standings — public. Only meaningful for
+// tournaments created with is_inter_college = true, but doesn't hard-fail
+// otherwise (an empty/degenerate table is fine for a normal tournament).
+// Computed live from `matches` joined through `teams.college_id` — no
+// separate standings table to keep in sync as matches get reported.
+export const getCollegeStandings = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const [[tournament]] = await pool.query(
+      "SELECT tournament_id, name, is_inter_college FROM tournaments WHERE tournament_id = ?",
+      [id]
+    );
+    if (!tournament) {
+      return res.status(404).json({ success: false, message: "Tournament not found" });
+    }
+
+    const [standings] = await pool.query(
+      `SELECT c.college_id, c.name, c.slug,
+              COUNT(DISTINCT tr.team_id)                                            AS teams_entered,
+              COUNT(DISTINCT CASE WHEN m.winner_team_id = tr.team_id THEN m.match_id END) AS wins
+         FROM tournament_registrations tr
+         JOIN teams t     ON t.team_id = tr.team_id
+         JOIN colleges c  ON c.college_id = t.college_id
+         LEFT JOIN matches m ON m.tournament_id = tr.tournament_id
+                            AND (m.team1_id = tr.team_id OR m.team2_id = tr.team_id)
+                            AND m.status = 'completed'
+        WHERE tr.tournament_id = ?
+        GROUP BY c.college_id, c.name, c.slug
+        ORDER BY wins DESC, teams_entered DESC`,
+      [id]
+    );
+
+    res.json({
+      success: true,
+      tournament: { tournament_id: tournament.tournament_id, name: tournament.name, is_inter_college: !!tournament.is_inter_college },
+      standings,
     });
   } catch (err) { next(err); }
 };

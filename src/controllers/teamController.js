@@ -71,9 +71,15 @@ export const createTeam = async (req, res, next) => {
       return res.status(409).json({ success: false, message: "Team name already taken" });
     }
 
+    // §3: a team defaults to representing the captain's college (if any) —
+    // this is what feeds college-scoped Team Finder filtering and
+    // inter-college standings without asking the captain to set it manually.
+    // Editable afterward via PATCH /api/teams/:id/college.
+    const [[creator]] = await conn.query("SELECT college_id FROM users WHERE user_id = ?", [userId]);
+
     const [result] = await conn.query(
-      "INSERT INTO teams (team_name, game_id, region, description, created_by) VALUES (?,?,?,?,?)",
-      [team_name, game_id || null, region, description, userId]
+      "INSERT INTO teams (team_name, game_id, region, description, created_by, college_id) VALUES (?,?,?,?,?,?)",
+      [team_name, game_id || null, region, description, userId, creator?.college_id || null]
     );
 
     const teamId = result.insertId;
@@ -271,18 +277,58 @@ export const respondToInvitation = async (req, res, next) => {
 // ─── GET ALL TEAMS (admin) ────────────────────────────────────────────────────
 export const getAllTeams = async (req, res, next) => {
   try {
-    const { limit = 25, offset = 0 } = req.query;
+    const { limit = 25, offset = 0, college_id } = req.query;
 
-    const [rows] = await pool.query(
-      `SELECT t.team_id, t.team_name, t.game_id, t.created_at,
-              u.username AS captain_username
-       FROM teams t
-       LEFT JOIN team_members tm ON tm.team_id = t.team_id AND tm.role = 'captain' AND tm.status = 'active'
-       LEFT JOIN users u ON u.user_id = tm.user_id
-       ORDER BY t.created_at DESC
-       LIMIT ? OFFSET ?`,
-      [Number(limit), Number(offset)]
-    );
+    let query = `
+      SELECT t.team_id, t.team_name, t.game_id, t.college_id, t.created_at,
+             u.username AS captain_username
+      FROM teams t
+      LEFT JOIN team_members tm ON tm.team_id = t.team_id AND tm.role = 'captain' AND tm.status = 'active'
+      LEFT JOIN users u ON u.user_id = tm.user_id
+      WHERE 1=1
+    `;
+    const params = [];
+    // §3: college-scoped Team Finder / team browsing
+    if (college_id) { params.push(college_id); query += " AND t.college_id = ?"; }
+
+    params.push(Number(limit), Number(offset));
+    query += " ORDER BY t.created_at DESC LIMIT ? OFFSET ?";
+
+    const [rows] = await pool.query(query, params);
     res.json({ success: true, teams: rows });
+  } catch (err) { next(err); }
+};
+
+// ─── UPDATE TEAM COLLEGE (§3) ──────────────────────────────────────────────
+// PATCH /api/teams/:id/college  { college_id }  — captain only. Lets a team
+// override the auto-assigned college (e.g. a mixed-college team, or a
+// captain who joined a college after the team already existed) or clear it
+// with college_id: null.
+export const updateTeamCollege = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { college_id } = req.body;
+    const userId = req.user.id;
+
+    const [[captainCheck]] = await pool.query(
+      "SELECT team_id FROM team_members WHERE team_id = ? AND user_id = ? AND role = 'captain' AND status = 'active'",
+      [id, userId]
+    );
+    if (!captainCheck) {
+      return res.status(403).json({ success: false, message: "Only the team captain can change the team's college" });
+    }
+
+    if (college_id) {
+      const [[college]] = await pool.query(
+        "SELECT college_id FROM colleges WHERE college_id = ? AND status = 'approved'",
+        [college_id]
+      );
+      if (!college) {
+        return res.status(404).json({ success: false, message: "College not found" });
+      }
+    }
+
+    await pool.query("UPDATE teams SET college_id = ? WHERE team_id = ?", [college_id || null, id]);
+    res.json({ success: true, message: "Team college updated" });
   } catch (err) { next(err); }
 };

@@ -17,6 +17,13 @@ export const validateRegister = [
     .isLength({ min: 8 }).withMessage("Password must be at least 8 characters")
     .matches(/[A-Z]/).withMessage("Password must contain at least one uppercase letter")
     .matches(/[0-9]/).withMessage("Password must contain at least one number"),
+  // §7: optional — who referred this signup. Validated for shape only;
+  // an unknown/invalid code is resolved (or silently ignored) at account
+  // creation time in verifyRegisterOtp, never blocks registration.
+  body("referral_code")
+    .optional({ nullable: true, checkFalsy: true })
+    .trim()
+    .isLength({ max: 20 }).withMessage("referral_code is too long"),
 ];
 
 export const validateLogin = [
@@ -110,6 +117,32 @@ export const validateCreateTournament = [
     .optional({ nullable: true, checkFalsy: true })
     .trim()
     .isLength({ max: 200 }),
+  // §3: inter-college bracket type — college vs. college, aggregating team
+  // results. Anyone can flip this on; it only changes what tab the
+  // tournament page shows, not who can register.
+  body("is_inter_college")
+    .optional()
+    .isBoolean().withMessage("is_inter_college must be true or false"),
+];
+
+// ─── COLLEGES (§3) ──────────────────────────────────────────────────────────────
+export const validateClaimCollege = [
+  body("name")
+    .trim()
+    .notEmpty().withMessage("College name is required")
+    .isLength({ min: 3, max: 150 }).withMessage("Name must be 3–150 characters"),
+  body("city")
+    .optional({ nullable: true, checkFalsy: true })
+    .trim()
+    .isLength({ max: 100 }),
+  body("state")
+    .optional({ nullable: true, checkFalsy: true })
+    .trim()
+    .isLength({ max: 100 }),
+  body("logo_url")
+    .optional({ nullable: true, checkFalsy: true })
+    .isURL({ protocols: ["http", "https"], require_protocol: true })
+    .withMessage("logo_url must be a valid http/https URL"),
 ];
 
 // ─── TEAM FINDER ───────────────────────────────────────────────────────────────

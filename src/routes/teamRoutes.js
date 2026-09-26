@@ -1,7 +1,8 @@
 import { Router } from "express";
 import {
   createTeam, getTeam, getMyTeams, getAllTeams, deleteTeam,
-  kickMember, inviteMember, respondToInvitation, leaveTeam
+  kickMember, inviteMember, respondToInvitation, leaveTeam,
+  updateTeamCollege,
 } from "../controllers/teamController.js";
 import authMiddleware  from "../middleware/authMiddleware.js";
 import requireAdmin    from "../middleware/requireAdmin.js";
@@ -22,5 +23,7 @@ router.get("/:id",                validateIdParam, validate, getTeam);
 router.delete("/:id/leave",       authMiddleware, validateIdParam, validate, leaveTeam);
 router.delete("/:id/members/:userId", authMiddleware, validateIdParam, validate, kickMember);
 router.post("/:id/invite",        authMiddleware, validateIdParam, [body("user_id").notEmpty().isInt({min:1})], validate, inviteMember);
+// PATCH /api/teams/:id/college  { college_id }  (§3, captain only)
+router.patch("/:id/college",      authMiddleware, validateIdParam, [body("college_id").optional({ nullable: true }).isInt({ min: 1 })], validate, updateTeamCollege);
 
 export default router;

@@ -4,7 +4,7 @@ import { awardTeamJoinAchievement } from "../services/achievementService.js";
 // ─── GET POSTS ────────────────────────────────────────────────────────────────
 export const getPosts = async (req, res, next) => {
   try {
-    const { game_id, region, team_id, rank_required, limit: _rawLimit = 20, offset = 0 } = req.query;
+    const { game_id, region, team_id, rank_required, college_id, limit: _rawLimit = 20, offset = 0 } = req.query;
     const limit = Math.min(Number(_rawLimit), 100);
 
     let query = `
@@ -28,6 +28,9 @@ export const getPosts = async (req, res, next) => {
     // Exact match — team_id is a unique identifier, not a fuzzy search field
     if (team_id)        { params.push(team_id);          query += " AND tfp.team_id = ?"; }
     if (rank_required) { params.push(`%${rank_required}%`); query += " AND tfp.rank_required LIKE ?"; }
+    // §3: college-scoped Team Finder — filters by the *poster's* college,
+    // since a listing is a person looking for a team, not a team itself.
+    if (college_id)    { params.push(college_id);       query += " AND u.college_id = ?"; }
 
     params.push(limit, Number(offset));
     query += " ORDER BY tfp.created_at DESC LIMIT ? OFFSET ?";

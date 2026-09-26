@@ -27,6 +27,8 @@ import dailyQuizRoutes   from "./routes/dailyQuizRoutes.js";
 import platformRoutes    from "./routes/platformRoutes.js";
 import paymentRoutes     from "./routes/paymentRoutes.js";
 import organizerRoutes   from "./routes/organizerRoutes.js";
+import collegeRoutes     from "./routes/collegeRoutes.js";
+import referralRoutes    from "./routes/referralRoutes.js";
 
 import { errorHandler, notFound } from "./middleware/errorMiddleware.js";
 
@@ -444,6 +446,8 @@ app.use("/api/dailies",      dailyQuizRoutes);
 app.use("/api/platform",     platformRoutes);
 app.use("/api/payments",     paymentRoutes);
 app.use("/api/organizers",   organizerRoutes);
+app.use("/api/colleges",     collegeRoutes);
+app.use("/api/referrals",    referralRoutes);
 
 // ─── SERVE REACT FRONTEND (SPA) ───────────────────────────────────────────────
 // Serves the Vite-built React app for all non-API routes.

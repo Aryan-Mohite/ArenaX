@@ -275,3 +275,112 @@ export const rejectOrganizerVerification = async (req, res, next) => {
     res.json({ success: true, message: "Organizer verification rejected" });
   } catch (err) { next(err); }
 };
+
+// ─── COLLEGE CLAIM QUEUE (§3) ───────────────────────────────────────────────
+// GET /api/admin/colleges?status=pending — mirrors the §2 organizer
+// verification queue pattern.
+export const getCollegeClaims = async (req, res, next) => {
+  try {
+    const status = req.query.status || "pending";
+    const [rows] = await pool.query(
+      `SELECT c.college_id, c.name, c.slug, c.city, c.state, c.status, c.created_at,
+              u.username AS claimed_by_username, u.email AS claimed_by_email
+         FROM colleges c
+         LEFT JOIN users u ON u.user_id = c.claimed_by
+        WHERE c.status = ?
+        ORDER BY c.created_at ASC`,
+      [status]
+    );
+    res.json({ success: true, colleges: rows });
+  } catch (err) { next(err); }
+};
+
+// POST /api/admin/colleges/:id/approve
+export const approveCollegeClaim = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const [result] = await pool.query(
+      `UPDATE colleges
+          SET status = 'approved', approved_at = NOW(), approved_by = ?
+        WHERE college_id = ? AND status = 'pending'`,
+      [req.user.id, id]
+    );
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "No pending college claim with that id" });
+    }
+    res.json({ success: true, message: "College approved" });
+  } catch (err) { next(err); }
+};
+
+// POST /api/admin/colleges/:id/reject
+export const rejectCollegeClaim = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const [result] = await pool.query(
+      "UPDATE colleges SET status = 'rejected' WHERE college_id = ? AND status = 'pending'",
+      [id]
+    );
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "No pending college claim with that id" });
+    }
+    res.json({ success: true, message: "College claim rejected" });
+  } catch (err) { next(err); }
+};
+
+// ─── COLLEGE ANNUAL LICENSE (§3 → §1 hook) ──────────────────────────────────
+// POST /api/admin/colleges/:id/license  { action: 'grant' | 'revoke' }
+// Manual toggle, not a checkout flow — per the roadmap, §3's billing tier
+// just needs the plan/entitlement to exist so it can be switched on when
+// the first real paying college pilot is ready. Reuses `subscriptions.org_id`
+// (reserved back in §1) rather than inventing a parallel college-billing table.
+export const setCollegeLicense = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { action } = req.body;
+    if (!["grant", "revoke"].includes(action)) {
+      return res.status(400).json({ success: false, message: "action must be 'grant' or 'revoke'" });
+    }
+
+    const [[college]] = await pool.query(
+      "SELECT college_id, status FROM colleges WHERE college_id = ?",
+      [id]
+    );
+    if (!college) {
+      return res.status(404).json({ success: false, message: "College not found" });
+    }
+
+    if (action === "revoke") {
+      const [result] = await pool.query(
+        `UPDATE subscriptions s
+           JOIN plans p ON p.plan_id = s.plan_id
+            SET s.status = 'canceled', s.canceled_at = NOW()
+          WHERE s.org_id = ? AND p.plan_key = 'college_annual' AND s.status = 'active'`,
+        [id]
+      );
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ success: false, message: "No active license to revoke" });
+      }
+      return res.json({ success: true, message: "College license revoked" });
+    }
+
+    // grant
+    const [[existingActive]] = await pool.query(
+      `SELECT s.subscription_id FROM subscriptions s
+         JOIN plans p ON p.plan_id = s.plan_id
+        WHERE s.org_id = ? AND p.plan_key = 'college_annual' AND s.status = 'active'`,
+      [id]
+    );
+    if (existingActive) {
+      return res.status(409).json({ success: false, message: "This college already has an active license" });
+    }
+
+    const [[plan]] = await pool.query("SELECT plan_id FROM plans WHERE plan_key = 'college_annual'", []);
+    await pool.query(
+      `INSERT INTO subscriptions (org_id, plan_id, status, renews_at, gateway)
+       VALUES (?, ?, 'active', DATE_ADD(NOW(), INTERVAL 365 DAY), 'admin_grant')`,
+      [id, plan.plan_id]
+    );
+
+    res.json({ success: true, message: "College license granted (1 year)" });
+  } catch (err) { next(err); }
+};

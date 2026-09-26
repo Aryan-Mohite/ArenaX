@@ -9,6 +9,10 @@ import {
   getOrganizerVerifications,
   approveOrganizerVerification,
   rejectOrganizerVerification,
+  getCollegeClaims,
+  approveCollegeClaim,
+  rejectCollegeClaim,
+  setCollegeLicense,
 } from "../controllers/adminController.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 import requireAdmin   from "../middleware/requireAdmin.js";
@@ -32,6 +36,12 @@ router.get("/billing", getBillingStats);
 router.get("/organizer-verifications", getOrganizerVerifications);
 router.post("/organizer-verifications/:id/approve", approveOrganizerVerification);
 router.post("/organizer-verifications/:id/reject", rejectOrganizerVerification);
+
+// ─── College claim queue + licensing (§3) ──────────────────────────────────
+router.get("/colleges", getCollegeClaims);
+router.post("/colleges/:id/approve", validateIdParam, validate, approveCollegeClaim);
+router.post("/colleges/:id/reject", validateIdParam, validate, rejectCollegeClaim);
+router.post("/colleges/:id/license", validateIdParam, validate, setCollegeLicense);
 
 // ─── User Management ──────────────────────────────────────────────────────────
 // GET /api/admin/users?status=banned&q=username&limit=50&offset=0
