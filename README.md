@@ -1,84 +1,70 @@
-# §2 Organizer Tiers — frontend
+# Organizer tiers: 4 → 2, click-to-expand cards, Arena upsell
 
-The UI for the backend built last round. Requires that backend delivery
-(`arenax-section2-organizer-tiers.zip`) and §1's payments infra to already
-be deployed — nothing here works without `/api/payments/*`,
-`/api/tournaments/mine`, `/api/organizers/*`, and `/api/admin/billing` +
-`/api/admin/organizer-verifications*` existing server-side.
+## Root cause of "4 tiers"
+`GET /api/payments/plans` returned every row in `plans` with no filtering —
+so the organizer upgrade modal showed **Free, Pro, Organization, and
+ArenaX Pro (the gamer membership)** all mixed together. That's the 4th tier
+you were seeing; `gamer_pro` was never meant to appear there.
 
-## What's new
+## What changed
 
-- **`frontend/src/pages/OrganizerDashboard.jsx`** (new route: `/organizer`,
-  behind `ProtectedRoute` — any logged-in user, not gated to existing
-  organizers, since anyone can become one):
-  - Current plan card + **Upgrade/Change Plan** button opening a plans
-    modal, wired to Razorpay checkout.js (loaded on demand, script cached
-    across repeated opens) → `createOrder` → Razorpay modal → `verifyPayment`
-    on success.
-  - **Downgrade to Free** — calls the cancel endpoint, confirms first since
-    it's immediate.
-  - **Verification banner** — only shows once the plan actually grants
-    `branded_page`; offers "Request Verification" and reflects
-    pending/rejected/approved status.
-  - **My Tournaments list** — from `/tournaments/mine` (shows
-    `pending_review` status too, so organizers can see why a tournament
-    isn't public yet). Per-tournament action buttons (Branding / Analytics
-    / Announce) only render if the current plan's `feature_flags` actually
-    grant that feature — no dead buttons that 403 on click.
-  - **Multi-tournament summary** cards — only fetched/shown if
-    `multi_tournament_dashboard` is on the plan, so free/pro organizers
-    don't trigger an expected 403 on every page load.
-  - Branding, Analytics, and Announce each open a focused modal rather than
-    a separate page — this is organizer tooling used occasionally, not a
-    primary nav destination.
-- **Two new admin tabs** in `AdminDashboard.jsx` (kept in the same file,
-  matching its existing single-file-multi-tab pattern):
-  - **Billing** — the 4 stat cards from `/api/admin/billing` plus a recent
-    payments table.
-  - **Organizers** — the verification queue: approve/reject with an
-    optional rejection note (modal, mirrors the existing ban-reason modal
-    pattern in the Users tab).
-- **`frontend/src/services/paymentService.js`,
-  `frontend/src/services/organizerService.js`** — thin wrappers, same
-  one-line-per-call pattern as every other service file.
+**1. Backend — `src/controllers/paymentController.js`**
+`getPlans` now accepts `?category=organizer` and filters by the
+`plan_key` prefix (`organizer_%`). Callers that don't pass a category keep
+the old behavior, so nothing else breaks.
 
-## What's modified
+**2. DB — `database/migrations_section2b_tier_consolidation.sql`** (new, run after this)
+Folds the Organization tier's two extra flags (`multi_tournament_dashboard`,
+`api_access`) into `organizer_pro`, then deactivates `organizer_org`
+(`is_active = FALSE`, not deleted — history stays intact). Any user
+currently on an active `organizer_org` subscription is moved onto Pro in
+the same migration so nobody loses access.
+Nothing else in the codebase checks `plan_key` directly (it's all
+`feature_flags` via `hasFeature()`), so this is safe to run as-is.
 
-- `frontend/src/App.jsx` — lazy import + `/organizer` route.
-- `frontend/src/components/Navbar.jsx` — added an "Organizer Dashboard"
-  link to the account dropdown (visible to every logged-in user, right
-  above the existing admin-only link).
+**3. Frontend service — `frontend/src/services/paymentService.js`**
+`getPlans(category)` now forwards the category to the API.
 
-## Verified
+**4. New — `frontend/src/components/OrganizerTiers.jsx`**
+Shared pieces for both surfaces below:
+- `ORGANIZER_TIER_CONTENT` — curated copy/feature list per tier (Free vs Pro).
+- `TierCard` — a click-to-expand card. Collapsed shows name/price/tagline;
+  clicking anywhere (or "See what's included") expands the full feature
+  breakdown with ✓/— per line. Pro gets a highlighted border, glow, and a
+  "Most Popular" badge.
+- `OrganizerTierSection` — self-contained promo block: fetches the 2
+  organizer plans (+ the viewer's current plan, if signed in) and renders
+  the tier grid with a CTA. Renders nothing if the fetch fails, so it can
+  never break the page it's dropped into.
 
-- `npx vite build` — clean, no errors. New chunks:
-  `OrganizerDashboard-*.js` (~13 kB gzipped ~4 kB), updated
-  `AdminDashboard-*.js` (~26 kB gzipped ~7 kB). Both lazy-loaded, so this
-  doesn't touch the initial bundle for users who never visit either page.
+**5. `frontend/src/pages/Tournament.jsx` (The Arena)**
+Dropped `<OrganizerTierSection />` in between the hero and the filter bar.
+Signed-out visitors get "Sign In to Get Started"; signed-in organizers get
+"Upgrade in Dashboard →" (checkout itself still lives in the dashboard, so
+there's only one Razorpay flow in the codebase); Pro organizers see a small
+"⚡ You're on Pro" badge instead of an upgrade prompt.
 
-## Known gaps / next steps
+**6. `frontend/src/pages/OrganizerDashboard.jsx`**
+- `getPlans()` → `getPlans("organizer")`.
+- `PlansModal` rebuilt on top of the shared `TierCard` — same
+  click-to-expand cards as the Arena page, just 2 tiers now, with the
+  actual "Select" → Razorpay checkout button as the CTA.
+- Cleaned up stale "Pro/Org" copy in the downgrade-confirmation text and a
+  comment that referenced the now-retired Org tier.
 
-- Branding fields (`banner_url`, colors) are saved but **not yet
-  consumed anywhere** — the public Tournament page still renders the
-  site-wide theme regardless of a tournament's branding. Applying them
-  (banner in the hero, CSS custom properties scoped to that tournament's
-  page) is the natural next piece if you want branding to actually show
-  up publicly rather than just be stored.
-- No dedicated "why is my tournament pending_review" empty state beyond
-  the status badge + the verification banner — fine for now, could be
-  more prominent later.
+## Apply order
+1. Drop these files into place (same paths as above).
+2. Run `database/migrations_section2b_tier_consolidation.sql` against the DB.
+3. `npm run build` in `frontend/` as usual (already verified clean locally —
+   no new warnings, `OrganizerTiers` came out as its own ~6 KB chunk).
 
-## To deploy
-
-1. Make sure both §1 and §2 backend deliveries (migrations + code) are
-   already live.
-2. Drop these files into your working copy at the same paths.
-3. `npm run build` in `frontend/`, commit `frontend/dist/` per your normal
-   Hostinger auto-deploy flow.
-
-## Next up
-
-Per the roadmap's build order, **§3 (College/Campus module)** is next —
-your cheapest acquisition channel. Want me to keep going there, or pause
-here to actually test the organizer flow end-to-end first (e.g. set up a
-real Razorpay test account)?
+## Not touched / worth knowing
+- No changes to `hasFeature`/`requireFeature` — merging the flags into Pro
+  means every existing gate (`branded_page`, `analytics`, `announcements`,
+  `multi_tournament_dashboard`, `api_access`) keeps working unmodified.
+- `gamer_pro` (ArenaX Pro membership) is untouched and just no longer shows
+  up where it shouldn't have.
+- If you want the Organization tier back later (once §3 college licensing
+  needs it), it's a straight reversal: flip `is_active` back to `TRUE` and
+  drop the two flags back out of `organizer_pro` if you want them
+  Org-exclusive again.

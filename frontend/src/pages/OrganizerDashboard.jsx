@@ -18,6 +18,7 @@ import {
   getTournamentAnalytics,
   announceToTournament,
 } from "../services/organizerService";
+import { TierCard } from "../components/OrganizerTiers";
 
 // Loads Razorpay's checkout script once and caches the promise so repeated
 // upgrade clicks don't re-inject the <script> tag.
@@ -65,7 +66,7 @@ export default function OrganizerDashboard() {
     try {
       const [subRes, plansRes, verRes, tRes] = await Promise.all([
         getMySubscription(),
-        getPlans(),
+        getPlans("organizer"),
         getVerificationStatus(),
         getMyTournaments(),
       ]);
@@ -126,7 +127,7 @@ export default function OrganizerDashboard() {
   };
 
   const handleCancel = async () => {
-    if (!window.confirm("Downgrade to the free plan? You'll lose Pro/Org features immediately.")) return;
+    if (!window.confirm("Downgrade to the free plan? You'll lose Pro features immediately.")) return;
     try {
       await cancelSubscription();
       showToast("Downgraded to free plan");
@@ -214,7 +215,7 @@ export default function OrganizerDashboard() {
         </div>
       )}
 
-      {/* ── Multi-tournament summary (Org tier) ──────────────────────── */}
+      {/* ── Multi-tournament summary (Pro tier) ─────────────────────────── */}
       {summary && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <StatCard label="Total Tournaments" value={summary.totalTournaments} />
@@ -336,28 +337,33 @@ function PlansModal({ plans, current, onClose, onSelect }) {
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
       <div className="card max-w-2xl w-full max-h-[85vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-display font-bold text-lg text-white">Choose a plan</h3>
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h3 className="font-display font-bold text-lg text-white">Choose a plan</h3>
+            <p className="text-xs text-gray-500 mt-0.5">Tap a card to see what's included.</p>
+          </div>
           <button className="btn-ghost text-sm" onClick={onClose}>Close</button>
         </div>
         <div className="grid sm:grid-cols-2 gap-4">
-          {plans.map((p) => (
-            <div key={p.plan_id} className="card border-surface-border">
-              <div className="font-semibold text-white">{p.name}</div>
-              <div className="text-2xl font-display font-bold text-white my-2">
-                ₹{Number(p.price).toLocaleString("en-IN")}
-                <span className="text-xs text-gray-500 font-normal">/{p.billing_cycle}</span>
-              </div>
-              {p.description && <p className="text-xs text-gray-500 mb-3">{p.description}</p>}
-              <button
-                className="btn-primary w-full text-sm"
-                disabled={p.plan_key === current || Number(p.price) === 0}
-                onClick={() => onSelect(p)}
-              >
-                {p.plan_key === current ? "Current Plan" : Number(p.price) === 0 ? "Free" : "Select"}
-              </button>
-            </div>
-          ))}
+          {plans.map((p) => {
+            const isCurrent = p.plan_key === current;
+            return (
+              <TierCard
+                key={p.plan_id}
+                plan={p}
+                isCurrent={isCurrent}
+                cta={
+                  <button
+                    className="btn-primary w-full text-sm"
+                    disabled={isCurrent || Number(p.price) === 0}
+                    onClick={() => onSelect(p)}
+                  >
+                    {isCurrent ? "Current Plan" : Number(p.price) === 0 ? "Free" : "Select"}
+                  </button>
+                }
+              />
+            );
+          })}
         </div>
       </div>
     </div>

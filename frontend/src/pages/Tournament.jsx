@@ -12,6 +12,7 @@ import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { themeStyles } from "../utils/themeStyles";
 import SEO from "../components/SEO";
+import { OrganizerTierSection } from "../components/OrganizerTiers";
 // ── Shared helpers ────────────────────────────────────────────────────────────
 const STATUS_STYLES = {
   upcoming: {
@@ -1306,6 +1307,9 @@ function TournamentList() {
           </div>
         </div>
       </div>
+
+      {/* Organizer tier upgrade */}
+      <OrganizerTierSection />
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-8 items-center">

@@ -6,14 +6,30 @@ import {
 } from "../services/razorpayService.js";
 
 // ─── GET PLANS ──────────────────────────────────────────────────────────────
-// GET /api/payments/plans — public, powers every upgrade screen (organizer
-// tiers, gamer pro, and later college licenses — all read from the same
-// `plans` table).
+// GET /api/payments/plans[?category=organizer] — public, powers every
+// upgrade screen (organizer tiers, gamer pro, and later college licenses —
+// all read from the same `plans` table, distinguished by a `<category>_...`
+// plan_key prefix).
+//
+// `category` is optional so existing callers keep working, but every screen
+// that shows a single family of tiers (the organizer dashboard, the Arena
+// upgrade section) should pass one — otherwise an organizer upgrade prompt
+// ends up listing unrelated plans like `gamer_pro` alongside it.
 export const getPlans = async (req, res, next) => {
   try {
-    const [plans] = await pool.query(
-      "SELECT plan_id, plan_key, name, description, price, currency, billing_cycle, feature_flags FROM plans WHERE is_active = TRUE ORDER BY price ASC"
-    );
+    const { category } = req.query;
+    let sql =
+      "SELECT plan_id, plan_key, name, description, price, currency, billing_cycle, feature_flags FROM plans WHERE is_active = TRUE";
+    const params = [];
+
+    if (category) {
+      sql += " AND plan_key LIKE ?";
+      params.push(`${category}_%`);
+    }
+
+    sql += " ORDER BY price ASC";
+
+    const [plans] = await pool.query(sql, params);
     res.json({ success: true, plans });
   } catch (err) {
     next(err);
