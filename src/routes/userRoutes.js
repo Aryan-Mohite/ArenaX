@@ -13,10 +13,12 @@ import {
   getUserActivity,
   getMyGameIds,
   updateGameIds,
+  getAdvancedStats,
 } from "../controllers/userController.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 import { validateIdParam, validateUpdateProfile } from "../utils/validators.js";
 import validate from "../middleware/validateMiddleware.js";
+import { requireFeature } from "../services/featureService.js";
 
 const router = Router();
 
@@ -37,6 +39,17 @@ router.get("/:id", validateIdParam, validate, getUserProfile);
 
 // GET /api/users/:id/activity — community posts + team finder posts
 router.get("/:id/activity", validateIdParam, validate, getUserActivity);
+
+// GET /api/users/:id/advanced-stats — ArenaX Pro perk, gated on the VIEWER's
+// plan (§4). Elo percentile, recent match history, aggregate win/loss.
+router.get(
+  "/:id/advanced-stats",
+  authMiddleware,
+  requireFeature("advanced_stats"),
+  validateIdParam,
+  validate,
+  getAdvancedStats
+);
 
 // GET /api/users/:id/follow-status — is current user following :id?
 router.get("/:id/follow-status", authMiddleware, validateIdParam, validate, getFollowStatus);

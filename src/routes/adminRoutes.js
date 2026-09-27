@@ -29,6 +29,11 @@ import {
   createPlacement,
   updatePlacement,
   getSponsorInsights,
+  getAllGear,
+  createGear,
+  updateGear,
+  deleteGear,
+  getGearClicks,
 } from "../controllers/adminController.js";
 import { body } from "express-validator";
 import authMiddleware from "../middleware/authMiddleware.js";
@@ -99,6 +104,39 @@ router.patch(
 );
 
 router.get("/sponsor-insights", getSponsorInsights);
+
+// ─── Gear / affiliate commerce (§8) ─────────────────────────────────────────
+router.get("/gear", getAllGear);
+router.post(
+  "/gear",
+  [
+    body("name").trim().notEmpty().isLength({ max: 150 }),
+    body("category").optional({ nullable: true, checkFalsy: true }).trim().isLength({ max: 50 }),
+    body("image_url").optional({ nullable: true, checkFalsy: true }).isURL({ protocols: ["http", "https"], require_protocol: true }),
+    body("price_display").optional({ nullable: true, checkFalsy: true }).trim().isLength({ max: 50 }),
+    body("affiliate_url").notEmpty().isURL({ protocols: ["http", "https"], require_protocol: true }),
+    body("display_order").optional({ nullable: true }).isInt(),
+  ],
+  validate,
+  createGear
+);
+router.patch(
+  "/gear/:id",
+  [
+    ...validateIdParam,
+    body("name").optional({ nullable: true, checkFalsy: true }).trim().isLength({ max: 150 }),
+    body("category").optional({ nullable: true, checkFalsy: true }).trim().isLength({ max: 50 }),
+    body("image_url").optional({ nullable: true, checkFalsy: true }).isURL({ protocols: ["http", "https"], require_protocol: true }),
+    body("price_display").optional({ nullable: true, checkFalsy: true }).trim().isLength({ max: 50 }),
+    body("affiliate_url").optional({ nullable: true, checkFalsy: true }).isURL({ protocols: ["http", "https"], require_protocol: true }),
+    body("display_order").optional({ nullable: true }).isInt(),
+    body("is_active").optional({ nullable: true }).isBoolean(),
+  ],
+  validate,
+  updateGear
+);
+router.delete("/gear/:id", validateIdParam, validate, deleteGear);
+router.get("/gear/:id/clicks", validateIdParam, validate, getGearClicks);
 
 // ─── User Management ──────────────────────────────────────────────────────────
 // GET /api/admin/users?status=banned&q=username&limit=50&offset=0

@@ -870,3 +870,95 @@ export const getSponsorInsights = async (req, res, next) => {
     });
   } catch (err) { next(err); }
 };
+
+// ─── GEAR / AFFILIATE COMMERCE (§8) ──────────────────────────────────────────
+// GET /api/admin/gear — every item, active or not (the public listGear in
+// gearController.js only shows active ones).
+export const getAllGear = async (req, res, next) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT g.*,
+              (SELECT COUNT(*) FROM gear_clicks gc WHERE gc.item_id = g.item_id) AS total_clicks
+         FROM gear_items g
+        ORDER BY g.display_order ASC, g.item_id ASC`
+    );
+    res.json({ success: true, gear: rows });
+  } catch (err) { next(err); }
+};
+
+// POST /api/admin/gear  { name, category?, image_url?, price_display?, affiliate_url, display_order? }
+export const createGear = async (req, res, next) => {
+  try {
+    const { name, category, image_url, price_display, affiliate_url, display_order } = req.body;
+    const [result] = await pool.query(
+      `INSERT INTO gear_items (name, category, image_url, price_display, affiliate_url, display_order, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [name, category || null, image_url || null, price_display || null, affiliate_url, display_order || 0, req.user.id]
+    );
+    res.status(201).json({ success: true, item_id: result.insertId });
+  } catch (err) { next(err); }
+};
+
+// PATCH /api/admin/gear/:id  — any subset of the same fields, plus is_active
+export const updateGear = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { name, category, image_url, price_display, affiliate_url, display_order, is_active } = req.body;
+
+    const [result] = await pool.query(
+      `UPDATE gear_items SET
+         name           = COALESCE(?, name),
+         category       = COALESCE(?, category),
+         image_url      = COALESCE(?, image_url),
+         price_display  = COALESCE(?, price_display),
+         affiliate_url  = COALESCE(?, affiliate_url),
+         display_order  = COALESCE(?, display_order),
+         is_active      = COALESCE(?, is_active)
+       WHERE item_id = ?`,
+      [name || null, category || null, image_url || null, price_display || null,
+       affiliate_url || null, display_order ?? null, typeof is_active === "boolean" ? is_active : null, id]
+    );
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "Gear item not found" });
+    }
+    res.json({ success: true, message: "Gear item updated" });
+  } catch (err) { next(err); }
+};
+
+// DELETE /api/admin/gear/:id
+export const deleteGear = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const [result] = await pool.query("DELETE FROM gear_items WHERE item_id = ?", [id]);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "Gear item not found" });
+    }
+    res.json({ success: true, message: "Gear item deleted" });
+  } catch (err) { next(err); }
+};
+
+// GET /api/admin/gear/:id/clicks?days=30 — daily click counts for one item,
+// the reconciliation view against whatever the affiliate program itself
+// reports as paid-out commission.
+export const getGearClicks = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const days = Math.min(Number(req.query.days) || 30, 365);
+
+    const [[item]] = await pool.query("SELECT item_id, name FROM gear_items WHERE item_id = ?", [id]);
+    if (!item) {
+      return res.status(404).json({ success: false, message: "Gear item not found" });
+    }
+
+    const [rows] = await pool.query(
+      `SELECT DATE(clicked_at) AS click_date, COUNT(*) AS clicks
+         FROM gear_clicks
+        WHERE item_id = ? AND clicked_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+        GROUP BY DATE(clicked_at)
+        ORDER BY click_date ASC`,
+      [id, days]
+    );
+
+    res.json({ success: true, item, dailyClicks: rows, totalClicks: rows.reduce((sum, r) => sum + Number(r.clicks), 0) });
+  } catch (err) { next(err); }
+};

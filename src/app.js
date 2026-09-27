@@ -31,6 +31,7 @@ import collegeRoutes     from "./routes/collegeRoutes.js";
 import referralRoutes    from "./routes/referralRoutes.js";
 import reportRoutes      from "./routes/reportRoutes.js";
 import sponsorRoutes     from "./routes/sponsorRoutes.js";
+import gearRoutes        from "./routes/gearRoutes.js";
 
 import { errorHandler, notFound } from "./middleware/errorMiddleware.js";
 
@@ -452,6 +453,7 @@ app.use("/api/colleges",     collegeRoutes);
 app.use("/api/referrals",    referralRoutes);
 app.use("/api/reports",      reportRoutes);
 app.use("/api/sponsors",     sponsorRoutes);
+app.use("/api/gear",         gearRoutes);
 
 // ─── SERVE REACT FRONTEND (SPA) ───────────────────────────────────────────────
 // Serves the Vite-built React app for all non-API routes.

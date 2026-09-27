@@ -300,6 +300,14 @@ export const validateUpdateProfile = [
         throw new Error("profile_picture must be a valid https URL (max 500 chars) or base64 image data");
       }
     }),
+  // §4: gated field — silently ignored server-side if the user isn't an
+  // ArenaX Pro subscriber (see userController.updateProfile). Validated
+  // here regardless, same shape as profile_picture.
+  body("profile_banner_url")
+    .optional({ nullable: true, checkFalsy: true })
+    .isURL({ protocols: ["http", "https"], require_protocol: true })
+    .isLength({ max: 500 })
+    .withMessage("profile_banner_url must be a valid http/https URL (max 500 chars)"),
 ];
 
 // ─── PARAM VALIDATORS ──────────────────────────────────────────────────────────

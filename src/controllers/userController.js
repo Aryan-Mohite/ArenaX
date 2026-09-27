@@ -1,5 +1,6 @@
 import pool from "../config/db.js";
 import { sanitizeFields } from "../utils/sanitize.js";
+import { hasFeature } from "../services/featureService.js";
 
 // ─── GET PUBLIC PROFILE ───────────────────────────────────────────────────────
 export const getUserProfile = async (req, res, next) => {
@@ -7,13 +8,17 @@ export const getUserProfile = async (req, res, next) => {
     const { id } = req.params;
 
     const [userRows] = await pool.query(
-      `SELECT user_id, username, profile_picture, country, region, bio, created_at,
+      `SELECT user_id, username, profile_picture, profile_banner_url, country, region, bio, created_at,
               karma_positive, karma_negative
        FROM users WHERE user_id = ? AND status = 'active'`,
       [id]
     );
     if (userRows.length === 0)
       return res.status(404).json({ success: false, message: "User not found" });
+
+    // §4: verified badge — a single-profile lookup, so the plain hasFeature()
+    // helper is fine here (no N+1 concern the way a listing query would have).
+    const isVerified = await hasFeature(Number(id), "verified_badge");
 
     const [gameProfiles] = await pool.query(
       `SELECT ugp.rank, ugp.role, ugp.win_rate, ugp.matches_played, ugp.elo_rating,
@@ -42,7 +47,7 @@ export const getUserProfile = async (req, res, next) => {
 
     res.json({
       success: true,
-      profile: { ...userRows[0], game_profiles: gameProfiles, achievements, game_ids },
+      profile: { ...userRows[0], is_verified: isVerified, game_profiles: gameProfiles, achievements, game_ids },
     });
   } catch (err) { next(err); }
 };
@@ -54,7 +59,18 @@ export const updateProfile = async (req, res, next) => {
 
     // FIX H9: sanitize user-supplied text fields before storing
     const sanitized = sanitizeFields({ ...req.body }, ["username", "bio", "country", "region"]);
-    const { username, bio, country, region, profile_picture } = sanitized;
+    const { username, bio, country, region, profile_picture, profile_banner_url } = sanitized;
+
+    // §4: profile_banner_url is an ArenaX Pro perk — silently dropped (not
+    // an error) if the user isn't entitled, same "enforce, don't just
+    // reject" pattern §2 already uses for the free-tier max_teams cap. A
+    // lapsed subscriber keeps whatever banner they already set; they just
+    // can't change it further until they resubscribe.
+    let effectiveBannerUrl = null;
+    if (profile_banner_url) {
+      const canSetBanner = await hasFeature(userId, "profile_banner");
+      if (canSetBanner) effectiveBannerUrl = profile_banner_url;
+    }
 
     // FIX M2: base64 size check (kept from previous fix — char count is acceptable
     // for base64 because each char ~= 1 byte of encoded data)
@@ -82,13 +98,14 @@ export const updateProfile = async (req, res, next) => {
            bio             = COALESCE(?, bio),
            country         = COALESCE(?, country),
            region          = COALESCE(?, region),
-           profile_picture = COALESCE(?, profile_picture)
+           profile_picture = COALESCE(?, profile_picture),
+           profile_banner_url = COALESCE(?, profile_banner_url)
        WHERE user_id = ?`,
-      [username || null, bio || null, country || null, region || null, profile_picture || null, userId]
+      [username || null, bio || null, country || null, region || null, profile_picture || null, effectiveBannerUrl, userId]
     );
 
     const [updated] = await pool.query(
-      "SELECT user_id, username, email, bio, country, region, profile_picture FROM users WHERE user_id = ?",
+      "SELECT user_id, username, email, bio, country, region, profile_picture, profile_banner_url FROM users WHERE user_id = ?",
       [userId]
     );
 
@@ -404,5 +421,77 @@ export const updateGameIds = async (req, res, next) => {
     rows.forEach(r => { ids[r.platform] = r.game_id_value; });
 
     res.json({ success: true, game_ids: ids });
+  } catch (err) { next(err); }
+};
+// ─── ADVANCED STATS (§4, ArenaX Pro) ─────────────────────────────────────────
+// GET /api/users/:id/advanced-stats — gated on the *viewer's* plan
+// (requireFeature("advanced_stats") in userRoutes.js), not the profile
+// owner's — this is a perk for the Pro subscriber doing the looking
+// (e.g. scouting a potential teammate), same framing as priority Team
+// Finder placement being about how a Pro subscriber's own posts are
+// treated. Browsing a profile itself stays free regardless — this only
+// adds a deeper view on top.
+export const getAdvancedStats = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const [[target]] = await pool.query("SELECT user_id FROM users WHERE user_id = ? AND status = 'active'", [id]);
+    if (!target) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const [
+      eloStandings,
+      [recentMatches],
+      [[winLoss]],
+    ] = await Promise.all([
+      // Elo percentile per game this user has a profile in — computed
+      // against everyone else with a profile for that same game.
+      pool.query(
+        `SELECT ugp.game_id, g.game_name, ugp.elo_rating, ugp.rank, ugp.matches_played, ugp.win_rate,
+                (SELECT COUNT(*) FROM user_game_profile o WHERE o.game_id = ugp.game_id AND o.elo_rating <= ugp.elo_rating)
+                  / (SELECT COUNT(*) FROM user_game_profile o WHERE o.game_id = ugp.game_id) AS percentile
+           FROM user_game_profile ugp
+           JOIN games g ON g.game_id = ugp.game_id
+          WHERE ugp.user_id = ?`,
+        [id]
+      ).then(([rows]) => rows.map(row => ({ ...row, percentile: Number((row.percentile || 0).toFixed(3)) }))),
+      // Last 10 completed matches across every team this user is/was on.
+      pool.query(
+        `SELECT m.match_id, m.match_date, m.score, m.round, t.name AS tournament_name,
+                CASE WHEN m.team1_id = tm.team_id THEN t2.team_name ELSE t1.team_name END AS opponent_team_name,
+                (m.winner_team_id = tm.team_id) AS won
+           FROM team_members tm
+           JOIN matches m ON (m.team1_id = tm.team_id OR m.team2_id = tm.team_id) AND m.status = 'completed'
+           JOIN tournaments t ON t.tournament_id = m.tournament_id
+           LEFT JOIN teams t1 ON t1.team_id = m.team1_id
+           LEFT JOIN teams t2 ON t2.team_id = m.team2_id
+          WHERE tm.user_id = ?
+          ORDER BY m.match_date DESC
+          LIMIT 10`,
+        [id]
+      ),
+      pool.query(
+        `SELECT
+            COUNT(*) AS played,
+            SUM(m.winner_team_id = tm.team_id) AS wins
+           FROM team_members tm
+           JOIN matches m ON (m.team1_id = tm.team_id OR m.team2_id = tm.team_id) AND m.status = 'completed'
+          WHERE tm.user_id = ?`,
+        [id]
+      ),
+    ]);
+
+    const played = Number(winLoss.played) || 0;
+    const wins = Number(winLoss.wins) || 0;
+
+    res.json({
+      success: true,
+      stats: {
+        eloStandings,
+        recentMatches: recentMatches.map(m => ({ ...m, won: !!m.won })),
+        winLoss: { played, wins, losses: played - wins },
+      },
+    });
   } catch (err) { next(err); }
 };
