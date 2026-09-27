@@ -86,6 +86,7 @@ export default function AdminDashboard() {
     { id: "content", label: "Content", icon: "🗂️" },
     { id: "billing", label: "Billing", icon: "💳" },
     { id: "organizers", label: "Organizers", icon: "🎖️" },
+    { id: "analytics", label: "Analytics", icon: "📈" },
     { id: "archives", label: "Archives", icon: "🗄️" },
   ];
 
@@ -151,6 +152,7 @@ export default function AdminDashboard() {
         {tab === "content" && <ContentTab showToast={showToast} />}
         {tab === "billing" && <BillingTab showToast={showToast} />}
         {tab === "organizers" && <OrganizersTab showToast={showToast} />}
+        {tab === "analytics" && <AnalyticsTab showToast={showToast} />}
       </div>
     </div>
   );
@@ -1199,6 +1201,302 @@ function OrganizersTab({ showToast }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// TAB — ANALYTICS (§6 — the "live traction screen" for investors/IIE Cell)
+// ══════════════════════════════════════════════════════════════════════════════
+function AnalyticsTab({ showToast }) {
+  const [overview, setOverview] = useState(null);
+  const [trend, setTrend] = useState(null);
+  const [funnel, setFunnel] = useState(null);
+  const [organizerRetention, setOrganizerRetention] = useState(null);
+  const [cohorts, setCohorts] = useState(null);
+  const [cohortWindow, setCohortWindow] = useState(7);
+  const [loading, setLoading] = useState(true);
+  const [cohortsLoading, setCohortsLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      apiFetch("/admin/analytics/overview"),
+      apiFetch("/admin/analytics/trend?days=30"),
+      apiFetch("/admin/analytics/funnel"),
+      apiFetch("/admin/analytics/organizer-retention"),
+      apiFetch("/admin/analytics/retention?window=7"),
+    ])
+      .then(([o, t, f, or, c]) => {
+        if (cancelled) return;
+        setOverview(o.overview);
+        setTrend(t.trend);
+        setFunnel(f.funnel);
+        setOrganizerRetention(or.organizerRetention);
+        setCohorts(c.cohorts);
+      })
+      .catch((e) => showToast(`Failed to load analytics: ${e.message}`, false))
+      .finally(() => !cancelled && setLoading(false));
+    return () => { cancelled = true; };
+  }, []);
+
+  const loadCohorts = useCallback((window) => {
+    setCohortWindow(window);
+    setCohortsLoading(true);
+    apiFetch(`/admin/analytics/retention?window=${window}`)
+      .then((d) => setCohorts(d.cohorts))
+      .catch((e) => showToast(`Failed to load retention: ${e.message}`, false))
+      .finally(() => setCohortsLoading(false));
+  }, [showToast]);
+
+  if (loading) return <LoadingGrid />;
+  if (!overview) return null;
+
+  const overviewCards = [
+    { label: "Daily Active Users", value: overview.dau.toLocaleString(), icon: "🟢", color: "#22c55e" },
+    { label: "Weekly Active Users", value: overview.wau.toLocaleString(), icon: "📅", color: "#3b82f6" },
+    { label: "Monthly Active Users", value: overview.mau.toLocaleString(), icon: "🗓️", color: "#a855f7" },
+    { label: "Total Users", value: overview.totalUsers.toLocaleString(), icon: "👥", color: "#ff4655" },
+  ];
+
+  return (
+    <div>
+      <div className="mb-8">
+        <h2 className="section-title">Analytics &amp; Traction</h2>
+        <p className="section-subtitle">DAU/WAU/MAU, retention, and the signup → activation funnel</p>
+      </div>
+
+      {/* DAU / WAU / MAU */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        {overviewCards.map((c) => (
+          <div key={c.label} className="card relative overflow-hidden" style={{ borderColor: c.color + "33" }}>
+            <div className="relative">
+              <div className="text-2xl mb-2">{c.icon}</div>
+              <div className="text-2xl font-display font-bold text-white">{c.value}</div>
+              <div className="text-xs text-gray-500 mt-1">{c.label}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Daily trend chart */}
+      <div className="mb-8">
+        <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">30-Day Activity Trend</h3>
+        <div className="card">
+          {trend && trend.length > 0 ? (
+            <TrendChart trend={trend} />
+          ) : (
+            <p className="text-gray-600 text-sm py-8 text-center">Not enough data yet</p>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* Funnel */}
+        <div>
+          <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">
+            Signup → Profile → First Tournament
+          </h3>
+          <div className="card">
+            {funnel && <FunnelChart funnel={funnel} />}
+          </div>
+        </div>
+
+        {/* Organizer retention */}
+        <div>
+          <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Organizer Retention</h3>
+          <div className="card h-full flex flex-col justify-center">
+            {organizerRetention && (
+              <>
+                <div className="flex items-baseline gap-3 mb-2">
+                  <span className="text-3xl font-display font-bold text-white">
+                    {Math.round(organizerRetention.retentionRate * 100)}%
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    returned to run a tournament in a later month
+                  </span>
+                </div>
+                <div className="w-full h-2 rounded-full bg-navy overflow-hidden mb-3">
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${Math.round(organizerRetention.retentionRate * 100)}%`,
+                      background: "#a855f7",
+                    }}
+                  />
+                </div>
+                <p className="text-xs text-gray-500">
+                  {organizerRetention.returningOrganizers.toLocaleString()} of{" "}
+                  {organizerRetention.totalOrganizers.toLocaleString()} organizers have run tournaments in
+                  more than one calendar month.
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Retention cohorts */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Retention Cohorts</h3>
+          <div className="flex gap-1 bg-navy rounded-lg p-1">
+            {[7, 30].map((w) => (
+              <button
+                key={w}
+                onClick={() => loadCohorts(w)}
+                className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
+                  cohortWindow === w ? "bg-red text-white" : "text-gray-400 hover:text-white"
+                }`}
+              >
+                D{w}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="card p-0 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-navy border-b border-surface-border">
+              <tr>
+                {["Cohort", "Signed Up", "Retained", "Retention"].map((h) => (
+                  <th key={h} className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {cohortsLoading ? (
+                <tr><td colSpan={4} className="text-center py-16 text-gray-600">Loading…</td></tr>
+              ) : !cohorts || cohorts.length === 0 ? (
+                <tr><td colSpan={4} className="text-center py-16 text-gray-600">No cohorts in this window yet</td></tr>
+              ) : (
+                cohorts.map((c) => (
+                  <tr key={c.cohortDate} className="border-b border-surface-border/50 hover:bg-surface-card/40 transition-colors">
+                    <td className="px-4 py-3 text-white">{fmt(c.cohortDate)}</td>
+                    <td className="px-4 py-3 text-gray-300">{c.cohortSize.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-gray-300">{c.retained.toLocaleString()}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-20 h-1.5 rounded-full bg-navy overflow-hidden">
+                          <div
+                            className="h-full rounded-full"
+                            style={{ width: `${Math.round(c.retentionRate * 100)}%`, background: "#3b82f6" }}
+                          />
+                        </div>
+                        <span className="text-gray-400 text-xs">{Math.round(c.retentionRate * 100)}%</span>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Lightweight dependency-free SVG line chart for signups vs. logins over time
+function TrendChart({ trend }) {
+  const width = 800;
+  const height = 220;
+  const padding = { top: 10, right: 10, bottom: 24, left: 32 };
+  const innerW = width - padding.left - padding.right;
+  const innerH = height - padding.top - padding.bottom;
+
+  const series = [
+    { key: "signups", label: "Signups", color: "#ff4655" },
+    { key: "logins", label: "Logins", color: "#3b82f6" },
+    { key: "tournament_registrations", label: "Tournament Regs", color: "#f97316" },
+  ];
+
+  const maxVal = Math.max(1, ...trend.flatMap((d) => series.map((s) => Number(d[s.key]) || 0)));
+  const n = trend.length;
+  const xFor = (i) => padding.left + (n <= 1 ? 0 : (i / (n - 1)) * innerW);
+  const yFor = (v) => padding.top + innerH - (v / maxVal) * innerH;
+
+  const pathFor = (key) =>
+    trend
+      .map((d, i) => `${i === 0 ? "M" : "L"} ${xFor(i).toFixed(1)} ${yFor(Number(d[key]) || 0).toFixed(1)}`)
+      .join(" ");
+
+  // show at most ~6 x-axis labels to avoid crowding
+  const labelStep = Math.max(1, Math.ceil(n / 6));
+
+  return (
+    <div>
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto" preserveAspectRatio="none">
+        {/* gridlines */}
+        {[0, 0.25, 0.5, 0.75, 1].map((t) => (
+          <line
+            key={t}
+            x1={padding.left}
+            x2={width - padding.right}
+            y1={padding.top + innerH * (1 - t)}
+            y2={padding.top + innerH * (1 - t)}
+            stroke="#ffffff10"
+          />
+        ))}
+        {series.map((s) => (
+          <path key={s.key} d={pathFor(s.key)} fill="none" stroke={s.color} strokeWidth="2" />
+        ))}
+        {trend.map((d, i) =>
+          i % labelStep === 0 ? (
+            <text key={i} x={xFor(i)} y={height - 4} fontSize="9" fill="#6b7280" textAnchor="middle">
+              {String(d.rollup_date).slice(5, 10)}
+            </text>
+          ) : null
+        )}
+      </svg>
+      <div className="flex gap-4 mt-2 flex-wrap">
+        {series.map((s) => (
+          <div key={s.key} className="flex items-center gap-1.5 text-xs text-gray-400">
+            <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: s.color }} />
+            {s.label}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Simple step-down funnel visualization
+function FunnelChart({ funnel }) {
+  const steps = [
+    { label: "Signed Up", value: funnel.signups, color: "#ff4655" },
+    { label: "Profile Complete", value: funnel.profileComplete, color: "#3b82f6" },
+    { label: "First Tournament", value: funnel.firstTournament, color: "#22c55e" },
+  ];
+  const base = Math.max(1, steps[0].value);
+
+  return (
+    <div className="space-y-4">
+      {steps.map((s, i) => {
+        const pctOfBase = Math.round((s.value / base) * 100);
+        const prev = i > 0 ? steps[i - 1].value : null;
+        const pctOfPrev = prev ? Math.round((s.value / Math.max(1, prev)) * 100) : null;
+        return (
+          <div key={s.label}>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-sm text-white font-semibold">{s.label}</span>
+              <span className="text-sm text-gray-400">
+                {s.value.toLocaleString()}
+                {pctOfPrev !== null && (
+                  <span className="text-gray-600 ml-2">({pctOfPrev}% of previous step)</span>
+                )}
+              </span>
+            </div>
+            <div className="w-full h-3 rounded-full bg-navy overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{ width: `${Math.max(2, pctOfBase)}%`, background: s.color }}
+              />
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
