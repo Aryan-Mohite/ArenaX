@@ -512,3 +512,361 @@ export const resolveDispute = async (req, res, next) => {
     conn.release();
   }
 };
+
+// ─── ANALYTICS: DAU / WAU / MAU (§6) ────────────────────────────────────────
+// GET /api/admin/analytics/overview
+// (Restored — this and the four endpoints below were dropped when §6 and §9
+// were merged independently, since both touched this file.)
+export const getAnalyticsOverview = async (req, res, next) => {
+  try {
+    const [
+      [{ dau }],
+      [{ wau }],
+      [{ mau }],
+      [{ totalUsers }],
+    ] = await Promise.all([
+      pool.query("SELECT COUNT(DISTINCT user_id) AS dau FROM events WHERE event_type = 'login' AND created_at >= DATE_SUB(NOW(), INTERVAL 1 DAY)").then(r => r[0]),
+      pool.query("SELECT COUNT(DISTINCT user_id) AS wau FROM events WHERE event_type = 'login' AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)").then(r => r[0]),
+      pool.query("SELECT COUNT(DISTINCT user_id) AS mau FROM events WHERE event_type = 'login' AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)").then(r => r[0]),
+      pool.query("SELECT COUNT(*) AS totalUsers FROM users WHERE status = 'active'").then(r => r[0]),
+    ]);
+
+    res.json({
+      success: true,
+      overview: { dau: Number(dau), wau: Number(wau), mau: Number(mau), totalUsers: Number(totalUsers) },
+    });
+  } catch (err) { next(err); }
+};
+
+// ─── ANALYTICS: RETENTION COHORTS (§6) ──────────────────────────────────────
+// GET /api/admin/analytics/retention?window=7|30
+export const getRetentionCohorts = async (req, res, next) => {
+  try {
+    const window = Number(req.query.window) === 30 ? 30 : 7;
+    const cohortsToShow = window === 30 ? 6 : 8;
+    const lookbackDays = window * (cohortsToShow + 1);
+
+    const [rows] = await pool.query(
+      `SELECT
+          DATE(u.created_at) AS cohort_date,
+          COUNT(DISTINCT u.user_id) AS cohort_size,
+          COUNT(DISTINCT e.user_id) AS retained
+         FROM users u
+         LEFT JOIN events e
+           ON e.user_id = u.user_id
+          AND e.event_type = 'login'
+          AND DATE(e.created_at) = DATE_ADD(DATE(u.created_at), INTERVAL ? DAY)
+        WHERE u.created_at <= DATE_SUB(NOW(), INTERVAL ? DAY)
+          AND u.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+        GROUP BY DATE(u.created_at)
+        ORDER BY cohort_date DESC`,
+      [window, window, lookbackDays]
+    );
+
+    const cohorts = rows.map(r => ({
+      cohortDate: r.cohort_date,
+      cohortSize: Number(r.cohort_size),
+      retained: Number(r.retained),
+      retentionRate: r.cohort_size > 0 ? Number((r.retained / r.cohort_size).toFixed(3)) : 0,
+    }));
+
+    res.json({ success: true, window: `D${window}`, cohorts });
+  } catch (err) { next(err); }
+};
+
+// ─── ANALYTICS: SIGNUP → PROFILE-COMPLETE → FIRST-TOURNAMENT FUNNEL (§6) ────
+// GET /api/admin/analytics/funnel
+export const getFunnel = async (req, res, next) => {
+  try {
+    const [
+      [{ totalSignups }],
+      [{ profileComplete }],
+      [{ firstTournament }],
+    ] = await Promise.all([
+      pool.query("SELECT COUNT(*) AS totalSignups FROM users").then(r => r[0]),
+      pool.query(
+        "SELECT COUNT(*) AS profileComplete FROM users WHERE bio IS NOT NULL AND bio != '' AND profile_picture IS NOT NULL AND profile_picture != ''"
+      ).then(r => r[0]),
+      pool.query(
+        `SELECT COUNT(DISTINCT tm.user_id) AS firstTournament
+           FROM team_members tm
+           JOIN tournament_registrations tr ON tr.team_id = tm.team_id
+          WHERE tm.status = 'active'`
+      ).then(r => r[0]),
+    ]);
+
+    res.json({
+      success: true,
+      funnel: { signups: Number(totalSignups), profileComplete: Number(profileComplete), firstTournament: Number(firstTournament) },
+    });
+  } catch (err) { next(err); }
+};
+
+// ─── ANALYTICS: ORGANIZER RETENTION (§6) ────────────────────────────────────
+// GET /api/admin/analytics/organizer-retention
+export const getOrganizerRetention = async (req, res, next) => {
+  try {
+    const [[row]] = await pool.query(
+      `SELECT
+          COUNT(*) AS totalOrganizers,
+          SUM(months_active > 1) AS returningOrganizers
+         FROM (
+           SELECT created_by, COUNT(DISTINCT DATE_FORMAT(created_at, '%Y-%m')) AS months_active
+             FROM tournaments
+            WHERE created_by IS NOT NULL
+            GROUP BY created_by
+         ) sub`
+    );
+
+    const totalOrganizers = Number(row.totalOrganizers);
+    const returningOrganizers = Number(row.returningOrganizers) || 0;
+
+    res.json({
+      success: true,
+      organizerRetention: {
+        totalOrganizers,
+        returningOrganizers,
+        retentionRate: totalOrganizers > 0 ? Number((returningOrganizers / totalOrganizers).toFixed(3)) : 0,
+      },
+    });
+  } catch (err) { next(err); }
+};
+
+// ─── ANALYTICS: DAILY TREND (§6) ─────────────────────────────────────────────
+// GET /api/admin/analytics/trend?days=30
+export const getAnalyticsTrend = async (req, res, next) => {
+  try {
+    const days = Math.min(Number(req.query.days) || 30, 90);
+
+    const [rolledUp] = await pool.query(
+      `SELECT rollup_date, signups, logins, tournament_registrations, teams_created, community_posts
+         FROM analytics_daily_rollup
+        WHERE rollup_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+        ORDER BY rollup_date ASC`,
+      [days]
+    );
+
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const alreadyHasToday = rolledUp.some(r => r.rollup_date.toISOString?.().slice(0, 10) === todayStr || String(r.rollup_date) === todayStr);
+
+    let todayRow = null;
+    if (!alreadyHasToday) {
+      const [
+        [{ signups }],
+        [{ logins }],
+        [{ tournament_registrations }],
+        [{ teams_created }],
+        [{ community_posts }],
+      ] = await Promise.all([
+        pool.query("SELECT COUNT(*) AS signups FROM users WHERE DATE(created_at) = CURDATE()").then(r => r[0]),
+        pool.query("SELECT COUNT(DISTINCT user_id) AS logins FROM events WHERE event_type = 'login' AND DATE(created_at) = CURDATE()").then(r => r[0]),
+        pool.query("SELECT COUNT(*) AS tournament_registrations FROM events WHERE event_type = 'tournament_registration' AND DATE(created_at) = CURDATE()").then(r => r[0]),
+        pool.query("SELECT COUNT(*) AS teams_created FROM events WHERE event_type = 'team_created' AND DATE(created_at) = CURDATE()").then(r => r[0]),
+        pool.query("SELECT COUNT(*) AS community_posts FROM events WHERE event_type = 'community_post' AND DATE(created_at) = CURDATE()").then(r => r[0]),
+      ]);
+      todayRow = { rollup_date: todayStr, signups: Number(signups), logins: Number(logins), tournament_registrations: Number(tournament_registrations), teams_created: Number(teams_created), community_posts: Number(community_posts) };
+    }
+
+    res.json({ success: true, trend: [...rolledUp, ...(todayRow ? [todayRow] : [])] });
+  } catch (err) { next(err); }
+};
+
+// ─── SPONSOR APPLICATION QUEUE (§5) ─────────────────────────────────────────
+// GET /api/admin/sponsors?status=pending
+export const getSponsorApplications = async (req, res, next) => {
+  try {
+    const status = req.query.status || "pending";
+    const [rows] = await pool.query(
+      `SELECT sp.sponsor_id, sp.company_name, sp.website, sp.contact_email, sp.logo_url, sp.status, sp.created_at,
+              u.user_id, u.username, u.email
+         FROM sponsor_profiles sp
+         JOIN users u ON u.user_id = sp.user_id
+        WHERE sp.status = ?
+        ORDER BY sp.created_at ASC`,
+      [status]
+    );
+    res.json({ success: true, sponsors: rows });
+  } catch (err) { next(err); }
+};
+
+// POST /api/admin/sponsors/:id/approve — flips users.account_type to 'sponsor' too
+export const approveSponsorApplication = async (req, res, next) => {
+  const conn = await pool.getConnection();
+  try {
+    const { id } = req.params;
+    await conn.beginTransaction();
+
+    const [[sponsor]] = await conn.query(
+      "SELECT user_id FROM sponsor_profiles WHERE sponsor_id = ? AND status = 'pending' FOR UPDATE",
+      [id]
+    );
+    if (!sponsor) {
+      await conn.rollback();
+      return res.status(404).json({ success: false, message: "No pending sponsor application with that id" });
+    }
+
+    await conn.query(
+      "UPDATE sponsor_profiles SET status = 'approved', approved_at = NOW(), approved_by = ? WHERE sponsor_id = ?",
+      [req.user.id, id]
+    );
+    await conn.query("UPDATE users SET account_type = 'sponsor' WHERE user_id = ?", [sponsor.user_id]);
+
+    await conn.commit();
+    res.json({ success: true, message: "Sponsor approved" });
+  } catch (err) {
+    await conn.rollback();
+    next(err);
+  } finally {
+    conn.release();
+  }
+};
+
+// POST /api/admin/sponsors/:id/reject
+export const rejectSponsorApplication = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const [result] = await pool.query(
+      "UPDATE sponsor_profiles SET status = 'rejected' WHERE sponsor_id = ? AND status = 'pending'",
+      [id]
+    );
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "No pending sponsor application with that id" });
+    }
+    res.json({ success: true, message: "Sponsor application rejected" });
+  } catch (err) { next(err); }
+};
+
+// ─── FEATURED PLACEMENTS (§5) ────────────────────────────────────────────────
+// GET /api/admin/placements — every placement, active or not, for the admin
+// panel's management view (getFeaturedTournaments, the public-facing one in
+// tournamentController.js, only shows active ones).
+export const getPlacements = async (req, res, next) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT fp.*, t.name AS tournament_name, sp.company_name AS sponsor_name
+         FROM featured_placements fp
+         JOIN tournaments t ON t.tournament_id = fp.tournament_id
+         JOIN sponsor_profiles sp ON sp.sponsor_id = fp.sponsor_id
+        ORDER BY fp.created_at DESC`
+    );
+    res.json({ success: true, placements: rows });
+  } catch (err) { next(err); }
+};
+
+// POST /api/admin/placements  { tournament_id, sponsor_id, slot_type?, starts_at?, ends_at? }
+// Manual assignment — no bidding marketplace, per the roadmap.
+export const createPlacement = async (req, res, next) => {
+  try {
+    const { tournament_id, sponsor_id, slot_type, starts_at, ends_at } = req.body;
+
+    const [[tournament]] = await pool.query("SELECT tournament_id FROM tournaments WHERE tournament_id = ?", [tournament_id]);
+    if (!tournament) {
+      return res.status(404).json({ success: false, message: "Tournament not found" });
+    }
+    const [[sponsor]] = await pool.query("SELECT sponsor_id FROM sponsor_profiles WHERE sponsor_id = ? AND status = 'approved'", [sponsor_id]);
+    if (!sponsor) {
+      return res.status(404).json({ success: false, message: "No approved sponsor with that id" });
+    }
+
+    const [result] = await pool.query(
+      `INSERT INTO featured_placements (tournament_id, sponsor_id, slot_type, starts_at, ends_at, created_by)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [tournament_id, sponsor_id, slot_type || "featured_tournament", starts_at || null, ends_at || null, req.user.id]
+    );
+    res.status(201).json({ success: true, placement_id: result.insertId });
+  } catch (err) { next(err); }
+};
+
+// PATCH /api/admin/placements/:id  { is_active }  — deactivate (or reactivate) a slot
+export const updatePlacement = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { is_active } = req.body;
+    const [result] = await pool.query(
+      "UPDATE featured_placements SET is_active = ? WHERE placement_id = ?",
+      [!!is_active, id]
+    );
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "Placement not found" });
+    }
+    res.json({ success: true, message: `Placement ${is_active ? "activated" : "deactivated"}` });
+  } catch (err) { next(err); }
+};
+
+// ─── SPONSOR INSIGHTS (§5 → §6 hook) ────────────────────────────────────────
+// GET /api/admin/sponsor-insights?game_id=
+// The aggregate, anonymized stats pipeline the roadmap describes — this is
+// the actual product a sponsor eventually pays for ("Valorant tournament
+// participation among college players rose X% this quarter"), built
+// entirely on §6's `events` table. Admin-only for now: there's no
+// sponsor-facing portal yet, just the data plumbing, exactly as the
+// roadmap frames it ("start logging now even though the sponsor-facing
+// product comes later"). Counts only — no user-level data ever leaves
+// this query.
+export const getSponsorInsights = async (req, res, next) => {
+  try {
+    const { game_id } = req.query;
+
+    const registrationFilter = game_id
+      ? `AND e.metadata->>'$.tournament_id' IN (SELECT tournament_id FROM tournaments WHERE game_id = ?)`
+      : "";
+    const params = game_id ? [game_id] : [];
+
+    const [
+      [{ thisQuarter }],
+      [{ lastQuarter }],
+      [{ collegeTagged }],
+      [{ total }],
+    ] = await Promise.all([
+      pool.query(
+        `SELECT COUNT(*) AS thisQuarter FROM events e
+          WHERE e.event_type = 'tournament_registration'
+            AND e.created_at >= DATE_SUB(NOW(), INTERVAL 3 MONTH)
+            ${registrationFilter}`,
+        params
+      ).then(r => r[0]),
+      pool.query(
+        `SELECT COUNT(*) AS lastQuarter FROM events e
+          WHERE e.event_type = 'tournament_registration'
+            AND e.created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+            AND e.created_at <  DATE_SUB(NOW(), INTERVAL 3 MONTH)
+            ${registrationFilter}`,
+        params
+      ).then(r => r[0]),
+      // College-tagged participation: registrations where the registering
+      // user has a college set — the "among college players" slice from
+      // the roadmap's own example question.
+      pool.query(
+        `SELECT COUNT(*) AS collegeTagged FROM events e
+           JOIN users u ON u.user_id = e.user_id
+          WHERE e.event_type = 'tournament_registration'
+            AND e.created_at >= DATE_SUB(NOW(), INTERVAL 3 MONTH)
+            AND u.college_id IS NOT NULL
+            ${registrationFilter}`,
+        params
+      ).then(r => r[0]),
+      pool.query(
+        `SELECT COUNT(*) AS total FROM events e
+          WHERE e.event_type = 'tournament_registration'
+            AND e.created_at >= DATE_SUB(NOW(), INTERVAL 3 MONTH)
+            ${registrationFilter}`,
+        params
+      ).then(r => r[0]),
+    ]);
+
+    const qoqChange = lastQuarter > 0 ? Number((((thisQuarter - lastQuarter) / lastQuarter) * 100).toFixed(1)) : null;
+
+    res.json({
+      success: true,
+      insights: {
+        game_id: game_id ? Number(game_id) : null,
+        tournamentParticipation: {
+          thisQuarter: Number(thisQuarter),
+          lastQuarter: Number(lastQuarter),
+          qoqChangePercent: qoqChange,
+        },
+        collegePlayerShare: total > 0 ? Number((Number(collegeTagged) / Number(total)).toFixed(3)) : 0,
+      },
+    });
+  } catch (err) { next(err); }
+};

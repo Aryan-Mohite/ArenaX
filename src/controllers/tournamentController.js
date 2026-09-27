@@ -1,6 +1,7 @@
 import pool from "../config/db.js";
 import { hasFeature } from "../services/featureService.js";
 import { CURRENT_TERMS_VERSION } from "./organizerController.js";
+import { logEvent, EVENT_TYPES } from "../services/eventService.js";
 
 // Free tier (no active 'unlimited_participants'-granting plan) is capped at
 // this many teams per tournament, regardless of what the organizer requests.
@@ -239,6 +240,9 @@ export const registerForTournament = async (req, res, next) => {
       "SELECT * FROM tournament_registrations WHERE registration_id = ?",
       [result.insertId]
     );
+
+    // §6: fire-and-forget
+    logEvent(userId, EVENT_TYPES.TOURNAMENT_REGISTRATION, { tournament_id: Number(tournament_id), team_id: Number(team_id) });
 
     res.status(201).json({ success: true, registration: registration[0] });
   } catch (err) { next(err); }
@@ -525,5 +529,29 @@ export const getCollegeStandings = async (req, res, next) => {
       tournament: { tournament_id: tournament.tournament_id, name: tournament.name, is_inter_college: !!tournament.is_inter_college },
       standings,
     });
+  } catch (err) { next(err); }
+};
+
+// ─── FEATURED TOURNAMENTS (§5) ──────────────────────────────────────────────
+// GET /api/tournaments/featured — public. Powers the homepage "presented
+// by <sponsor>" banner/carousel. Only currently-active placements
+// (is_active, and within starts_at/ends_at if set) for a currently-approved
+// sponsor — a rejected-after-the-fact sponsor's placements disappear
+// automatically rather than needing manual cleanup.
+export const getFeaturedTournaments = async (req, res, next) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT fp.placement_id, fp.slot_type, fp.starts_at, fp.ends_at,
+              t.tournament_id, t.name, t.image_url, t.start_date, t.status,
+              sp.sponsor_id, sp.company_name AS sponsor_name, sp.logo_url AS sponsor_logo
+         FROM featured_placements fp
+         JOIN tournaments t       ON t.tournament_id = fp.tournament_id
+         JOIN sponsor_profiles sp ON sp.sponsor_id = fp.sponsor_id AND sp.status = 'approved'
+        WHERE fp.is_active = TRUE
+          AND (fp.starts_at IS NULL OR fp.starts_at <= NOW())
+          AND (fp.ends_at   IS NULL OR fp.ends_at   >= NOW())
+        ORDER BY fp.created_at DESC`
+    );
+    res.json({ success: true, featured: rows });
   } catch (err) { next(err); }
 };
