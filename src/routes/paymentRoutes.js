@@ -6,9 +6,10 @@ import {
   handleWebhook,
   cancelSubscription,
   getMySubscription,
+  disputePayment,
 } from "../controllers/paymentController.js";
 import authMiddleware from "../middleware/authMiddleware.js";
-import { body } from "express-validator";
+import { body, param } from "express-validator";
 import validate from "../middleware/validateMiddleware.js";
 
 const router = Router();
@@ -42,5 +43,17 @@ router.post(
 
 router.get("/subscription", authMiddleware, getMySubscription);
 router.post("/cancel", authMiddleware, cancelSubscription);
+
+// §9: refund/dispute path
+router.post(
+  "/:paymentId/dispute",
+  authMiddleware,
+  [
+    param("paymentId").isInt({ min: 1 }),
+    body("reason").trim().notEmpty().withMessage("A reason is required").isLength({ max: 1000 }),
+  ],
+  validate,
+  disputePayment
+);
 
 export default router;

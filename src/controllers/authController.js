@@ -5,6 +5,7 @@ import { generateOtp, compareOtp } from "../utils/otp.js";
 import { sendOtpEmail, sendPasswordResetEmail } from "../utils/mailer.js";
 import { updateLoginStreak } from "../services/achievementService.js";
 import { generateReferralCode, resolveReferrer } from "../services/referralService.js";
+import { logEvent, EVENT_TYPES } from "../services/eventService.js";
 
 const SALT_ROUNDS        = 12;
 const OTP_TTL_MS         = 10 * 60 * 1000;  // 10 minutes
@@ -125,6 +126,9 @@ export const verifyRegisterOtp = async (req, res, next) => {
 
     await pool.query("DELETE FROM pending_verifications WHERE email = ?", [email]);
 
+    // §6: fire-and-forget — never awaited, never lets logging break registration
+    logEvent(user.user_id, EVENT_TYPES.SIGNUP);
+
     const token = generateToken({ id: user.user_id, username: user.username, isAdmin: false });
 
     res.status(201).json({
@@ -243,6 +247,9 @@ export const login = async (req, res, next) => {
       .split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
     const isAdmin = adminEmails.includes(user.email.toLowerCase());
     const token   = generateToken({ id: user.user_id, username: user.username, isAdmin });
+
+    // §6: fire-and-forget — this is what DAU/WAU/MAU and retention cohorts read from
+    logEvent(user.user_id, EVENT_TYPES.LOGIN);
 
     res.json({
       success: true,

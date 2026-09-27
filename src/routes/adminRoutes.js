@@ -13,6 +13,10 @@ import {
   approveCollegeClaim,
   rejectCollegeClaim,
   setCollegeLicense,
+  getReports,
+  resolveReport,
+  getDisputes,
+  resolveDispute,
 } from "../controllers/adminController.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 import requireAdmin   from "../middleware/requireAdmin.js";
@@ -42,6 +46,12 @@ router.get("/colleges", getCollegeClaims);
 router.post("/colleges/:id/approve", validateIdParam, validate, approveCollegeClaim);
 router.post("/colleges/:id/reject", validateIdParam, validate, rejectCollegeClaim);
 router.post("/colleges/:id/license", validateIdParam, validate, setCollegeLicense);
+
+// ─── Reports queue + payment disputes (§9) ─────────────────────────────────
+router.get("/reports", getReports);
+router.post("/reports/:id/resolve", validateIdParam, validate, resolveReport);
+router.get("/disputes", getDisputes);
+router.post("/disputes/:id/resolve", validateIdParam, validate, resolveDispute);
 
 // ─── User Management ──────────────────────────────────────────────────────────
 // GET /api/admin/users?status=banned&q=username&limit=50&offset=0

@@ -5,6 +5,7 @@ import app from "./src/app.js";
 import pool from "./src/config/db.js";
 import { startTournamentStatusJob } from "./src/jobs/tournamentStatusJob.js";
 import { syncFeaturedTournaments } from "./src/jobs/pandaScoreSyncJob.js";
+import { startAnalyticsRollupJob } from "./src/jobs/analyticsRollupJob.js";
 
 // ─── Required environment variable guard ──────────────────────────────────────
 const REQUIRED_ENV = ["DB_USER", "DB_HOST", "DB_NAME", "DB_PASSWORD", "JWT_SECRET"];
@@ -23,6 +24,11 @@ server.listen(PORT, () => {
   // ── Background automation ────────────────────────────────────────────────
   // 1. Hourly: flip tournament status (upcoming/ongoing/completed) based on dates.
   startTournamentStatusJob();
+
+  // §6: nightly rollup of yesterday's activity into analytics_daily_rollup
+  // (signups/logins/registrations/teams/posts) for the admin analytics
+  // dashboard's trend chart.
+  startAnalyticsRollupJob();
 
   // 2. Daily at 3:00 AM server time: pull fresh featured tournaments from
   //    PandaScore so the tournament page stays populated without manual entry.

@@ -207,6 +207,44 @@ export const getMySubscription = async (req, res, next) => {
     next(err);
   }
 };
+
+// ─── DISPUTE A PAYMENT (§9) ─────────────────────────────────────────────────
+// POST /api/payments/:paymentId/dispute  { reason }
+// Manual admin process, as the roadmap explicitly allows — this just opens
+// the dispute; an admin resolves it via adminController.resolveDispute.
+// No automatic Razorpay refund call here.
+export const disputePayment = async (req, res, next) => {
+  try {
+    const { paymentId } = req.params;
+    const { reason } = req.body;
+    const userId = req.user.id;
+
+    const [[payment]] = await pool.query(
+      "SELECT payment_id, status FROM payments WHERE payment_id = ? AND user_id = ?",
+      [paymentId, userId]
+    );
+    if (!payment) {
+      return res.status(404).json({ success: false, message: "Payment not found" });
+    }
+    if (payment.status !== "success") {
+      return res.status(400).json({ success: false, message: "Only a successful payment can be disputed" });
+    }
+
+    const [[existingOpen]] = await pool.query(
+      "SELECT dispute_id FROM payment_disputes WHERE payment_id = ? AND status = 'open'",
+      [paymentId]
+    );
+    if (existingOpen) {
+      return res.status(409).json({ success: false, message: "This payment already has an open dispute" });
+    }
+
+    const [result] = await pool.query(
+      "INSERT INTO payment_disputes (payment_id, user_id, reason) VALUES (?, ?, ?)",
+      [paymentId, userId, reason]
+    );
+    res.status(201).json({ success: true, dispute_id: result.insertId, message: "Dispute submitted — an admin will review it." });
+  } catch (err) { next(err); }
+};
 // Marks the payment successful and opens (or renews) the subscription it
 // paid for. Safe to call twice for the same payment — the caller checks
 // payment.status === 'success' first, so this only ever runs once per order.

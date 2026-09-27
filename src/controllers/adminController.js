@@ -384,3 +384,131 @@ export const setCollegeLicense = async (req, res, next) => {
     res.json({ success: true, message: "College license granted (1 year)" });
   } catch (err) { next(err); }
 };
+
+// ─── REPORTS QUEUE (§9) ──────────────────────────────────────────────────────
+// GET /api/admin/reports?status=pending&type=user|tournament
+// Now covers both player-side reports (reported_user) and organizer-side
+// abuse reports (reported_tournament_id) — the split from §9's schema
+// change. `type` filters between them; omit it to see both.
+export const getReports = async (req, res, next) => {
+  try {
+    const status = req.query.status || "pending";
+    const { type } = req.query; // 'user' | 'tournament' | undefined (both)
+
+    let query = `
+      SELECT r.report_id, r.reason, r.category, r.status, r.created_at,
+             r.resolution_note, r.resolved_at,
+             reporter.user_id AS reporter_id, reporter.username AS reporter_username,
+             r.reported_user,
+             ru.username AS reported_username,
+             r.reported_tournament_id,
+             t.name AS reported_tournament_name
+        FROM reports r
+        JOIN users reporter   ON reporter.user_id = r.reported_by
+        LEFT JOIN users ru        ON ru.user_id = r.reported_user
+        LEFT JOIN tournaments t   ON t.tournament_id = r.reported_tournament_id
+       WHERE r.status = ?
+    `;
+    const params = [status];
+    if (type === "user") query += " AND r.reported_user IS NOT NULL";
+    if (type === "tournament") query += " AND r.reported_tournament_id IS NOT NULL";
+    query += " ORDER BY r.created_at ASC";
+
+    const [rows] = await pool.query(query, params);
+    res.json({ success: true, reports: rows });
+  } catch (err) { next(err); }
+};
+
+// POST /api/admin/reports/:id/resolve  { status: 'resolved' | 'dismissed', note? }
+export const resolveReport = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status, note } = req.body;
+    if (!["resolved", "dismissed"].includes(status)) {
+      return res.status(400).json({ success: false, message: "status must be 'resolved' or 'dismissed'" });
+    }
+
+    const [result] = await pool.query(
+      `UPDATE reports
+          SET status = ?, resolution_note = ?, resolved_by = ?, resolved_at = NOW()
+        WHERE report_id = ? AND status = 'pending'`,
+      [status, note || null, req.user.id, id]
+    );
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "No pending report with that id" });
+    }
+    res.json({ success: true, message: `Report ${status}` });
+  } catch (err) { next(err); }
+};
+
+// ─── PAYMENT DISPUTES (§9) ───────────────────────────────────────────────────
+// GET /api/admin/disputes?status=open
+export const getDisputes = async (req, res, next) => {
+  try {
+    const status = req.query.status || "open";
+    const [rows] = await pool.query(
+      `SELECT d.dispute_id, d.reason, d.status, d.admin_note, d.created_at, d.resolved_at,
+              u.user_id, u.username,
+              p.payment_id, p.amount, p.currency, p.gateway, p.gateway_payment_id, p.status AS payment_status
+         FROM payment_disputes d
+         JOIN users u ON u.user_id = d.user_id
+         JOIN payments p ON p.payment_id = d.payment_id
+        WHERE d.status = ?
+        ORDER BY d.created_at ASC`,
+      [status]
+    );
+    res.json({ success: true, disputes: rows });
+  } catch (err) { next(err); }
+};
+
+// POST /api/admin/disputes/:id/resolve  { status: 'refunded' | 'denied', note? }
+// On 'refunded': flips the underlying payment to 'refunded' too (payments.status
+// already has that value in its enum from §1) and cancels the subscription it
+// opened, if still active — a refunded payment shouldn't leave a live
+// subscription behind. This does NOT call Razorpay's refund API; that's a
+// manual step outside ArenaX for now, exactly as the roadmap allows.
+export const resolveDispute = async (req, res, next) => {
+  const conn = await pool.getConnection();
+  try {
+    const { id } = req.params;
+    const { status, note } = req.body;
+    if (!["refunded", "denied"].includes(status)) {
+      return res.status(400).json({ success: false, message: "status must be 'refunded' or 'denied'" });
+    }
+
+    await conn.beginTransaction();
+
+    const [[dispute]] = await conn.query(
+      "SELECT * FROM payment_disputes WHERE dispute_id = ? AND status = 'open' FOR UPDATE",
+      [id]
+    );
+    if (!dispute) {
+      await conn.rollback();
+      return res.status(404).json({ success: false, message: "No open dispute with that id" });
+    }
+
+    await conn.query(
+      "UPDATE payment_disputes SET status = ?, admin_note = ?, resolved_by = ?, resolved_at = NOW() WHERE dispute_id = ?",
+      [status, note || null, req.user.id, id]
+    );
+
+    if (status === "refunded") {
+      const [[payment]] = await conn.query("SELECT * FROM payments WHERE payment_id = ?", [dispute.payment_id]);
+      await conn.query("UPDATE payments SET status = 'refunded' WHERE payment_id = ?", [dispute.payment_id]);
+      if (payment?.subscription_id) {
+        await conn.query(
+          "UPDATE subscriptions SET status = 'canceled', canceled_at = NOW() WHERE subscription_id = ? AND status = 'active'",
+          [payment.subscription_id]
+        );
+      }
+    }
+
+    await conn.commit();
+    res.json({ success: true, message: `Dispute ${status}` });
+  } catch (err) {
+    await conn.rollback();
+    next(err);
+  } finally {
+    conn.release();
+  }
+};

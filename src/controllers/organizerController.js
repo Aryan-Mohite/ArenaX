@@ -65,3 +65,38 @@ export const getMyVerificationStatus = async (req, res, next) => {
     res.json({ success: true, verification: rows[0] || null });
   } catch (err) { next(err); }
 };
+
+// ─── ORGANIZER TERMS / TOURNAMENT AGREEMENT (§9) ────────────────────────────
+// Bump this whenever the actual terms text changes — a re-acceptance is
+// then required, and organizer_terms_acceptances keeps the old
+// acceptance(s) on record rather than overwriting them.
+export const CURRENT_TERMS_VERSION = "v1";
+
+// POST /api/organizers/accept-terms
+export const acceptOrganizerTerms = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    await pool.query(
+      "INSERT INTO organizer_terms_acceptances (user_id, terms_version, ip_address) VALUES (?, ?, ?)",
+      [userId, CURRENT_TERMS_VERSION, req.ip || null]
+    );
+    res.status(201).json({ success: true, message: "Organizer Terms accepted", terms_version: CURRENT_TERMS_VERSION });
+  } catch (err) { next(err); }
+};
+
+// GET /api/organizers/terms-status — has this user accepted the *current*
+// version? (An acceptance of an older version doesn't count.)
+export const getTermsStatus = async (req, res, next) => {
+  try {
+    const [[row]] = await pool.query(
+      "SELECT accepted_at FROM organizer_terms_acceptances WHERE user_id = ? AND terms_version = ? ORDER BY accepted_at DESC LIMIT 1",
+      [req.user.id, CURRENT_TERMS_VERSION]
+    );
+    res.json({
+      success: true,
+      terms_version: CURRENT_TERMS_VERSION,
+      accepted: !!row,
+      accepted_at: row?.accepted_at || null,
+    });
+  } catch (err) { next(err); }
+};

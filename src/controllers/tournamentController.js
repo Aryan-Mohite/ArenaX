@@ -1,5 +1,6 @@
 import pool from "../config/db.js";
 import { hasFeature } from "../services/featureService.js";
+import { CURRENT_TERMS_VERSION } from "./organizerController.js";
 
 // Free tier (no active 'unlimited_participants'-granting plan) is capped at
 // this many teams per tournament, regardless of what the organizer requests.
@@ -125,6 +126,22 @@ export const createTournament = async (req, res, next) => {
     let initialStatus = "upcoming";
     const isPaidTierOrganizer = userId ? await hasFeature(userId, "branded_page") : false;
     if (isPaidTierOrganizer) {
+      // §9: Pro/Org-tier organizers must accept the current Organizer Terms
+      // / Tournament Agreement before publishing — checked before the
+      // verification-status check below so the block message is specific
+      // ("accept terms" vs "pending review").
+      const [[termsAccepted]] = await pool.query(
+        "SELECT 1 FROM organizer_terms_acceptances WHERE user_id = ? AND terms_version = ? LIMIT 1",
+        [userId, CURRENT_TERMS_VERSION]
+      );
+      if (!termsAccepted) {
+        return res.status(403).json({
+          success: false,
+          message: "Accept the Organizer Terms / Tournament Agreement before creating a Pro-tier tournament.",
+          terms_version: CURRENT_TERMS_VERSION,
+        });
+      }
+
       const [[verification]] = await pool.query(
         "SELECT status FROM organizer_verifications WHERE user_id = ? AND status = 'approved' LIMIT 1",
         [userId]

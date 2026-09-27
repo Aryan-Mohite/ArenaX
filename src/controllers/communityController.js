@@ -1,6 +1,7 @@
 import pool from "../config/db.js";
 import { awardNexusPostAchievement } from "../services/achievementService.js";
 import { sanitizeFields } from "../utils/sanitize.js";
+import { logEvent, EVENT_TYPES } from "../services/eventService.js";
 
 const MAX_POST_IMAGES = 5;
 
@@ -103,6 +104,9 @@ export const createPost = async (req, res, next) => {
     awardNexusPostAchievement(userId).catch((err) =>
       console.error("[achievements] awardNexusPostAchievement failed:", err.message)
     );
+
+    // §6: fire-and-forget
+    logEvent(userId, EVENT_TYPES.COMMUNITY_POST, { community_id: Number(community_id), post_id: newPost[0].post_id });
 
     res.status(201).json({ success: true, post: newPost[0] });
   } catch (err) { next(err); }
