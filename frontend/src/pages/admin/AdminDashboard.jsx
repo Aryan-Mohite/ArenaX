@@ -87,6 +87,7 @@ export default function AdminDashboard() {
     { id: "billing", label: "Billing", icon: "💳" },
     { id: "organizers", label: "Organizers", icon: "🎖️" },
     { id: "analytics", label: "Analytics", icon: "📈" },
+    { id: "colleges", label: "Colleges", icon: "🎓" },
     { id: "archives", label: "Archives", icon: "🗄️" },
   ];
 
@@ -153,6 +154,7 @@ export default function AdminDashboard() {
         {tab === "billing" && <BillingTab showToast={showToast} />}
         {tab === "organizers" && <OrganizersTab showToast={showToast} />}
         {tab === "analytics" && <AnalyticsTab showToast={showToast} />}
+        {tab === "colleges" && <CollegesTab showToast={showToast} />}
       </div>
     </div>
   );
@@ -1497,6 +1499,122 @@ function FunnelChart({ funnel }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// TAB — COLLEGES (§3 — approve "claim your college" requests, toggle licenses)
+// ══════════════════════════════════════════════════════════════════════════════
+function CollegesTab({ showToast }) {
+  const [status, setStatus] = useState("pending");
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState(null);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    apiFetch(`/admin/colleges?status=${status}`)
+      .then((d) => setRows(d.colleges || []))
+      .catch((e) => showToast(`Failed to load colleges: ${e.message}`, false))
+      .finally(() => setLoading(false));
+  }, [status, showToast]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const act = async (c, action, okMsg) => {
+    setBusyId(c.college_id);
+    try {
+      await apiFetch(`/admin/colleges/${c.college_id}/${action}`, {
+        method: "POST",
+        ...(action === "license" ? { body: JSON.stringify({ action: okMsg.action }) } : {}),
+      });
+      showToast(action === "license" ? okMsg.text : okMsg);
+      load();
+    } catch (e) {
+      showToast(e.message, false);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div>
+          <h2 className="section-title">Colleges</h2>
+          <p className="section-subtitle">Review campus claims and manage annual licenses</p>
+        </div>
+        <div className="flex gap-1 bg-navy rounded-lg p-1">
+          {["pending", "approved", "rejected"].map((s) => (
+            <button
+              key={s}
+              onClick={() => setStatus(s)}
+              className={`px-3 py-1 rounded-md text-xs font-semibold capitalize transition-colors ${
+                status === s ? "bg-red text-white" : "text-gray-400 hover:text-white"
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading ? (
+        <LoadingRows />
+      ) : rows.length === 0 ? (
+        <div className="card text-center py-12 text-gray-600 text-sm">No {status} colleges</div>
+      ) : (
+        <div className="space-y-3">
+          {rows.map((c) => (
+            <div key={c.college_id} className="card flex flex-wrap items-center gap-4">
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-white">{c.name}</p>
+                <p className="text-xs text-gray-500">
+                  {[c.city, c.state].filter(Boolean).join(", ") || "—"} · claimed by @
+                  {c.claimed_by_username || "unknown"} · {fmt(c.created_at)}
+                </p>
+              </div>
+              {status === "pending" && (
+                <div className="flex gap-2">
+                  <button
+                    className="btn-primary text-sm"
+                    disabled={busyId === c.college_id}
+                    onClick={() => act(c, "approve", `${c.name} approved`)}
+                  >
+                    Approve
+                  </button>
+                  <button
+                    className="btn-ghost text-sm"
+                    disabled={busyId === c.college_id}
+                    onClick={() => act(c, "reject", `${c.name} rejected`)}
+                  >
+                    Reject
+                  </button>
+                </div>
+              )}
+              {status === "approved" && (
+                <div className="flex gap-2">
+                  <button
+                    className="btn-secondary text-sm"
+                    disabled={busyId === c.college_id}
+                    onClick={() => act(c, "license", { action: "grant", text: `License granted to ${c.name}` })}
+                  >
+                    Grant license
+                  </button>
+                  <button
+                    className="btn-ghost text-sm"
+                    disabled={busyId === c.college_id}
+                    onClick={() => act(c, "license", { action: "revoke", text: `License revoked for ${c.name}` })}
+                  >
+                    Revoke
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

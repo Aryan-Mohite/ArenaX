@@ -266,7 +266,7 @@ export const login = async (req, res, next) => {
 export const getMe = async (req, res, next) => {
   try {
     const [rows] = await pool.query(
-      `SELECT user_id, username, email, profile_picture, profile_banner_url, country, region,
+      `SELECT user_id, username, email, profile_picture, profile_banner_url, college_id, country, region,
               bio, status, created_at, last_login
        FROM users WHERE user_id = ?`,
       [req.user.id]

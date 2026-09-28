@@ -1,23 +1,25 @@
-# §4 ArenaX Pro (Gamer Membership) — frontend patch
+# §3 College / Campus module — frontend patch
 
-Files are laid out at their repo paths; drop them over the existing tree.
+Files sit at their repo paths. NOTE: Profile.jsx / OrganizerTiers.jsx etc. from the §4 patch are NOT included;
+`authController.js` here contains both the §4 change (profile_banner_url) and the §3 change (college_id) —
+if you already applied §4, just add `college_id` to the getMe SELECT.
 
 ## New
-- `frontend/src/utils/razorpay.js` — shared Razorpay script loader (was inline in OrganizerDashboard).
+- `services/collegeService.js` — wrappers for the existing /colleges and /tournaments/:id/college-standings APIs.
+- `pages/Colleges.jsx` (/colleges) — public leaderboard (wins → members), search, "Claim your college" modal.
+- `pages/College.jsx` (/colleges/:slug) — shareable college profile: stats, Official Partner badge, join/leave, share button, links to college-scoped tournaments and Team Finder.
 
 ## Modified
-- `frontend/src/components/OrganizerTiers.jsx` — `TierCard` takes an optional `contentMap` (defaults to organizer copy, so existing callers are unchanged); new `GAMER_TIER_CONTENT`; `PlansModal` moved here from OrganizerDashboard and exported.
-- `frontend/src/pages/OrganizerDashboard.jsx` — now imports `PlansModal` and `loadRazorpayScript` instead of local copies. No behaviour change.
-- `frontend/src/pages/Profile.jsx` — new "⭐ Go Pro / ArenaX Pro" tab (plan cards, Razorpay upgrade, downgrade); Pro badge beside the username; banner strip in the header; banner URL field in Edit Loadout (Pro only, otherwise an upsell link).
-- `frontend/src/pages/UserProfile.jsx` — shows the Pro badge on public profiles (`is_verified` was already returned by the API but never rendered).
-- `src/controllers/authController.js` — `getMe` now also selects `profile_banner_url` (one-line change; needed so the Profile page can show/edit its own banner).
+- `App.jsx` — routes /colleges and /colleges/:slug. `Navbar.jsx` — "Colleges" under More.
+- `Tournament.jsx` — `?college_id=` filter (with dismissible chip); "Inter-college tournament" checkbox in the create form; College Standings panel on inter-college tournament pages.
+- `TeamFinder.jsx` — `?college_id=` filter with dismissible chip.
+- `admin/AdminDashboard.jsx` — new Colleges tab: approve/reject claims, grant/revoke annual license. Without this, claims could never go live.
+- `authController.js` — getMe also returns `college_id` (needed to show Join vs Leave).
 
 ## Setup
-No migrations, env vars or packages. `npm run build` (Vite) passes.
-Requires the `gamer_pro` plan row to exist in `plans` (backend already supports `GET /payments/plans?category=gamer`).
+No migrations/env/packages. `npm run build` passes.
 
-## Known limitation (existing backend design, not changed)
-`activateFromPayment` keeps one active subscription per user, so buying ArenaX Pro cancels any active Organizer plan and vice versa. The Pro tab shows a short note about this. If you want gamer and organizer plans to coexist, that needs a backend change (category-scoped subscriptions, plus `getMySubscription` / `cancelSubscription` filtering by category).
-
-## Not included
-Advanced-stats view when scouting other players (`GET /users/:id/advanced-stats` is still unused by the UI) and priority-placement visuals in Team Finder.
+## Notes
+- The claim controller's comment says the claimer is auto-added as a member, but the code doesn't set `users.college_id`; after approval the claimer taps "Join this college" themselves. Easy backend follow-up if you want it automatic.
+- Filtering is via links from the college page rather than a dropdown on Team Finder/Tournaments. A "My college" toggle is a quick add later.
+- /colleges is not in the react-snap prerender list (it's live data).

@@ -14,6 +14,7 @@ const PRIMARY_LINKS = [
 ];
 
 const MORE_LINKS = [
+  { to: "/colleges", label: "Colleges" },
   { to: "/communities", label: "The Nexus" },
   { to: "/blog", label: "Blog" },
   { to: "/faq", label: "FAQ" },

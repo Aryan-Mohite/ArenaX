@@ -30,6 +30,8 @@ const Stream     = lazy(() => import("./pages/Stream"));
 const Communities = lazy(() => import("./pages/Communities"));
 const SquadMatch  = lazy(() => import("./pages/SquadMatch"));
 const Dailies     = lazy(() => import("./pages/Dailies"));
+const Colleges    = lazy(() => import("./pages/Colleges"));
+const College     = lazy(() => import("./pages/College"));
 
 // ── Auth pages
 const Login          = lazy(() => import("./pages/Login"));
@@ -92,6 +94,8 @@ export default function App() {
           <Route path="/tournament/:id" element={<Layout><Tournament /></Layout>} />
           <Route path="/teamfinder"    element={<Layout><TeamFinder /></Layout>} />
           <Route path="/communities"   element={<Layout><Communities /></Layout>} />
+          <Route path="/colleges"      element={<Layout><Colleges /></Layout>} />
+          <Route path="/colleges/:slug" element={<Layout><College /></Layout>} />
           <Route
             path="/squadmatch"
             element={

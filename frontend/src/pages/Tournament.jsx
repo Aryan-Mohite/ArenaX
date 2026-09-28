@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useSearchParams } from "react-router-dom";
 import {
   getTournaments,
   getTournamentById,
@@ -12,6 +12,7 @@ import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { themeStyles } from "../utils/themeStyles";
 import SEO from "../components/SEO";
+import { getCollegeStandings } from "../services/collegeService";
 import { OrganizerTierSection } from "../components/OrganizerTiers";
 // ── Shared helpers ────────────────────────────────────────────────────────────
 const STATUS_STYLES = {
@@ -85,6 +86,7 @@ const EMPTY_FORM = {
   organizer_name: "",
   location: "",
   join_link: "",
+  is_inter_college: false,
 };
 
 function OrganizerPostModal({ games, onClose, onCreated }) {
@@ -124,6 +126,7 @@ function OrganizerPostModal({ games, onClose, onCreated }) {
         description: form.description.trim() || undefined,
         image_url: form.image_url.trim() || undefined,
         join_link: form.join_link.trim() || undefined,
+        is_inter_college: form.is_inter_college || undefined,
       };
       const res = await createTournament(payload);
       onCreated(res.data.tournament);
@@ -397,6 +400,14 @@ function OrganizerPostModal({ games, onClose, onCreated }) {
                   onChange={(e) => set("description", e.target.value)}
                 />
               </div>
+              <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={!!form.is_inter_college}
+                  onChange={(e) => set("is_inter_college", e.target.checked)}
+                />
+                🎓 Inter-college tournament (show college vs. college standings)
+              </label>
             </div>
           )}
 
@@ -796,10 +807,19 @@ function TournamentDetail({ id }) {
   const [tournament, setTournament] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [collegeStandings, setCollegeStandings] = useState([]);
 
   useEffect(() => {
     getTournamentById(id)
-      .then((res) => setTournament(res.data.tournament))
+      .then((res) => {
+        setTournament(res.data.tournament);
+        // §3: inter-college tournaments get a college-vs-college table
+        if (res.data.tournament?.is_inter_college) {
+          getCollegeStandings(id)
+            .then((r) => setCollegeStandings(r.data.standings || []))
+            .catch(() => {});
+        }
+      })
       .catch(() => setError("Tournament not found"))
       .finally(() => setLoading(false));
   }, [id]);
@@ -1061,6 +1081,31 @@ function TournamentDetail({ id }) {
         </div>
       )}
 
+      {/* Inter-college standings (§3) */}
+      {t.is_inter_college && (
+        <div className="card mb-6">
+          <h2 className="font-display font-bold text-lg text-white mb-4">🎓 College Standings</h2>
+          {collegeStandings.length === 0 ? (
+            <p className="text-sm text-gray-500">No college teams have entered yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {collegeStandings.map((c, i) => (
+                <Link
+                  key={c.college_id}
+                  to={`/colleges/${c.slug}`}
+                  className="flex items-center gap-3 p-3 rounded-lg border border-surface-border hover:border-red/30 transition-colors"
+                >
+                  <span className="w-6 text-gray-500 text-sm">{i + 1}</span>
+                  <span className="flex-1 text-white font-semibold truncate">{c.name}</span>
+                  <span className="text-xs text-gray-500">{Number(c.teams_entered)} teams</span>
+                  <span className="text-sm text-white font-semibold">{Number(c.wins)} wins</span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Bracket */}
       {t.matches?.length > 0 && (
         <div className="card mb-6">
@@ -1115,6 +1160,10 @@ function TournamentList() {
   const [tournaments, setTournaments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ status: "" });
+  // §3: /tournament?college_id=… (linked from a college page) scopes the list
+  const [searchParams, setSearchParams] = useSearchParams();
+  const collegeId = searchParams.get("college_id");
+  const clearCollege = () => setSearchParams({});
   const [gameScope, setGameScope] = useState("all"); // "all" | "mine"
   const [myGameIds, setMyGameIds] = useState(null); // null = not loaded yet
   const [showForm, setShowForm] = useState(false);
@@ -1128,11 +1177,11 @@ function TournamentList() {
 
   useEffect(() => {
     setLoading(true);
-    getTournaments(filters)
+    getTournaments(collegeId ? { ...filters, college_id: collegeId } : filters)
       .then((res) => setTournaments(res.data.tournaments || []))
       .catch(() => setTournaments([]))
       .finally(() => setLoading(false));
-  }, [filters]);
+  }, [filters, collegeId]);
 
   // Fetch the games the user has added to their profile, to power the
   // "My Games" filter option below.
@@ -1197,6 +1246,12 @@ function TournamentList() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 animate-fade-in">
+      {collegeId && (
+        <div className="mb-4 inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full border border-red/30 bg-red/10 text-red">
+          🎓 Filtered by college
+          <button onClick={clearCollege} className="hover:text-white" aria-label="Clear college filter">✕</button>
+        </div>
+      )}
       <SEO
         title="Esports Tournaments — Valorant, CS2 & FPS Tournaments"
         description="Join free esports tournaments on ArenaX — Valorant, CS2, League of Legends, Fortnite, Dota 2, and Apex Legends. Compete in online tournaments worldwide, win prizes, and track your rank."

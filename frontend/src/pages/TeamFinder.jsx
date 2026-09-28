@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import API from "../api/api";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   getPosts,
   createPost,
@@ -1339,6 +1339,10 @@ export default function TeamFinder() {
   const [showForm, setShowForm] = useState(false);
   const [prefilledTeam, setPrefilledTeam] = useState(null);
   const [filters, setFilters] = useState({ game_id: "", team_id: "" });
+  // §3: /teamfinder?college_id=… (linked from a college page) scopes posts
+  const [searchParams, setSearchParams] = useSearchParams();
+  const collegeId = searchParams.get("college_id");
+  const clearCollege = () => setSearchParams({});
   const [error, setError] = useState("");
   const [toast, setToast] = useState({ msg: "", type: "success" });
   const [applyPost, setApplyPost] = useState(null);
@@ -1367,6 +1371,7 @@ export default function TeamFinder() {
         const params = {};
         if (filters.game_id) params.game_id = filters.game_id;
         if (filters.team_id) params.team_id = filters.team_id;
+        if (collegeId) params.college_id = collegeId;
         const res = await getPosts(params);
         setPosts(res.data.posts || []);
       } catch {
@@ -1375,7 +1380,7 @@ export default function TeamFinder() {
         setLoading(false);
       }
     },
-    [filters],
+    [filters, collegeId],
   );
   useEffect(() => {
     loadPosts(true);
@@ -1449,6 +1454,12 @@ export default function TeamFinder() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 animate-fade-in">
+      {collegeId && (
+        <div className="mb-4 inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full border border-red/30 bg-red/10 text-red">
+          🎓 Filtered by college
+          <button onClick={clearCollege} className="hover:text-white" aria-label="Clear college filter">✕</button>
+        </div>
+      )}
       <SEO
         title="Esports Team Finder — Find Teammates for Valorant, CS2 & More"
         description="ArenaX Team Finder helps you find esports teammates fast. Match by game, rank, role, and availability across Valorant, CS2, League of Legends, and more — free team finder for competitive players."
