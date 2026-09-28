@@ -88,6 +88,9 @@ export default function AdminDashboard() {
     { id: "organizers", label: "Organizers", icon: "🎖️" },
     { id: "analytics", label: "Analytics", icon: "📈" },
     { id: "colleges", label: "Colleges", icon: "🎓" },
+    { id: "disputes", label: "Disputes", icon: "💸" },
+    { id: "gear", label: "Gear", icon: "🎧" },
+    { id: "sponsors", label: "Sponsors", icon: "🤝" },
     { id: "archives", label: "Archives", icon: "🗄️" },
   ];
 
@@ -155,6 +158,9 @@ export default function AdminDashboard() {
         {tab === "organizers" && <OrganizersTab showToast={showToast} />}
         {tab === "analytics" && <AnalyticsTab showToast={showToast} />}
         {tab === "colleges" && <CollegesTab showToast={showToast} />}
+        {tab === "disputes" && <DisputesTab showToast={showToast} />}
+        {tab === "gear" && <GearTab showToast={showToast} />}
+        {tab === "sponsors" && <SponsorsTab showToast={showToast} />}
       </div>
     </div>
   );
@@ -1615,6 +1621,337 @@ function CollegesTab({ showToast }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// TAB — DISPUTES (§9 — manual refund/dispute review)
+// ══════════════════════════════════════════════════════════════════════════════
+function DisputesTab({ showToast }) {
+  const [status, setStatus] = useState("open");
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [notes, setNotes] = useState({});
+  const [busyId, setBusyId] = useState(null);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    apiFetch(`/admin/disputes?status=${status}`)
+      .then((d) => setRows(d.disputes || []))
+      .catch((e) => showToast(`Failed to load disputes: ${e.message}`, false))
+      .finally(() => setLoading(false));
+  }, [status, showToast]);
+  useEffect(() => { load(); }, [load]);
+
+  const resolve = async (d, outcome) => {
+    if (outcome === "refunded" && !window.confirm("Mark as refunded? This cancels their subscription. Issue the actual refund in Razorpay yourself.")) return;
+    setBusyId(d.dispute_id);
+    try {
+      await apiFetch(`/admin/disputes/${d.dispute_id}/resolve`, {
+        method: "POST",
+        body: JSON.stringify({ status: outcome, note: notes[d.dispute_id] || undefined }),
+      });
+      showToast(outcome === "refunded" ? "Marked refunded" : "Dispute denied");
+      load();
+    } catch (e) {
+      showToast(e.message, false);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div>
+          <h2 className="section-title">Payment Disputes</h2>
+          <p className="section-subtitle">Refunds are issued manually in Razorpay — this records the decision</p>
+        </div>
+        <div className="flex gap-1 bg-navy rounded-lg p-1">
+          {["open", "refunded", "denied"].map((s) => (
+            <button key={s} onClick={() => setStatus(s)}
+              className={`px-3 py-1 rounded-md text-xs font-semibold capitalize transition-colors ${
+                status === s ? "bg-red text-white" : "text-gray-400 hover:text-white"}`}>
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
+      {loading ? <LoadingRows /> : rows.length === 0 ? (
+        <div className="card text-center py-12 text-gray-600 text-sm">No {status} disputes</div>
+      ) : (
+        <div className="space-y-3">
+          {rows.map((d) => (
+            <div key={d.dispute_id} className="card">
+              <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+                <p className="font-semibold text-white">
+                  @{d.username} · ₹{Number(d.amount).toLocaleString("en-IN")}
+                </p>
+                <p className="text-xs text-gray-500">{fmt(d.created_at)} · {d.gateway_payment_id || `payment #${d.payment_id}`}</p>
+              </div>
+              <p className="text-sm text-gray-300 mb-3">{d.reason}</p>
+              {status === "open" ? (
+                <div className="flex flex-wrap gap-2">
+                  <input className="input flex-1 min-w-[180px] text-sm" placeholder="Note to keep on record (optional)"
+                    value={notes[d.dispute_id] || ""}
+                    onChange={(e) => setNotes((n) => ({ ...n, [d.dispute_id]: e.target.value }))} />
+                  <button className="btn-primary text-sm" disabled={busyId === d.dispute_id} onClick={() => resolve(d, "refunded")}>Refund</button>
+                  <button className="btn-ghost text-sm" disabled={busyId === d.dispute_id} onClick={() => resolve(d, "denied")}>Deny</button>
+                </div>
+              ) : d.admin_note ? (
+                <p className="text-xs text-gray-500">Note: {d.admin_note}</p>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// TAB — GEAR (§8 — affiliate items shown on /gear)
+// ══════════════════════════════════════════════════════════════════════════════
+function GearTab({ showToast }) {
+  const EMPTY = { name: "", category: "", image_url: "", price_display: "", affiliate_url: "" };
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState(EMPTY);
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(() => {
+    apiFetch("/admin/gear")
+      .then((d) => setItems(d.gear || []))
+      .catch((e) => showToast(`Failed to load gear: ${e.message}`, false))
+      .finally(() => setLoading(false));
+  }, [showToast]);
+  useEffect(() => { load(); }, [load]);
+
+  const add = async () => {
+    if (!form.name.trim() || !form.affiliate_url.trim()) return showToast("Name and affiliate URL are required", false);
+    setBusy(true);
+    try {
+      const body = Object.fromEntries(Object.entries(form).filter(([, v]) => v.trim()));
+      await apiFetch("/admin/gear", { method: "POST", body: JSON.stringify(body) });
+      setForm(EMPTY);
+      showToast("Gear item added");
+      load();
+    } catch (e) { showToast(e.message, false); }
+    finally { setBusy(false); }
+  };
+
+  const toggle = async (g) => {
+    try {
+      await apiFetch(`/admin/gear/${g.item_id}`, { method: "PATCH", body: JSON.stringify({ is_active: !g.is_active }) });
+      load();
+    } catch (e) { showToast(e.message, false); }
+  };
+
+  const remove = async (g) => {
+    if (!window.confirm(`Delete "${g.name}"?`)) return;
+    try {
+      await apiFetch(`/admin/gear/${g.item_id}`, { method: "DELETE" });
+      load();
+    } catch (e) { showToast(e.message, false); }
+  };
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h2 className="section-title">Gear</h2>
+        <p className="section-subtitle">Affiliate items shown on /gear — clicks are tracked through the redirect</p>
+      </div>
+
+      <div className="card mb-6 grid sm:grid-cols-2 gap-3">
+        <input className="input" placeholder="Name *" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+        <input className="input" placeholder="Category (e.g. mouse, headset)" value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} />
+        <input className="input sm:col-span-2" type="url" placeholder="Affiliate URL * (https://…)" value={form.affiliate_url} onChange={(e) => setForm((f) => ({ ...f, affiliate_url: e.target.value }))} />
+        <input className="input" type="url" placeholder="Image URL" value={form.image_url} onChange={(e) => setForm((f) => ({ ...f, image_url: e.target.value }))} />
+        <input className="input" placeholder="Price shown (e.g. ₹2,499)" value={form.price_display} onChange={(e) => setForm((f) => ({ ...f, price_display: e.target.value }))} />
+        <button className="btn-primary text-sm sm:col-span-2" disabled={busy} onClick={add}>{busy ? "Adding…" : "Add item"}</button>
+      </div>
+
+      {loading ? <LoadingRows /> : items.length === 0 ? (
+        <div className="card text-center py-12 text-gray-600 text-sm">No gear items yet</div>
+      ) : (
+        <div className="space-y-2">
+          {items.map((g) => (
+            <div key={g.item_id} className="card flex flex-wrap items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <p className={`font-semibold truncate ${g.is_active ? "text-white" : "text-gray-600"}`}>{g.name}</p>
+                <p className="text-xs text-gray-500">{g.category || "uncategorised"} · {Number(g.total_clicks)} clicks</p>
+              </div>
+              <button className="btn-secondary text-xs" onClick={() => toggle(g)}>{g.is_active ? "Hide" : "Show"}</button>
+              <button className="btn-ghost text-xs" onClick={() => remove(g)}>Delete</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// TAB — SPONSORS (§5 — applications, manual placements, participation insights)
+// ══════════════════════════════════════════════════════════════════════════════
+function SponsorsTab({ showToast }) {
+  const [apps, setApps] = useState([]);
+  const [approved, setApproved] = useState([]);
+  const [placements, setPlacements] = useState([]);
+  const [tournaments, setTournaments] = useState([]);
+  const [insights, setInsights] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState({ tournament_id: "", sponsor_id: "", slot_type: "featured_tournament", ends_at: "" });
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(() => {
+    Promise.all([
+      apiFetch("/admin/sponsors?status=pending"),
+      apiFetch("/admin/sponsors?status=approved"),
+      apiFetch("/admin/placements"),
+      apiFetch("/admin/sponsor-insights"),
+      apiFetch("/tournaments"),
+    ])
+      .then(([a, ap, pl, ins, t]) => {
+        setApps(a.sponsors || []);
+        setApproved(ap.sponsors || []);
+        setPlacements(pl.placements || []);
+        setInsights(ins.insights);
+        setTournaments(t.tournaments || []);
+      })
+      .catch((e) => showToast(`Failed to load sponsors: ${e.message}`, false))
+      .finally(() => setLoading(false));
+  }, [showToast]);
+  useEffect(() => { load(); }, [load]);
+
+  const decide = async (a, action) => {
+    try {
+      await apiFetch(`/admin/sponsors/${a.sponsor_id}/${action}`, { method: "POST" });
+      showToast(action === "approve" ? `${a.company_name} approved` : `${a.company_name} rejected`);
+      load();
+    } catch (e) { showToast(e.message, false); }
+  };
+
+  const addPlacement = async () => {
+    if (!form.tournament_id || !form.sponsor_id) return showToast("Pick a tournament and a sponsor", false);
+    setBusy(true);
+    try {
+      await apiFetch("/admin/placements", {
+        method: "POST",
+        body: JSON.stringify({
+          tournament_id: Number(form.tournament_id),
+          sponsor_id: Number(form.sponsor_id),
+          slot_type: form.slot_type,
+          ...(form.ends_at ? { ends_at: new Date(form.ends_at).toISOString() } : {}),
+        }),
+      });
+      showToast("Placement created");
+      setForm((f) => ({ ...f, tournament_id: "", ends_at: "" }));
+      load();
+    } catch (e) { showToast(e.message, false); }
+    finally { setBusy(false); }
+  };
+
+  const togglePlacement = async (pl) => {
+    try {
+      await apiFetch(`/admin/placements/${pl.placement_id}`, { method: "PATCH", body: JSON.stringify({ is_active: !pl.is_active }) });
+      load();
+    } catch (e) { showToast(e.message, false); }
+  };
+
+  if (loading) return <LoadingRows />;
+
+  const qoq = insights?.tournamentParticipation?.qoqChangePercent;
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h2 className="section-title">Sponsors</h2>
+        <p className="section-subtitle">Review applications, assign placements manually, and pull the participation numbers sponsors care about</p>
+      </div>
+
+      {/* Insights */}
+      {insights && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            ["Registrations (this quarter)", insights.tournamentParticipation.thisQuarter],
+            ["Registrations (last quarter)", insights.tournamentParticipation.lastQuarter],
+            ["QoQ change", qoq === null ? "—" : `${qoq > 0 ? "+" : ""}${qoq}%`],
+            ["College-player share", `${Math.round(insights.collegePlayerShare * 100)}%`],
+          ].map(([l, v]) => (
+            <div key={l} className="card">
+              <div className="text-2xl font-display font-bold text-white">{v}</div>
+              <div className="text-xs text-gray-500 mt-1">{l}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Pending applications */}
+      <div>
+        <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Pending applications</h3>
+        {apps.length === 0 ? (
+          <div className="card text-center py-8 text-gray-600 text-sm">No pending applications</div>
+        ) : (
+          <div className="space-y-3">
+            {apps.map((a) => (
+              <div key={a.sponsor_id} className="card flex flex-wrap items-center gap-4">
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-white">{a.company_name}</p>
+                  <p className="text-xs text-gray-500">
+                    @{a.username} · {a.contact_email || a.email}{a.website ? ` · ${a.website}` : ""}
+                  </p>
+                </div>
+                <button className="btn-primary text-sm" onClick={() => decide(a, "approve")}>Approve</button>
+                <button className="btn-ghost text-sm" onClick={() => decide(a, "reject")}>Reject</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Placements */}
+      <div>
+        <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Featured placements</h3>
+        <div className="card mb-4 grid sm:grid-cols-2 gap-3">
+          <select className="input" value={form.tournament_id} onChange={(e) => setForm((f) => ({ ...f, tournament_id: e.target.value }))}>
+            <option value="">Select tournament…</option>
+            {tournaments.map((t) => <option key={t.tournament_id} value={t.tournament_id}>{t.name}</option>)}
+          </select>
+          <select className="input" value={form.sponsor_id} onChange={(e) => setForm((f) => ({ ...f, sponsor_id: e.target.value }))}>
+            <option value="">Select approved sponsor…</option>
+            {approved.map((a) => <option key={a.sponsor_id} value={a.sponsor_id}>{a.company_name}</option>)}
+          </select>
+          <select className="input" value={form.slot_type} onChange={(e) => setForm((f) => ({ ...f, slot_type: e.target.value }))}>
+            <option value="featured_tournament">Featured tournament</option>
+            <option value="banner">Banner</option>
+          </select>
+          <input className="input" type="date" title="Ends on (optional)" value={form.ends_at} onChange={(e) => setForm((f) => ({ ...f, ends_at: e.target.value }))} />
+          <button className="btn-primary text-sm sm:col-span-2" disabled={busy} onClick={addPlacement}>
+            {busy ? "Creating…" : "Create placement"}
+          </button>
+        </div>
+        {placements.length === 0 ? (
+          <div className="card text-center py-8 text-gray-600 text-sm">No placements yet</div>
+        ) : (
+          <div className="space-y-2">
+            {placements.map((pl) => (
+              <div key={pl.placement_id} className="card flex flex-wrap items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className={`font-semibold truncate ${pl.is_active ? "text-white" : "text-gray-600"}`}>{pl.tournament_name}</p>
+                  <p className="text-xs text-gray-500">
+                    {pl.sponsor_name} · {pl.slot_type.replace("_", " ")}{pl.ends_at ? ` · until ${fmt(pl.ends_at)}` : " · no end date"}
+                  </p>
+                </div>
+                <button className="btn-secondary text-xs" onClick={() => togglePlacement(pl)}>
+                  {pl.is_active ? "Deactivate" : "Activate"}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

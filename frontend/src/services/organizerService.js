@@ -8,3 +8,6 @@ export const getMyTournamentsSummary = ()             => API.get('/tournaments/m
 export const updateTournamentBranding = (id, data)    => API.patch(`/tournaments/${id}/branding`, data)
 export const getTournamentAnalytics   = (id)          => API.get(`/tournaments/${id}/analytics`)
 export const announceToTournament     = (id, message) => API.post(`/tournaments/${id}/announce`, { message })
+
+// §9 Organizer Terms / Tournament Agreement
+export const acceptOrganizerTerms = () => API.post('/organizers/accept-terms')

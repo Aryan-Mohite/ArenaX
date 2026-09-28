@@ -6,3 +6,4 @@ export const createTournament       = (data)           => API.post('/tournaments
 export const registerForTournament  = (id, data)       => API.post(`/tournaments/${id}/register`, data)
 export const updateTournamentStatus = (id, status)     => API.patch(`/tournaments/${id}/status`, { status })
 export const deleteTournament       = (id)             => API.delete(`/archive/tournaments/${id}`)
+export const getFeaturedTournaments = ()              => API.get('/tournaments/featured')

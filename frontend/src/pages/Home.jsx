@@ -8,6 +8,7 @@ import SEO from "../components/SEO";
 import DailyCheckinButton from "../components/DailyCheckinButton";
 import DailiesPromoButton from "../components/DailiesPromoButton";
 import GameShowcase from "../components/GameShowcase";
+import FeaturedTournaments from "../components/FeaturedTournaments";
 
 // ─── Skeleton loaders ────────────────────────────────────────────────────────
 function SkeletonCard({ className = "" }) {
@@ -450,6 +451,7 @@ export default function Home() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16 space-y-20">
+        <FeaturedTournaments />
         <DailyCheckinButton />
 
         {/* ══════════════════════════════════════════════════════

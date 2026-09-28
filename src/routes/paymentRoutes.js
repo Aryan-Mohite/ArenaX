@@ -7,6 +7,7 @@ import {
   cancelSubscription,
   getMySubscription,
   disputePayment,
+  getMyPayments,
 } from "../controllers/paymentController.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 import { body, param } from "express-validator";
@@ -45,6 +46,7 @@ router.get("/subscription", authMiddleware, getMySubscription);
 router.post("/cancel", authMiddleware, cancelSubscription);
 
 // §9: refund/dispute path
+router.get("/mine", authMiddleware, getMyPayments);
 router.post(
   "/:paymentId/dispute",
   authMiddleware,

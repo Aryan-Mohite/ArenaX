@@ -33,6 +33,8 @@ const Dailies     = lazy(() => import("./pages/Dailies"));
 const Colleges    = lazy(() => import("./pages/Colleges"));
 const College     = lazy(() => import("./pages/College"));
 const Referrals   = lazy(() => import("./pages/Referrals"));
+const Gear        = lazy(() => import("./pages/Gear"));
+const Sponsor     = lazy(() => import("./pages/Sponsor"));
 
 // ── Auth pages
 const Login          = lazy(() => import("./pages/Login"));
@@ -96,6 +98,8 @@ export default function App() {
           <Route path="/teamfinder"    element={<Layout><TeamFinder /></Layout>} />
           <Route path="/communities"   element={<Layout><Communities /></Layout>} />
           <Route path="/colleges"      element={<Layout><Colleges /></Layout>} />
+          <Route path="/gear"          element={<Layout><Gear /></Layout>} />
+          <Route path="/sponsor"       element={<Layout><Sponsor /></Layout>} />
           <Route path="/colleges/:slug" element={<Layout><College /></Layout>} />
           <Route
             path="/squadmatch"

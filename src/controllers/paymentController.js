@@ -213,6 +213,27 @@ export const getMySubscription = async (req, res, next) => {
 // Manual admin process, as the roadmap explicitly allows — this just opens
 // the dispute; an admin resolves it via adminController.resolveDispute.
 // No automatic Razorpay refund call here.
+// GET /api/payments/mine — the caller's own payment history, newest first,
+// with the state of any dispute so the UI knows whether to offer "Dispute".
+export const getMyPayments = async (req, res, next) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT p.payment_id, p.amount, p.currency, p.status, p.created_at,
+              pl.name AS plan_name,
+              (SELECT d.status FROM payment_disputes d
+                WHERE d.payment_id = p.payment_id
+                ORDER BY d.created_at DESC LIMIT 1) AS dispute_status
+         FROM payments p
+         LEFT JOIN plans pl ON pl.plan_id = p.plan_id
+        WHERE p.user_id = ? AND p.status IN ('success', 'refunded')
+        ORDER BY p.created_at DESC
+        LIMIT 50`,
+      [req.user.id]
+    );
+    res.json({ success: true, payments: rows });
+  } catch (err) { next(err); }
+};
+
 export const disputePayment = async (req, res, next) => {
   try {
     const { paymentId } = req.params;

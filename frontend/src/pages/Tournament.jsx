@@ -13,6 +13,8 @@ import { useTheme } from "../context/ThemeContext";
 import { themeStyles } from "../utils/themeStyles";
 import SEO from "../components/SEO";
 import { getCollegeStandings } from "../services/collegeService";
+import { acceptOrganizerTerms } from "../services/organizerService";
+import FeaturedTournaments from "../components/FeaturedTournaments";
 import { OrganizerTierSection } from "../components/OrganizerTiers";
 // ── Shared helpers ────────────────────────────────────────────────────────────
 const STATUS_STYLES = {
@@ -98,6 +100,9 @@ function OrganizerPostModal({ games, onClose, onCreated }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1); // 1 = basics, 2 = details, 3 = media
+  // §9: set when the API says a Pro-tier tournament needs the Organizer Terms accepted first
+  const [termsPrompt, setTermsPrompt] = useState(false);
+  const [termsChecked, setTermsChecked] = useState(false);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -137,11 +142,24 @@ function OrganizerPostModal({ games, onClose, onCreated }) {
         setError(
           data.errors.map((e) => `${e.field}: ${e.message}`).join(" · "),
         );
+      } else if (err.response?.status === 403 && data?.terms_version) {
+        setTermsPrompt(true);
       } else {
         setError(data?.message || "Failed to create tournament");
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const acceptTermsAndRetry = async () => {
+    try {
+      await acceptOrganizerTerms();
+      setTermsPrompt(false);
+      await handleSubmit();
+    } catch (e) {
+      setTermsPrompt(false);
+      setError(e.response?.data?.message || "Couldn't record your acceptance");
     }
   };
 
@@ -152,6 +170,32 @@ function OrganizerPostModal({ games, onClose, onCreated }) {
       className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto"
       style={ts.modalBackdrop}
     >
+      {termsPrompt && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80">
+          <div className="card max-w-md w-full">
+            <h3 className="font-display font-bold text-lg text-white mb-2">Organizer Terms &amp; Tournament Agreement</h3>
+            <p className="text-sm text-gray-400 mb-3">
+              Before publishing a Pro-tier tournament you need to agree to run it in good faith:
+            </p>
+            <ul className="text-sm text-gray-400 list-disc pl-5 space-y-1 mb-4">
+              <li>Prizes, dates and rules you publish are accurate and honoured.</li>
+              <li>You will not run fake tournaments or collect payments you can't fulfil.</li>
+              <li>ArenaX may remove tournaments and suspend organizers that break these terms.</li>
+            </ul>
+            <label className="flex items-start gap-2 text-sm text-gray-300 cursor-pointer mb-4">
+              <input type="checkbox" checked={termsChecked} onChange={(e) => setTermsChecked(e.target.checked)} className="mt-1" />
+              I have read and agree to the Organizer Terms.
+            </label>
+            <div className="flex justify-end gap-2">
+              <button className="btn-ghost text-sm" onClick={() => setTermsPrompt(false)}>Cancel</button>
+              <button className="btn-primary text-sm" disabled={!termsChecked} onClick={acceptTermsAndRetry}>
+                Agree &amp; publish
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div
         className="w-full max-w-2xl my-4 rounded-2xl border border-surface-border overflow-hidden animate-slide-up"
         style={{
@@ -1246,6 +1290,7 @@ function TournamentList() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 animate-fade-in">
+      <FeaturedTournaments className="mb-8" />
       {collegeId && (
         <div className="mb-4 inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full border border-red/30 bg-red/10 text-red">
           🎓 Filtered by college

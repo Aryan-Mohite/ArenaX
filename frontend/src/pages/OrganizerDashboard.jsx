@@ -20,6 +20,7 @@ import {
 } from "../services/organizerService";
 import { PlansModal } from "../components/OrganizerTiers";
 import { loadRazorpayScript } from "../utils/razorpay";
+import PaymentHistory from "../components/PaymentHistory";
 
 export default function OrganizerDashboard() {
   const { user } = useAuth();
@@ -176,6 +177,8 @@ export default function OrganizerDashboard() {
           )}
         </div>
       </div>
+
+      <div className="mb-8"><PaymentHistory /></div>
 
       {/* ── Verification banner ──────────────────────────────────────── */}
       {featureFlags.branded_page && verification?.status !== "approved" && (

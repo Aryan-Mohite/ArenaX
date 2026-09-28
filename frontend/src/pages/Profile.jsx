@@ -18,6 +18,7 @@ import {
   cancelSubscription,
 } from "../services/paymentService";
 import { loadRazorpayScript } from "../utils/razorpay";
+import PaymentHistory from "../components/PaymentHistory";
 import { TierCard, GAMER_TIER_CONTENT } from "../components/OrganizerTiers";
 import { PageLoader, ErrorMessage, StatCard } from "../components/UI";
 import { useAuth } from "../context/AuthContext";
@@ -1076,6 +1077,8 @@ export default function Profile() {
               })}
             </div>
           )}
+
+          <PaymentHistory />
 
           <p className="text-xs text-gray-600">
             Heads up: an account can only hold one active paid plan at a time, so
