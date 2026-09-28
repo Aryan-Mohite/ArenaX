@@ -1,1 +1,0 @@
-let t=null;function e(){return t||(t=new Promise(o=>{if(window.Razorpay)return o(!0);const r=document.createElement("script");r.src="https://checkout.razorpay.com/v1/checkout.js",r.onload=()=>o(!0),r.onerror=()=>o(!1),document.body.appendChild(r)}),t)}export{e as l};
