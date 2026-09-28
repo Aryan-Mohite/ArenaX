@@ -18,23 +18,8 @@ import {
   getTournamentAnalytics,
   announceToTournament,
 } from "../services/organizerService";
-import { TierCard } from "../components/OrganizerTiers";
-
-// Loads Razorpay's checkout script once and caches the promise so repeated
-// upgrade clicks don't re-inject the <script> tag.
-let razorpayScriptPromise = null;
-function loadRazorpayScript() {
-  if (razorpayScriptPromise) return razorpayScriptPromise;
-  razorpayScriptPromise = new Promise((resolve) => {
-    if (window.Razorpay) return resolve(true);
-    const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
-    script.onload = () => resolve(true);
-    script.onerror = () => resolve(false);
-    document.body.appendChild(script);
-  });
-  return razorpayScriptPromise;
-}
+import { PlansModal } from "../components/OrganizerTiers";
+import { loadRazorpayScript } from "../utils/razorpay";
 
 export default function OrganizerDashboard() {
   const { user } = useAuth();
@@ -330,43 +315,6 @@ function StatusBadge({ status }) {
     >
       {s.label}
     </span>
-  );
-}
-
-function PlansModal({ plans, current, onClose, onSelect }) {
-  return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="card max-w-2xl w-full max-h-[85vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-5">
-          <div>
-            <h3 className="font-display font-bold text-lg text-white">Choose a plan</h3>
-            <p className="text-xs text-gray-500 mt-0.5">Tap a card to see what's included.</p>
-          </div>
-          <button className="btn-ghost text-sm" onClick={onClose}>Close</button>
-        </div>
-        <div className="grid sm:grid-cols-2 gap-4">
-          {plans.map((p) => {
-            const isCurrent = p.plan_key === current;
-            return (
-              <TierCard
-                key={p.plan_id}
-                plan={p}
-                isCurrent={isCurrent}
-                cta={
-                  <button
-                    className="btn-primary w-full text-sm"
-                    disabled={isCurrent || Number(p.price) === 0}
-                    onClick={() => onSelect(p)}
-                  >
-                    {isCurrent ? "Current Plan" : Number(p.price) === 0 ? "Free" : "Select"}
-                  </button>
-                }
-              />
-            );
-          })}
-        </div>
-      </div>
-    </div>
   );
 }
 

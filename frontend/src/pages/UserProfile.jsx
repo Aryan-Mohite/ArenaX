@@ -568,8 +568,17 @@ export default function UserProfile() {
             <div className="flex-1 min-w-0 sm:pb-1">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <h1 className="font-display font-bold text-3xl text-white leading-tight">
+                  <h1 className="font-display font-bold text-3xl text-white leading-tight flex items-center gap-2 flex-wrap">
                     {profile?.username}
+                    {profile?.is_verified && (
+                      <span
+                        title="ArenaX Pro — verified profile"
+                        className="text-xs font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1"
+                        style={{ background: "rgba(234,179,8,0.15)", color: "#eab308" }}
+                      >
+                        ⭐ ArenaX Pro
+                      </span>
+                    )}
                   </h1>
                   {(() => {
                     const badge = getKarmaBadge(profile?.karma_positive, profile?.karma_negative);

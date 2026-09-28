@@ -38,6 +38,38 @@ export const ORGANIZER_TIER_CONTENT = {
   },
 };
 
+// ─── Gamer tier copy (§4 — ArenaX Pro membership) ──────────────────────────
+// Same pattern as ORGANIZER_TIER_CONTENT above, keyed by plan_key, kept in
+// sync with the `gamer_pro` row's feature_flags rather than deriving copy
+// from the raw booleans.
+export const GAMER_TIER_CONTENT = {
+  gamer_free: {
+    tagline: "The free side of ArenaX — always wide open.",
+    icon: "🎮",
+    features: [
+      { label: "Team Finder & tournament browsing", included: true },
+      { label: "Community (The Nexus)", included: true },
+      { label: "Verified-profile badge", included: false },
+      { label: "Advanced player stats when scouting others", included: false },
+      { label: "Priority placement in Team Finder", included: false },
+      { label: "Profile banner customization", included: false },
+    ],
+  },
+  gamer_pro: {
+    tagline: "Stand out, scout smarter, get found first.",
+    icon: "⭐",
+    badge: "ArenaX Pro",
+    highlight: true,
+    features: [
+      { label: "Everything free players get", included: true },
+      { label: "Verified-profile badge", included: true },
+      { label: "Advanced player stats when scouting others", included: true },
+      { label: "Priority placement in Team Finder search", included: true },
+      { label: "Profile banner customization", included: true },
+    ],
+  },
+};
+
 function formatPrice(plan) {
   const price = Number(plan.price);
   if (price === 0) return { amount: "Free", suffix: "" };
@@ -51,9 +83,9 @@ function formatPrice(plan) {
 // Collapsed: name, price, tagline. Click anywhere on the card to expand the
 // full feature breakdown in place. The CTA is supplied by the caller since
 // it differs (checkout in the dashboard vs. a link to the dashboard here).
-export function TierCard({ plan, isCurrent, cta }) {
+export function TierCard({ plan, isCurrent, cta, contentMap = ORGANIZER_TIER_CONTENT }) {
   const [expanded, setExpanded] = useState(false);
-  const content = ORGANIZER_TIER_CONTENT[plan.plan_key] || {};
+  const content = contentMap[plan.plan_key] || {};
   const { amount, suffix } = formatPrice(plan);
   const highlight = !!content.highlight;
 
@@ -131,6 +163,51 @@ export function TierCard({ plan, isCurrent, cta }) {
 
       <div className="mt-5" onClick={(e) => e.stopPropagation()}>
         {cta}
+      </div>
+    </div>
+  );
+}
+
+// ─── PlansModal ─────────────────────────────────────────────────────────────
+// Shared checkout picker: renders a grid of TierCards for whatever `plans`
+// array the caller passes (organizer tiers or gamer tiers — same shape from
+// `getPlans(category)`), and defers the actual checkout to `onSelect`.
+// Originally lived only in OrganizerDashboard.jsx; pulled out here so the
+// Profile page's ArenaX Pro upgrade flow (§4) can reuse the exact same
+// picker instead of a second hand-rolled modal.
+export function PlansModal({ plans, current, onClose, onSelect, contentMap }) {
+  return (
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+      <div className="card max-w-2xl w-full max-h-[85vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h3 className="font-display font-bold text-lg text-white">Choose a plan</h3>
+            <p className="text-xs text-gray-500 mt-0.5">Tap a card to see what's included.</p>
+          </div>
+          <button className="btn-ghost text-sm" onClick={onClose}>Close</button>
+        </div>
+        <div className="grid sm:grid-cols-2 gap-4">
+          {plans.map((p) => {
+            const isCurrent = p.plan_key === current;
+            return (
+              <TierCard
+                key={p.plan_id}
+                plan={p}
+                isCurrent={isCurrent}
+                contentMap={contentMap}
+                cta={
+                  <button
+                    className="btn-primary w-full text-sm"
+                    disabled={isCurrent || Number(p.price) === 0}
+                    onClick={() => onSelect(p)}
+                  >
+                    {isCurrent ? "Current Plan" : Number(p.price) === 0 ? "Free" : "Select"}
+                  </button>
+                }
+              />
+            );
+          })}
+        </div>
       </div>
     </div>
   );

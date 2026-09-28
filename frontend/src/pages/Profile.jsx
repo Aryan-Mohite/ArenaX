@@ -10,6 +10,15 @@ import {
   updateGameIds,
 } from "../services/userService";
 import { getMyGames } from "../services/gameService";
+import {
+  getPlans,
+  getMySubscription,
+  createPaymentOrder,
+  verifyPayment,
+  cancelSubscription,
+} from "../services/paymentService";
+import { loadRazorpayScript } from "../utils/razorpay";
+import { TierCard, GAMER_TIER_CONTENT } from "../components/OrganizerTiers";
 import { PageLoader, ErrorMessage, StatCard } from "../components/UI";
 import { useAuth } from "../context/AuthContext";
 import API from "../api/api";
@@ -170,6 +179,13 @@ export default function Profile() {
   const [activeChatTeam, setActiveChatTeam] = useState(null);
   const { unread } = useChatContext();
 
+  // ── ArenaX Pro (§4 — premium gamer membership) ──────────────────────────
+  const [subscription, setSubscription] = useState(null);
+  const [gamerPlans, setGamerPlans] = useState([]);
+  const [proBusy, setProBusy] = useState(false);
+  const featureFlags = subscription?.feature_flags || {};
+  const isPro = subscription?.plan_key === "gamer_pro";
+
   const showToast = (msg) => {
     setToast(msg);
     setTimeout(() => setToast(""), 2500);
@@ -187,6 +203,7 @@ export default function Profile() {
           country: p.country || "",
           region: p.region || "",
           profile_picture: p.profile_picture || "",
+          profile_banner_url: p.profile_banner_url || "",
         });
         if (p.profile_picture) setAvatarPreview(p.profile_picture);
         setGames(gamesRes.data.games || []);
@@ -199,6 +216,14 @@ export default function Profile() {
           const ids = gidsRes.data.game_ids || {};
           setGameIds(ids);
           setGameIdsForm(ids);
+        } catch {}
+        try {
+          const [subRes, plansRes] = await Promise.all([
+            getMySubscription(),
+            getPlans("gamer"),
+          ]);
+          setSubscription(subRes.data.subscription);
+          setGamerPlans(plansRes.data.plans || []);
         } catch {}
         try {
           const statsRes = await API.get("/users/me/stats");
@@ -266,6 +291,61 @@ export default function Profile() {
     }
   };
 
+  const handleProUpgrade = async (plan) => {
+    setProBusy(true);
+    try {
+      const scriptOk = await loadRazorpayScript();
+      if (!scriptOk) {
+        showToast("Couldn't load the payment SDK — check your connection");
+        return;
+      }
+      const { data } = await createPaymentOrder(plan.plan_id);
+      const rzp = new window.Razorpay({
+        key: data.key_id,
+        amount: data.order.amount,
+        currency: data.order.currency,
+        order_id: data.order.id,
+        name: "ArenaX",
+        description: `Upgrade to ${data.plan.name}`,
+        theme: { color: "#ff4655" },
+        handler: async (response) => {
+          try {
+            await verifyPayment({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            });
+            showToast(`Upgraded to ${data.plan.name}!`);
+            const subRes = await getMySubscription();
+            setSubscription(subRes.data.subscription);
+          } catch (e) {
+            showToast(e.response?.data?.message || "Payment verification failed");
+          }
+        },
+      });
+      rzp.on("payment.failed", () => showToast("Payment failed — nothing was charged"));
+      rzp.open();
+    } catch (e) {
+      showToast(e.response?.data?.message || "Couldn't start checkout");
+    } finally {
+      setProBusy(false);
+    }
+  };
+
+  const handleProCancel = async () => {
+    if (!window.confirm("Downgrade to the free plan? You'll lose your ArenaX Pro perks immediately.")) return;
+    setProBusy(true);
+    try {
+      await cancelSubscription();
+      showToast("Downgraded to free plan");
+      setSubscription(null);
+    } catch (e) {
+      showToast(e.response?.data?.message || "Couldn't cancel subscription");
+    } finally {
+      setProBusy(false);
+    }
+  };
+
   if (loading) return <PageLoader />;
   // const totalMatches = games.reduce((s, g) => s + (g.matches_played || 0), 0);
   // const avgWinRate = games.length
@@ -287,6 +367,7 @@ export default function Profile() {
       id: "teams",
       label: `🛡️ Teams${myTeams.length ? ` (${myTeams.length})` : ""}`,
     },
+    { id: "arenaxpro", label: isPro ? "⭐ ArenaX Pro" : "⭐ Go Pro" },
   ];
 
   return (
@@ -308,7 +389,14 @@ export default function Profile() {
       )}
 
       {/* Profile Header */}
-      <div className="card mb-6 relative overflow-hidden">
+      <div className="card mb-6 relative overflow-hidden p-0">
+        {profile?.profile_banner_url && (
+          <div
+            className="w-full h-28 sm:h-36 bg-cover bg-center"
+            style={{ backgroundImage: `url(${profile.profile_banner_url})` }}
+          />
+        )}
+        <div className="p-6 relative">
         <div className="absolute inset-0 bg-red-glow pointer-events-none opacity-50" />
         <div className="relative flex flex-col sm:flex-row items-start sm:items-center gap-5">
           {/* Avatar */}
@@ -344,8 +432,17 @@ export default function Profile() {
           </div>
 
           <div className="flex-1 min-w-0">
-            <h1 className="font-display font-bold text-3xl text-white">
+            <h1 className="font-display font-bold text-3xl text-white flex items-center gap-2 flex-wrap">
               {profile?.username}
+              {featureFlags.verified_badge && (
+                <span
+                  title="ArenaX Pro — verified profile"
+                  className="text-xs font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1"
+                  style={{ background: "rgba(234,179,8,0.15)", color: "#eab308" }}
+                >
+                  ⭐ ArenaX Pro
+                </span>
+              )}
             </h1>
             <p className="text-gray-400 text-sm mt-0.5">{profile?.email}</p>
             {profile?.bio && (
@@ -438,6 +535,7 @@ export default function Profile() {
               {editMode ? "Cancel" : "Edit Loadout"}
             </button>
           </div>
+        </div>
         </div>
       </div>
 
@@ -636,6 +734,31 @@ export default function Profile() {
                   setForm((f) => ({ ...f, bio: e.target.value }))
                 }
               />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-sm text-gray-400 mb-1.5">
+                Profile Banner URL{" "}
+                <span className="text-xs text-yellow-500">⭐ ArenaX Pro</span>
+              </label>
+              {featureFlags.profile_banner ? (
+                <input
+                  className="input"
+                  type="url"
+                  placeholder="https://…/banner.jpg"
+                  value={form.profile_banner_url || ""}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, profile_banner_url: e.target.value }))
+                  }
+                />
+              ) : (
+                <button
+                  type="button"
+                  className="text-xs text-gray-500 hover:text-white underline"
+                  onClick={() => setActiveTab("arenaxpro")}
+                >
+                  Upgrade to ArenaX Pro to customize your banner
+                </button>
+              )}
             </div>
           </div>
           <div className="flex justify-end mt-4">
@@ -888,6 +1011,78 @@ export default function Profile() {
           subtitle="Team group chat"
         />
         </>
+      )}
+
+      {activeTab === "arenaxpro" && (
+        <div className="space-y-4 animate-fade-in">
+          {/* Current status */}
+          <div className="card flex flex-wrap items-center gap-4">
+            <div className="text-3xl">{isPro ? "⭐" : "🎮"}</div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-white">
+                {isPro ? "You're an ArenaX Pro member" : "You're on the free plan"}
+              </p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {isPro
+                  ? "Verified badge, profile banner, advanced stats and priority Team Finder placement are active."
+                  : "Team Finder, tournaments and the Nexus stay free for everyone. Pro adds extras on top."}
+              </p>
+            </div>
+            {isPro && (
+              <button
+                className="btn-ghost text-sm"
+                disabled={proBusy}
+                onClick={handleProCancel}
+              >
+                Downgrade to Free
+              </button>
+            )}
+          </div>
+
+          {/* Plan cards */}
+          {gamerPlans.length === 0 ? (
+            <div className="card text-center py-10 text-gray-500 text-sm">
+              Plans aren't available right now — please try again later.
+            </div>
+          ) : (
+            <div className="grid sm:grid-cols-2 gap-4">
+              {gamerPlans.map((p) => {
+                const isCurrent = subscription
+                  ? p.plan_key === subscription.plan_key
+                  : Number(p.price) === 0;
+                return (
+                  <TierCard
+                    key={p.plan_id}
+                    plan={p}
+                    isCurrent={isCurrent}
+                    contentMap={GAMER_TIER_CONTENT}
+                    cta={
+                      <button
+                        className="btn-primary w-full text-sm"
+                        disabled={isCurrent || proBusy || Number(p.price) === 0}
+                        onClick={() => handleProUpgrade(p)}
+                      >
+                        {isCurrent
+                          ? "Current Plan"
+                          : Number(p.price) === 0
+                            ? "Free"
+                            : proBusy
+                              ? "Please wait…"
+                              : "Upgrade"}
+                      </button>
+                    }
+                  />
+                );
+              })}
+            </div>
+          )}
+
+          <p className="text-xs text-gray-600">
+            Heads up: an account can only hold one active paid plan at a time, so
+            upgrading here replaces any other active subscription on your account
+            (for example an Organizer plan).
+          </p>
+        </div>
       )}
     </div>
   );
