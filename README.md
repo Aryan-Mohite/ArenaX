@@ -1,25 +1,16 @@
-# §3 College / Campus module — frontend patch
+# §7 Referral & Ambassador dashboard — frontend patch
 
-Files sit at their repo paths. NOTE: Profile.jsx / OrganizerTiers.jsx etc. from the §4 patch are NOT included;
-`authController.js` here contains both the §4 change (profile_banner_url) and the §3 change (college_id) —
-if you already applied §4, just add `college_id` to the getMe SELECT.
+Frontend only; no backend, migration, env or package changes. `npm run build` passes.
 
 ## New
-- `services/collegeService.js` — wrappers for the existing /colleges and /tournaments/:id/college-standings APIs.
-- `pages/Colleges.jsx` (/colleges) — public leaderboard (wins → members), search, "Claim your college" modal.
-- `pages/College.jsx` (/colleges/:slug) — shareable college profile: stats, Official Partner badge, join/leave, share button, links to college-scoped tournaments and Team Finder.
+- `services/referralService.js` — wraps GET /referrals/mine/code and /referrals/mine.
+- `pages/Referrals.jsx` (/referrals, login required) — share widget (code, copy, invite link, native share), summary cards (invited / activated / pending / XP earned), and a per-invitee list. Pending invitees show a 3-step activation checklist (profile complete, game added, joined tournament or Nexus), so the ambassador knows exactly what to nudge.
 
 ## Modified
-- `App.jsx` — routes /colleges and /colleges/:slug. `Navbar.jsx` — "Colleges" under More.
-- `Tournament.jsx` — `?college_id=` filter (with dismissible chip); "Inter-college tournament" checkbox in the create form; College Standings panel on inter-college tournament pages.
-- `TeamFinder.jsx` — `?college_id=` filter with dismissible chip.
-- `admin/AdminDashboard.jsx` — new Colleges tab: approve/reject claims, grant/revoke annual license. Without this, claims could never go live.
-- `authController.js` — getMe also returns `college_id` (needed to show Join vs Leave).
+- `pages/Register.jsx` — optional "Referral code" field, prefilled from `/register?ref=CODE`. The backend already accepted `referral_code`; the form just never sent it.
+- `App.jsx` — /referrals route. `Navbar.jsx` — "Invite & Earn" in the user dropdown.
 
-## Setup
-No migrations/env/packages. `npm run build` passes.
-
-## Notes
-- The claim controller's comment says the claimer is auto-added as a member, but the code doesn't set `users.college_id`; after approval the claimer taps "Join this college" themselves. Easy backend follow-up if you want it automatic.
-- Filtering is via links from the college page rather than a dropdown on Team Finder/Tournaments. A "My college" toggle is a quick add later.
-- /colleges is not in the react-snap prerender list (it's live data).
+## Caveats
+- `App.jsx` and `Navbar.jsx` here are cumulative: they already include the §3 College routes/nav link as well as the §7 additions, so it's safe to overwrite with these two files whether or not you applied §3 (if you skipped §3, the College pages won't exist and the /colleges route will fail to build — apply §3 first).
+- Rewards are XP only (per the roadmap); there is no cash-out UI.
+- The backend credits XP lazily when this page loads, so numbers are current on every visit.

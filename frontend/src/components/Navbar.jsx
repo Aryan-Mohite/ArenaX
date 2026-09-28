@@ -475,6 +475,21 @@ export default function Navbar() {
                     </Link>
 
                     <Link
+                      to="/referrals"
+                      onClick={() => setDropdownOpen(false)}
+                      className={dropdownItemBase}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "rgba(255,70,85,0.06)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "transparent";
+                      }}
+                    >
+                      <span className="text-base">🎁</span>
+                      Invite &amp; Earn
+                    </Link>
+
+                    <Link
                       to="/organizer"
                       onClick={() => setDropdownOpen(false)}
                       className={dropdownItemBase}

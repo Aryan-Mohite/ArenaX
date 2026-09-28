@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { sendRegisterOtp, verifyRegisterOtp, resendRegisterOtp } from "../services/authService";
 import { useAuth } from "../context/AuthContext";
 import { ErrorMessage } from "../components/UI";
@@ -79,9 +79,14 @@ function Countdown({ seconds, onExpire, countKey }) {
 export default function Register() {
   const { login } = useAuth();
   const navigate  = useNavigate();
+  // §7: /register?ref=CODE (from an Invite & Earn link) prefills the referral code
+  const [searchParams] = useSearchParams();
 
   const [step,     setStep]     = useState("form");
-  const [form,     setForm]     = useState({ username: "", email: "", password: "" });
+  const [form,     setForm]     = useState({
+    username: "", email: "", password: "",
+    referral_code: (searchParams.get("ref") || "").toUpperCase().slice(0, 20),
+  });
   const [otp,      setOtp]      = useState("");
   const [agreed,   setAgreed]   = useState(false);
   const [error,    setError]    = useState("");
@@ -207,6 +212,15 @@ export default function Register() {
                       ))}
                     </div>
                   )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1.5">
+                    Referral code <span className="text-gray-600">(optional)</span>
+                  </label>
+                  <input name="referral_code" placeholder="e.g. ARYAN1234" value={form.referral_code}
+                    onChange={(e) => handleChange({ target: { name: "referral_code", value: e.target.value.toUpperCase() } })}
+                    maxLength={20} autoComplete="off" className="input font-mono" />
                 </div>
 
                 <label className="flex items-start gap-3 cursor-pointer mt-1">

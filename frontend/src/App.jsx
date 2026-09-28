@@ -32,6 +32,7 @@ const SquadMatch  = lazy(() => import("./pages/SquadMatch"));
 const Dailies     = lazy(() => import("./pages/Dailies"));
 const Colleges    = lazy(() => import("./pages/Colleges"));
 const College     = lazy(() => import("./pages/College"));
+const Referrals   = lazy(() => import("./pages/Referrals"));
 
 // ── Auth pages
 const Login          = lazy(() => import("./pages/Login"));
@@ -121,6 +122,16 @@ export default function App() {
 
           {/* ── User pages ── */}
           <Route path="/users/:id" element={<Layout><UserProfile /></Layout>} />
+          <Route
+            path="/referrals"
+            element={
+              <Layout>
+                <ProtectedRoute>
+                  <Referrals />
+                </ProtectedRoute>
+              </Layout>
+            }
+          />
           <Route
             path="/profile"
             element={
