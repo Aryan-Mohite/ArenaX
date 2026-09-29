@@ -89,6 +89,7 @@ export default function AdminDashboard() {
     { id: "analytics", label: "Analytics", icon: "📈" },
     { id: "colleges", label: "Colleges", icon: "🎓" },
     { id: "disputes", label: "Disputes", icon: "💸" },
+    { id: "reports", label: "Reports", icon: "🚩" },
     { id: "gear", label: "Gear", icon: "🎧" },
     { id: "sponsors", label: "Sponsors", icon: "🤝" },
     { id: "archives", label: "Archives", icon: "🗄️" },
@@ -159,6 +160,7 @@ export default function AdminDashboard() {
         {tab === "analytics" && <AnalyticsTab showToast={showToast} />}
         {tab === "colleges" && <CollegesTab showToast={showToast} />}
         {tab === "disputes" && <DisputesTab showToast={showToast} />}
+        {tab === "reports" && <ReportsTab showToast={showToast} />}
         {tab === "gear" && <GearTab showToast={showToast} />}
         {tab === "sponsors" && <SponsorsTab showToast={showToast} />}
       </div>
@@ -1701,6 +1703,112 @@ function DisputesTab({ showToast }) {
                 </div>
               ) : d.admin_note ? (
                 <p className="text-xs text-gray-500">Note: {d.admin_note}</p>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// TAB — REPORTS (§9 — player-side + organizer-side abuse queue)
+// ══════════════════════════════════════════════════════════════════════════════
+function ReportsTab({ showToast }) {
+  const [status, setStatus] = useState("pending");
+  const [type, setType] = useState("");
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [notes, setNotes] = useState({});
+  const [busyId, setBusyId] = useState(null);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    const qs = new URLSearchParams({ status, ...(type ? { type } : {}) }).toString();
+    apiFetch(`/admin/reports?${qs}`)
+      .then((d) => setRows(d.reports || []))
+      .catch((e) => showToast(`Failed to load reports: ${e.message}`, false))
+      .finally(() => setLoading(false));
+  }, [status, type, showToast]);
+  useEffect(() => { load(); }, [load]);
+
+  const resolve = async (r, outcome) => {
+    setBusyId(r.report_id);
+    try {
+      await apiFetch(`/admin/reports/${r.report_id}/resolve`, {
+        method: "POST",
+        body: JSON.stringify({ status: outcome, note: notes[r.report_id] || undefined }),
+      });
+      showToast(outcome === "resolved" ? "Marked resolved" : "Dismissed");
+      load();
+    } catch (e) {
+      showToast(e.message, false);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div>
+          <h2 className="section-title">Reports Queue</h2>
+          <p className="section-subtitle">Player-side reports and organizer-side abuse (fake tournaments, no-shows)</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <div className="flex gap-1 bg-navy rounded-lg p-1">
+            {["", "user", "tournament"].map((tp) => (
+              <button key={tp || "all"} onClick={() => setType(tp)}
+                className={`px-3 py-1 rounded-md text-xs font-semibold capitalize transition-colors ${
+                  type === tp ? "bg-red text-white" : "text-gray-400 hover:text-white"}`}>
+                {tp || "All"}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-1 bg-navy rounded-lg p-1">
+            {["pending", "resolved", "dismissed"].map((s) => (
+              <button key={s} onClick={() => setStatus(s)}
+                className={`px-3 py-1 rounded-md text-xs font-semibold capitalize transition-colors ${
+                  status === s ? "bg-red text-white" : "text-gray-400 hover:text-white"}`}>
+                {s}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      {loading ? <LoadingRows /> : rows.length === 0 ? (
+        <div className="card text-center py-12 text-gray-600 text-sm">No {status} reports</div>
+      ) : (
+        <div className="space-y-3">
+          {rows.map((r) => (
+            <div key={r.report_id} className="card">
+              <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+                <p className="font-semibold text-white">
+                  {r.reported_tournament_id
+                    ? `🏆 ${r.reported_tournament_name || `Tournament #${r.reported_tournament_id}`}`
+                    : `👤 @${r.reported_username || `User #${r.reported_user}`}`}
+                  {r.category && (
+                    <span className="ml-2 text-xs font-normal text-gray-500 capitalize">
+                      {r.category.replace(/_/g, " ")}
+                    </span>
+                  )}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {new Date(r.created_at).toLocaleDateString("en-IN")} · reported by @{r.reporter_username}
+                </p>
+              </div>
+              <p className="text-sm text-gray-300 mb-3">{r.reason}</p>
+              {status === "pending" ? (
+                <div className="flex flex-wrap gap-2">
+                  <input className="input flex-1 min-w-[180px] text-sm" placeholder="Note to keep on record (optional)"
+                    value={notes[r.report_id] || ""}
+                    onChange={(e) => setNotes((n) => ({ ...n, [r.report_id]: e.target.value }))} />
+                  <button className="btn-primary text-sm" disabled={busyId === r.report_id} onClick={() => resolve(r, "resolved")}>Resolve</button>
+                  <button className="btn-ghost text-sm" disabled={busyId === r.report_id} onClick={() => resolve(r, "dismissed")}>Dismiss</button>
+                </div>
+              ) : r.resolution_note ? (
+                <p className="text-xs text-gray-500">Note: {r.resolution_note}</p>
               ) : null}
             </div>
           ))}

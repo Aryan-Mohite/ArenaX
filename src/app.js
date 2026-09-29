@@ -30,6 +30,7 @@ import organizerRoutes   from "./routes/organizerRoutes.js";
 import collegeRoutes     from "./routes/collegeRoutes.js";
 import referralRoutes    from "./routes/referralRoutes.js";
 import reportRoutes      from "./routes/reportRoutes.js";
+import publicApiRoutes   from "./routes/publicApiRoutes.js";
 import sponsorRoutes     from "./routes/sponsorRoutes.js";
 import gearRoutes        from "./routes/gearRoutes.js";
 
@@ -452,6 +453,7 @@ app.use("/api/organizers",   organizerRoutes);
 app.use("/api/colleges",     collegeRoutes);
 app.use("/api/referrals",    referralRoutes);
 app.use("/api/reports",      reportRoutes);
+app.use("/api/v1",           publicApiRoutes);
 app.use("/api/sponsors",     sponsorRoutes);
 app.use("/api/gear",         gearRoutes);
 

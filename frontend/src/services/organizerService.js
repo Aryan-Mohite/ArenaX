@@ -11,3 +11,8 @@ export const announceToTournament     = (id, message) => API.post(`/tournaments/
 
 // §9 Organizer Terms / Tournament Agreement
 export const acceptOrganizerTerms = () => API.post('/organizers/accept-terms')
+
+// §2 Organization tier: read-only API keys
+export const listApiKeys  = ()      => API.get('/organizers/api-keys')
+export const createApiKey = (label) => API.post('/organizers/api-keys', { label })
+export const revokeApiKey = (id)    => API.delete(`/organizers/api-keys/${id}`)

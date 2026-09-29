@@ -16,3 +16,5 @@ export const unfollowUser      = (id)   => API.delete(`/users/${id}/follow`)
 export const getFollowStatus   = (id)   => API.get(`/users/${id}/follow-status`)
 export const getFollowers      = (id)   => API.get(`/users/${id}/followers`)
 export const getFollowing      = (id)   => API.get(`/users/${id}/following`)
+// ── ArenaX Pro (§4) ───────────────────────────────────────────────────────────
+export const getAdvancedStats = (id) => API.get(`/users/${id}/advanced-stats`)

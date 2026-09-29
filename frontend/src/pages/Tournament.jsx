@@ -9,6 +9,7 @@ import {
 import { getMyGames } from "../services/gameService";
 import { PageLoader, ErrorMessage } from "../components/UI";
 import { useAuth } from "../context/AuthContext";
+import ReportModal from "../components/ReportModal";
 import { useTheme } from "../context/ThemeContext";
 import { themeStyles } from "../utils/themeStyles";
 import SEO from "../components/SEO";
@@ -852,6 +853,8 @@ function TournamentDetail({ id }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [collegeStandings, setCollegeStandings] = useState([]);
+  const [showReport, setShowReport] = useState(false);
+  const [reportToast, setReportToast] = useState("");
 
   useEffect(() => {
     getTournamentById(id)
@@ -956,7 +959,7 @@ function TournamentDetail({ id }) {
           </h1>
 
           {/* Organizer info */}
-          <div className="flex flex-wrap gap-x-5 gap-y-2 mt-3 text-sm text-gray-400">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mt-3 text-sm text-gray-400">
             {t.organizer_name && (
               <span className="flex items-center gap-1.5">
                 <span className="text-red">&#128100;</span>
@@ -971,7 +974,19 @@ function TournamentDetail({ id }) {
                 <span>{t.location}</span>
               </span>
             )}
+            {isAuthenticated && (
+              <button
+                onClick={() => setShowReport(true)}
+                className="text-xs text-gray-600 hover:text-red transition-colors"
+                title="Report this tournament"
+              >
+                🚩 Report
+              </button>
+            )}
           </div>
+          {reportToast && (
+            <p className="text-xs text-green-400 mt-1">{reportToast}</p>
+          )}
 
           {/* Stat grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
@@ -1189,6 +1204,15 @@ function TournamentDetail({ id }) {
             ))}
           </div>
         </div>
+      )}
+      {showReport && (
+        <ReportModal
+          type="tournament"
+          targetId={id}
+          targetLabel={t.name}
+          onClose={() => setShowReport(false)}
+          onDone={() => setReportToast("Report submitted — thanks")}
+        />
       )}
     </div>
   );

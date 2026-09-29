@@ -13,6 +13,8 @@ import { themeStyles } from "../utils/themeStyles";
 import TeamIdBadge from "../components/TeamIdBadge";
 import { GameIdsDisplay } from "./Profile";
 import { getKarmaBadge } from "../utils/karma";
+import ReportModal from "../components/ReportModal";
+import AdvancedStatsPanel from "../components/AdvancedStatsPanel";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const timeAgo = (d) => {
@@ -340,6 +342,7 @@ export default function UserProfile() {
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
   const [toast, setToast] = useState("");
+  const [showReport, setShowReport] = useState(false);
 
   const isSelf = currentUser && String(currentUser.id) === String(id);
 
@@ -639,6 +642,15 @@ export default function UserProfile() {
                     )}
                   </button>
                 )}
+                {!isSelf && isAuthenticated && (
+                  <button
+                    onClick={() => setShowReport(true)}
+                    className="shrink-0 text-xs text-gray-500 hover:text-red transition-colors px-2 py-2"
+                    title="Report this player"
+                  >
+                    🚩 Report
+                  </button>
+                )}
               </div>
 
               {profile?.bio && (
@@ -688,6 +700,19 @@ export default function UserProfile() {
           value={activity.community_posts.length}
         />
       </div>
+
+      {/* ── ArenaX Pro: advanced stats (§4) ── */}
+      {isAuthenticated && !isSelf && <AdvancedStatsPanel userId={id} />}
+
+      {showReport && (
+        <ReportModal
+          type="user"
+          targetId={id}
+          targetLabel={`@${profile?.username}`}
+          onClose={() => setShowReport(false)}
+          onDone={() => showToast("Report submitted — thanks")}
+        />
+      )}
 
       {/* ── Tabs ── */}
       <div className="flex gap-1 bg-surface-card rounded-xl p-1 mb-6 w-fit">
