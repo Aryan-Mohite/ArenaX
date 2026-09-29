@@ -1,0 +1,1 @@
+import{A as e}from"./index-gvoo2O_G.js";const a=t=>e.get("/tournaments",{params:t}),o=t=>e.get(`/tournaments/${t}`),s=t=>e.post("/tournaments",t),r=t=>e.delete(`/archive/tournaments/${t}`),m=()=>e.get("/tournaments/featured");export{o as a,a as b,s as c,r as d,m as g};

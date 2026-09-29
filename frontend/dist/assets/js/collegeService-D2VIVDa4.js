@@ -1,1 +1,0 @@
-import{A as l}from"./index-Di1uR6H7.js";const s=e=>l.get("/colleges",{params:e}),g=e=>l.get("/colleges/leaderboard",{params:{limit:e}}),t=e=>l.get(`/colleges/${e}`),a=e=>l.post("/colleges/claim",e),c=e=>l.post(`/colleges/${e}/join`),n=()=>l.post("/colleges/leave"),r=e=>l.get(`/tournaments/${e}/college-standings`);export{g as a,r as b,a as c,s as d,t as g,c as j,n as l};
