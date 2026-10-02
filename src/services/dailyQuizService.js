@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import pool from "../config/db.js";
+import { awardDailiesCoins } from "./coinService.js";
 
 // ─── CONFIG ────────────────────────────────────────────────────────────────────
 const QUESTION_TIME_LIMIT_MS = 15_000;
@@ -218,6 +219,13 @@ export const submitAnswer = async (userId, sessionId, selectedOption, forfeited 
 
   if (updated.status === "completed") {
     const streakResult = await applyDailyStreak(userId, session.game_id, updated.correct_count, updated.total_time_ms);
+    // Special Coins (§11): one award per day however many games are played.
+    let coinsAwarded = 0;
+    try {
+      coinsAwarded = await awardDailiesCoins(userId);
+    } catch (coinErr) {
+      console.error("[coins] awardDailiesCoins failed:", coinErr.message);
+    }
     return {
       status: "completed",
       results: {
@@ -226,6 +234,7 @@ export const submitAnswer = async (userId, sessionId, selectedOption, forfeited 
         total_questions: QUESTIONS_PER_QUIZ,
       },
       streak: streakResult,
+      coins_awarded: coinsAwarded,
     };
   }
 

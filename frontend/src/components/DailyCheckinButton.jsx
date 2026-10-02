@@ -13,6 +13,7 @@ export default function DailyCheckinButton() {
   const [claiming, setClaiming] = useState(false);
   const [justClaimed, setJustClaimed] = useState(false);
   const [justEarned, setJustEarned] = useState([]);
+  const [coins, setCoins] = useState(0);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -40,6 +41,7 @@ export default function DailyCheckinButton() {
       });
       setJustClaimed(true);
       setJustEarned(res.data.newlyEarnedAchievements || []);
+      setCoins(res.data.coinsAwarded || 0);
     } catch {
       setError("Couldn't claim right now — try again.");
     } finally {
@@ -57,6 +59,7 @@ export default function DailyCheckinButton() {
               Streak claimed — Day {status.currentStreak}!
             </p>
             <p className="text-xs text-gray-400">
+              {coins > 0 && <span className="text-white font-semibold">+{coins} coins · </span>}
               {justEarned.length > 0
                 ? `Unlocked: ${justEarned.map((a) => a.name).join(", ")}`
                 : "Come back tomorrow to keep it going."}

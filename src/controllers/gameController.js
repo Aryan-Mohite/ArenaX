@@ -1,5 +1,6 @@
 import pool from "../config/db.js";
 import { loadGamesFromJson } from "../services/gameDataService.js";
+import { syncOneTimeCoinsSafe } from "../services/coinService.js";
 
 // ─── GET ALL GAMES ────────────────────────────────────────────────────────────
 export const getGames = async (req, res, next) => {
@@ -106,6 +107,7 @@ export const addFavouriteGame = async (req, res, next) => {
     );
 
     res.status(201).json({ success: true, game_profile: profile[0] });
+    syncOneTimeCoinsSafe(userId); // §11: first-game coins
   } catch (err) { next(err); }
 };
 

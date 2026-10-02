@@ -87,9 +87,9 @@ export default function AdminDashboard() {
     { id: "billing", label: "Billing", icon: "💳" },
     { id: "organizers", label: "Organizers", icon: "🎖️" },
     { id: "analytics", label: "Analytics", icon: "📈" },
-    { id: "colleges", label: "Colleges", icon: "🎓" },
     { id: "disputes", label: "Disputes", icon: "💸" },
     { id: "reports", label: "Reports", icon: "🚩" },
+    { id: "coins", label: "Coins", icon: "🪙" },
     { id: "gear", label: "Gear", icon: "🎧" },
     { id: "sponsors", label: "Sponsors", icon: "🤝" },
     { id: "archives", label: "Archives", icon: "🗄️" },
@@ -158,9 +158,9 @@ export default function AdminDashboard() {
         {tab === "billing" && <BillingTab showToast={showToast} />}
         {tab === "organizers" && <OrganizersTab showToast={showToast} />}
         {tab === "analytics" && <AnalyticsTab showToast={showToast} />}
-        {tab === "colleges" && <CollegesTab showToast={showToast} />}
         {tab === "disputes" && <DisputesTab showToast={showToast} />}
         {tab === "reports" && <ReportsTab showToast={showToast} />}
+        {tab === "coins" && <CoinsTab showToast={showToast} />}
         {tab === "gear" && <GearTab showToast={showToast} />}
         {tab === "sponsors" && <SponsorsTab showToast={showToast} />}
       </div>
@@ -1512,33 +1512,187 @@ function FunnelChart({ funnel }) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// TAB — COLLEGES (§3 — approve "claim your college" requests, toggle licenses)
+// TAB — COINS (§11 — economy settings, redemption queue, reward catalog)
 // ══════════════════════════════════════════════════════════════════════════════
-function CollegesTab({ showToast }) {
-  const [status, setStatus] = useState("pending");
+function CoinsTab({ showToast }) {
+  const [view, setView] = useState("settings");
+  const [stats, setStats] = useState(null);
+
+  const loadStats = useCallback(() => {
+    apiFetch("/admin/coins/stats").then((d) => setStats(d.stats)).catch(() => {});
+  }, []);
+  useEffect(() => { loadStats(); }, [loadStats, view]);
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div>
+          <h2 className="section-title">Arena Coins</h2>
+          <p className="section-subtitle">Tune the economy, review redemptions, manage rewards</p>
+        </div>
+        <div className="flex gap-1 bg-navy rounded-lg p-1">
+          {[["settings", "Settings"], ["queue", "Redemptions"], ["catalog", "Catalog"]].map(([id, label]) => (
+            <button key={id} onClick={() => setView(id)}
+              className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${view === id ? "bg-red text-white" : "text-gray-400 hover:text-white"}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {stats && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+          {[
+            ["Exchange rate", `${stats.coins_per_inr} coins = ₹1`],
+            ["Coins outstanding", Number(stats.outstanding).toLocaleString("en-IN")],
+            ["Max liability if all redeemed", `₹${Number(stats.max_liability_inr).toLocaleString("en-IN")}`],
+            ["Open requests", `${stats.open_requests} (₹${Number(stats.open_requests_inr).toLocaleString("en-IN")})`],
+            ["Coins issued (all time)", Number(stats.issued).toLocaleString("en-IN")],
+            ["Coins spent", Number(stats.spent).toLocaleString("en-IN")],
+            ["Earners (30 days)", stats.earners_30d],
+            ["Cash rewards sent this month", `₹${Number(stats.cash_rewards_fulfilled_this_month_inr).toLocaleString("en-IN")}`],
+          ].map(([label, value]) => (
+            <div key={label} className="card py-3">
+              <p className="text-[11px] text-gray-500 uppercase tracking-wider">{label}</p>
+              <p className="font-display font-bold text-white mt-1">{value}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {view === "settings" && <CoinSettingsPanel showToast={showToast} onSaved={loadStats} />}
+      {view === "queue" && <CoinQueuePanel showToast={showToast} onChanged={loadStats} />}
+      {view === "catalog" && <CoinCatalogPanel showToast={showToast} />}
+    </div>
+  );
+}
+
+function CoinSettingsPanel({ showToast, onSaved }) {
+  const [specs, setSpecs] = useState([]);
+  const [audit, setAudit] = useState([]);
+  const [draft, setDraft] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    apiFetch("/admin/coins/settings")
+      .then((d) => {
+        setSpecs(d.settings || []);
+        setAudit(d.audit || []);
+        setDraft(Object.fromEntries((d.settings || []).map((s) => [s.key, String(s.value)])));
+      })
+      .catch((e) => showToast(`Failed to load settings: ${e.message}`, false))
+      .finally(() => setLoading(false));
+  }, [showToast]);
+  useEffect(() => { load(); }, [load]);
+
+  const changed = specs.filter((s) => String(s.value) !== String(draft[s.key]));
+
+  const save = async () => {
+    const settings = Object.fromEntries(changed.map((s) => [s.key, draft[s.key]]));
+    setSaving(true);
+    try {
+      await apiFetch("/admin/coins/settings", { method: "PUT", body: JSON.stringify({ settings }) });
+      showToast("Settings saved");
+      load();
+      onSaved?.();
+    } catch (e) {
+      showToast(e.message, false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <LoadingRows />;
+
+  const rate = Number(draft.coins_per_inr) || 0;
+  const perfectMonth = (Number(draft.earn_login) + Number(draft.earn_dailies)) * 30;
+
+  return (
+    <div>
+      <div className="card mb-4 text-sm text-gray-400">
+        <p>
+          At <span className="text-white font-semibold">{rate} coins = ₹1</span>, a user who logs in and plays Dailies every day earns about{" "}
+          <span className="text-white font-semibold">{perfectMonth.toLocaleString("en-IN")} coins/month</span>
+          {rate > 0 && <> (≈ ₹{(perfectMonth / rate).toFixed(2)} of reward value) before streak bonuses</>}.
+          Changing the rate reprices gift cards and top-ups on the next page load; coins already earned are unaffected.
+        </p>
+      </div>
+
+      <div className="card mb-4">
+        <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4">
+          {specs.map((s) => (
+            <label key={s.key} className="block">
+              <span className="text-xs text-gray-400 block mb-1">
+                {s.label}
+                {s.type !== "bool" && s.type !== "list" && s.min !== undefined && <span className="text-gray-600"> ({s.min}–{s.max})</span>}
+              </span>
+              {s.type === "bool" ? (
+                <select className="input text-sm w-full" value={draft[s.key] === "true" || draft[s.key] === "1" ? "1" : "0"}
+                  onChange={(e) => setDraft((d) => ({ ...d, [s.key]: e.target.value }))}>
+                  <option value="1">On</option>
+                  <option value="0">Off (paused)</option>
+                </select>
+              ) : (
+                <input className="input text-sm w-full" value={draft[s.key] ?? ""}
+                  inputMode={s.type === "list" ? "text" : "decimal"}
+                  onChange={(e) => setDraft((d) => ({ ...d, [s.key]: e.target.value }))} />
+              )}
+              {s.type === "list" && <span className="text-[11px] text-gray-600">Comma-separated: {s.allowed.join(", ")}</span>}
+            </label>
+          ))}
+        </div>
+        <div className="flex items-center justify-end gap-3 mt-5">
+          {changed.length > 0 && <span className="text-xs text-gray-500">{changed.length} unsaved change{changed.length > 1 ? "s" : ""}</span>}
+          <button className="btn-ghost text-sm" disabled={changed.length === 0 || saving}
+            onClick={() => setDraft(Object.fromEntries(specs.map((s) => [s.key, String(s.value)])))}>Reset</button>
+          <button className="btn-primary text-sm" disabled={changed.length === 0 || saving} onClick={save}>
+            {saving ? "Saving…" : "Save changes"}
+          </button>
+        </div>
+      </div>
+
+      <h3 className="font-display font-bold text-white mb-2">Recent changes</h3>
+      {audit.length === 0 ? (
+        <div className="card text-sm text-gray-600 text-center py-6">No edits yet</div>
+      ) : (
+        <div className="space-y-1">
+          {audit.map((a) => (
+            <div key={a.audit_id} className="card py-2 text-xs flex flex-wrap justify-between gap-2">
+              <span className="text-gray-300"><span className="font-mono">{a.setting_key}</span>: {a.old_value} → <span className="text-white font-semibold">{a.new_value}</span></span>
+              <span className="text-gray-500">{a.changed_by ? `@${a.changed_by}` : "system"} · {fmt(a.changed_at)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CoinQueuePanel({ showToast, onChanged }) {
+  const [status, setStatus] = useState("requested");
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [codes, setCodes] = useState({});
   const [busyId, setBusyId] = useState(null);
 
   const load = useCallback(() => {
     setLoading(true);
-    apiFetch(`/admin/colleges?status=${status}`)
-      .then((d) => setRows(d.colleges || []))
-      .catch((e) => showToast(`Failed to load colleges: ${e.message}`, false))
+    apiFetch(`/admin/coins/redemptions?status=${status}`)
+      .then((d) => setRows(d.redemptions || []))
+      .catch((e) => showToast(`Failed to load: ${e.message}`, false))
       .finally(() => setLoading(false));
   }, [status, showToast]);
-
   useEffect(() => { load(); }, [load]);
 
-  const act = async (c, action, okMsg) => {
-    setBusyId(c.college_id);
+  const act = async (r, action, body) => {
+    setBusyId(r.redemption_id);
     try {
-      await apiFetch(`/admin/colleges/${c.college_id}/${action}`, {
-        method: "POST",
-        ...(action === "license" ? { body: JSON.stringify({ action: okMsg.action }) } : {}),
-      });
-      showToast(action === "license" ? okMsg.text : okMsg);
+      await apiFetch(`/admin/coins/redemptions/${r.redemption_id}/${action}`, { method: "POST", body: JSON.stringify(body || {}) });
+      showToast(action === "fulfil" ? "Marked delivered" : action === "reject" ? "Rejected, coins refunded" : "Approved");
       load();
+      onChanged?.();
     } catch (e) {
       showToast(e.message, false);
     } finally {
@@ -1548,77 +1702,140 @@ function CollegesTab({ showToast }) {
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <div>
-          <h2 className="section-title">Colleges</h2>
-          <p className="section-subtitle">Review campus claims and manage annual licenses</p>
-        </div>
-        <div className="flex gap-1 bg-navy rounded-lg p-1">
-          {["pending", "approved", "rejected"].map((s) => (
-            <button
-              key={s}
-              onClick={() => setStatus(s)}
-              className={`px-3 py-1 rounded-md text-xs font-semibold capitalize transition-colors ${
-                status === s ? "bg-red text-white" : "text-gray-400 hover:text-white"
-              }`}
-            >
-              {s}
-            </button>
+      <div className="flex gap-1 bg-navy rounded-lg p-1 w-fit mb-4">
+        {["requested", "approved", "fulfilled", "rejected"].map((s) => (
+          <button key={s} onClick={() => setStatus(s)}
+            className={`px-3 py-1 rounded-md text-xs font-semibold capitalize transition-colors ${status === s ? "bg-red text-white" : "text-gray-400 hover:text-white"}`}>
+            {s}
+          </button>
+        ))}
+      </div>
+      {loading ? <LoadingRows /> : rows.length === 0 ? (
+        <div className="card text-center py-12 text-gray-600 text-sm">No {status} redemptions</div>
+      ) : (
+        <div className="space-y-3">
+          {rows.map((r) => (
+            <div key={r.redemption_id} className="card">
+              <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+                <div>
+                  <p className="font-semibold text-white">{r.reward_name}{r.inr_value != null && <span className="text-gray-500"> · ₹{Number(r.inr_value)}</span>}</p>
+                  <p className="text-xs text-gray-400">@{r.username} · {r.email} {!r.email_verified && <span className="text-red">(unverified)</span>}</p>
+                </div>
+                <p className="text-xs text-gray-500">{fmt(r.created_at)} · {Number(r.coins_spent).toLocaleString("en-IN")} coins · member since {fmt(r.user_since)}</p>
+              </div>
+              {(status === "requested" || status === "approved") ? (
+                <div className="flex flex-wrap gap-2">
+                  <input className="input flex-1 min-w-[200px] text-sm" placeholder="Gift card code / top-up reference"
+                    value={codes[r.redemption_id] || ""} onChange={(e) => setCodes((c) => ({ ...c, [r.redemption_id]: e.target.value }))} />
+                  {status === "requested" && (
+                    <button className="btn-secondary text-sm" disabled={busyId === r.redemption_id} onClick={() => act(r, "approve")}>Approve</button>
+                  )}
+                  <button className="btn-primary text-sm" disabled={busyId === r.redemption_id || !(codes[r.redemption_id] || "").trim()}
+                    onClick={() => act(r, "fulfil", { fulfillment: codes[r.redemption_id] })}>Mark delivered</button>
+                  <button className="btn-ghost text-sm" disabled={busyId === r.redemption_id}
+                    onClick={() => { if (window.confirm("Reject and refund the coins?")) act(r, "reject"); }}>Reject</button>
+                </div>
+              ) : r.fulfillment ? (
+                <p className="text-xs text-gray-500 font-mono break-all">Delivered: {r.fulfillment}</p>
+              ) : r.admin_note ? (
+                <p className="text-xs text-gray-500">Note: {r.admin_note}</p>
+              ) : null}
+            </div>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CoinCatalogPanel({ showToast }) {
+  const blank = { name: "", description: "", type: "gift_card", inr_value: "", coin_cost: "", pro_days: "", stock: "" };
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState(blank);
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    apiFetch("/admin/coins/catalog")
+      .then((d) => setRows(d.rewards || []))
+      .catch((e) => showToast(`Failed to load catalog: ${e.message}`, false))
+      .finally(() => setLoading(false));
+  }, [showToast]);
+  useEffect(() => { load(); }, [load]);
+
+  const patch = async (id, body, msg) => {
+    try {
+      await apiFetch(`/admin/coins/catalog/${id}`, { method: "PATCH", body: JSON.stringify(body) });
+      showToast(msg);
+      load();
+    } catch (e) { showToast(e.message, false); }
+  };
+
+  const create = async () => {
+    setBusy(true);
+    try {
+      await apiFetch("/admin/coins/catalog", { method: "POST", body: JSON.stringify(form) });
+      showToast("Reward added");
+      setForm(blank);
+      load();
+    } catch (e) { showToast(e.message, false); }
+    finally { setBusy(false); }
+  };
+
+  const cash = form.type === "gift_card" || form.type === "topup";
+
+  return (
+    <div>
+      <div className="card mb-4">
+        <h3 className="font-display font-bold text-white mb-3">Add reward</h3>
+        <div className="grid sm:grid-cols-2 gap-3">
+          <input className="input text-sm" placeholder="Name (e.g. Free Fire 100 diamonds)" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <select className="input text-sm" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+            <option value="gift_card">Gift card</option>
+            <option value="topup">In-game top-up</option>
+            <option value="pro_days">Pro days (instant)</option>
+            <option value="other">Other (manual)</option>
+          </select>
+          <input className="input text-sm sm:col-span-2" placeholder="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+          {cash ? (
+            <input className="input text-sm" placeholder="Value in ₹ (coin price follows the exchange rate)" inputMode="decimal" value={form.inr_value} onChange={(e) => setForm({ ...form, inr_value: e.target.value })} />
+          ) : (
+            <input className="input text-sm" placeholder="Fixed coin cost" inputMode="numeric" value={form.coin_cost} onChange={(e) => setForm({ ...form, coin_cost: e.target.value })} />
+          )}
+          {form.type === "pro_days" && (
+            <input className="input text-sm" placeholder="Days of Pro" inputMode="numeric" value={form.pro_days} onChange={(e) => setForm({ ...form, pro_days: e.target.value })} />
+          )}
+          <input className="input text-sm" placeholder="Stock (blank = unlimited)" inputMode="numeric" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} />
+        </div>
+        <div className="flex justify-end mt-3">
+          <button className="btn-primary text-sm" disabled={busy || !form.name.trim()} onClick={create}>{busy ? "Adding…" : "Add reward"}</button>
         </div>
       </div>
 
-      {loading ? (
-        <LoadingRows />
-      ) : rows.length === 0 ? (
-        <div className="card text-center py-12 text-gray-600 text-sm">No {status} colleges</div>
-      ) : (
-        <div className="space-y-3">
-          {rows.map((c) => (
-            <div key={c.college_id} className="card flex flex-wrap items-center gap-4">
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-white">{c.name}</p>
+      {loading ? <LoadingRows /> : (
+        <div className="space-y-2">
+          {rows.map((r) => (
+            <div key={r.reward_id} className={`card flex flex-wrap items-center justify-between gap-3 ${r.is_active ? "" : "opacity-50"}`}>
+              <div className="min-w-0">
+                <p className="font-semibold text-white">{r.name} <span className="text-xs text-gray-500">({r.type})</span></p>
                 <p className="text-xs text-gray-500">
-                  {[c.city, c.state].filter(Boolean).join(", ") || "—"} · claimed by @
-                  {c.claimed_by_username || "unknown"} · {fmt(c.created_at)}
+                  {Number(r.live_coin_cost).toLocaleString("en-IN")} coins
+                  {r.inr_value != null && <> · ₹{Number(r.inr_value)} at the current rate</>}
+                  {" · "}{r.stock == null ? "unlimited stock" : `${r.stock} in stock`}
                 </p>
               </div>
-              {status === "pending" && (
-                <div className="flex gap-2">
-                  <button
-                    className="btn-primary text-sm"
-                    disabled={busyId === c.college_id}
-                    onClick={() => act(c, "approve", `${c.name} approved`)}
-                  >
-                    Approve
-                  </button>
-                  <button
-                    className="btn-ghost text-sm"
-                    disabled={busyId === c.college_id}
-                    onClick={() => act(c, "reject", `${c.name} rejected`)}
-                  >
-                    Reject
-                  </button>
-                </div>
-              )}
-              {status === "approved" && (
-                <div className="flex gap-2">
-                  <button
-                    className="btn-secondary text-sm"
-                    disabled={busyId === c.college_id}
-                    onClick={() => act(c, "license", { action: "grant", text: `License granted to ${c.name}` })}
-                  >
-                    Grant license
-                  </button>
-                  <button
-                    className="btn-ghost text-sm"
-                    disabled={busyId === c.college_id}
-                    onClick={() => act(c, "license", { action: "revoke", text: `License revoked for ${c.name}` })}
-                  >
-                    Revoke
-                  </button>
-                </div>
-              )}
+              <div className="flex gap-2">
+                {r.stock != null && (
+                  <button className="btn-ghost text-xs" onClick={() => {
+                    const n = window.prompt("Set stock to:", String(r.stock));
+                    if (n !== null && n.trim() !== "") patch(r.reward_id, { stock: n }, "Stock updated");
+                  }}>Set stock</button>
+                )}
+                <button className="btn-secondary text-xs" onClick={() => patch(r.reward_id, { is_active: !r.is_active }, r.is_active ? "Hidden" : "Visible")}>
+                  {r.is_active ? "Hide" : "Show"}
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -1981,12 +2198,11 @@ function SponsorsTab({ showToast }) {
 
       {/* Insights */}
       {insights && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {[
             ["Registrations (this quarter)", insights.tournamentParticipation.thisQuarter],
             ["Registrations (last quarter)", insights.tournamentParticipation.lastQuarter],
             ["QoQ change", qoq === null ? "—" : `${qoq > 0 ? "+" : ""}${qoq}%`],
-            ["College-player share", `${Math.round(insights.collegePlayerShare * 100)}%`],
           ].map(([l, v]) => (
             <div key={l} className="card">
               <div className="text-2xl font-display font-bold text-white">{v}</div>

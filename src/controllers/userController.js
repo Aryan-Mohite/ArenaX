@@ -1,6 +1,7 @@
 import pool from "../config/db.js";
 import { sanitizeFields } from "../utils/sanitize.js";
 import { hasFeature } from "../services/featureService.js";
+import { syncOneTimeCoinsSafe } from "../services/coinService.js";
 
 // ─── GET PUBLIC PROFILE ───────────────────────────────────────────────────────
 export const getUserProfile = async (req, res, next) => {
@@ -110,6 +111,7 @@ export const updateProfile = async (req, res, next) => {
     );
 
     res.json({ success: true, user: updated[0] });
+    syncOneTimeCoinsSafe(userId); // §11: profile-completion coins
   } catch (err) { next(err); }
 };
 
@@ -135,6 +137,7 @@ export const upsertGameProfile = async (req, res, next) => {
     );
 
     res.json({ success: true, game_profile: profile[0] });
+    syncOneTimeCoinsSafe(userId); // §11: first-game coins
   } catch (err) { next(err); }
 };
 

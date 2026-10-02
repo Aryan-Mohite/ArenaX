@@ -1,4 +1,5 @@
 import pool from "../config/db.js";
+import { awardLoginCoins } from "./coinService.js";
 
 // ─── CHECK + AWARD ────────────────────────────────────────────────────────────
 // Finds achievements in `category` the user hasn't earned yet whose threshold
@@ -78,7 +79,16 @@ export const updateLoginStreak = async (userId) => {
 
   const newlyEarned = await checkAndAwardAchievements(userId, "login_streak", currentStreak);
 
-  return { currentStreak, longestStreak, newlyEarned };
+  // Special Coins (§11): idempotent per day, so calling this on every login
+  // and every check-in claim can never double-award. Never blocks the streak.
+  let coinsAwarded = 0;
+  try {
+    coinsAwarded = await awardLoginCoins(userId, currentStreak);
+  } catch (coinErr) {
+    console.error("[coins] awardLoginCoins failed:", coinErr.message);
+  }
+
+  return { currentStreak, longestStreak, newlyEarned, coinsAwarded };
 };
 
 // ─── CHECK-IN STATUS ──────────────────────────────────────────────────────────

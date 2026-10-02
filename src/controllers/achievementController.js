@@ -32,6 +32,7 @@ export const claimCheckin = async (req, res, next) => {
       currentStreak: result.currentStreak,
       longestStreak: result.longestStreak,
       newlyEarnedAchievements: result.newlyEarned,
+      coinsAwarded: result.coinsAwarded || 0,
     });
   } catch (err) { next(err); }
 };

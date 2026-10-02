@@ -30,9 +30,8 @@ const Stream     = lazy(() => import("./pages/Stream"));
 const Communities = lazy(() => import("./pages/Communities"));
 const SquadMatch  = lazy(() => import("./pages/SquadMatch"));
 const Dailies     = lazy(() => import("./pages/Dailies"));
-const Colleges    = lazy(() => import("./pages/Colleges"));
-const College     = lazy(() => import("./pages/College"));
 const Referrals   = lazy(() => import("./pages/Referrals"));
+const Rewards     = lazy(() => import("./pages/Rewards"));
 const Gear        = lazy(() => import("./pages/Gear"));
 const Sponsor     = lazy(() => import("./pages/Sponsor"));
 
@@ -97,10 +96,8 @@ export default function App() {
           <Route path="/tournament/:id" element={<Layout><Tournament /></Layout>} />
           <Route path="/teamfinder"    element={<Layout><TeamFinder /></Layout>} />
           <Route path="/communities"   element={<Layout><Communities /></Layout>} />
-          <Route path="/colleges"      element={<Layout><Colleges /></Layout>} />
           <Route path="/gear"          element={<Layout><Gear /></Layout>} />
           <Route path="/sponsor"       element={<Layout><Sponsor /></Layout>} />
-          <Route path="/colleges/:slug" element={<Layout><College /></Layout>} />
           <Route
             path="/squadmatch"
             element={
@@ -132,6 +129,16 @@ export default function App() {
               <Layout>
                 <ProtectedRoute>
                   <Referrals />
+                </ProtectedRoute>
+              </Layout>
+            }
+          />
+          <Route
+            path="/rewards"
+            element={
+              <Layout>
+                <ProtectedRoute>
+                  <Rewards />
                 </ProtectedRoute>
               </Layout>
             }

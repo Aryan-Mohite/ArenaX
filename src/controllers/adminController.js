@@ -797,7 +797,7 @@ export const updatePlacement = async (req, res, next) => {
 // GET /api/admin/sponsor-insights?game_id=
 // The aggregate, anonymized stats pipeline the roadmap describes — this is
 // the actual product a sponsor eventually pays for ("Valorant tournament
-// participation among college players rose X% this quarter"), built
+// participation rose X% this quarter"), built
 // entirely on §6's `events` table. Admin-only for now: there's no
 // sponsor-facing portal yet, just the data plumbing, exactly as the
 // roadmap frames it ("start logging now even though the sponsor-facing
@@ -815,8 +815,6 @@ export const getSponsorInsights = async (req, res, next) => {
     const [
       [{ thisQuarter }],
       [{ lastQuarter }],
-      [{ collegeTagged }],
-      [{ total }],
     ] = await Promise.all([
       pool.query(
         `SELECT COUNT(*) AS thisQuarter FROM events e
@@ -833,25 +831,6 @@ export const getSponsorInsights = async (req, res, next) => {
             ${registrationFilter}`,
         params
       ).then(r => r[0]),
-      // College-tagged participation: registrations where the registering
-      // user has a college set — the "among college players" slice from
-      // the roadmap's own example question.
-      pool.query(
-        `SELECT COUNT(*) AS collegeTagged FROM events e
-           JOIN users u ON u.user_id = e.user_id
-          WHERE e.event_type = 'tournament_registration'
-            AND e.created_at >= DATE_SUB(NOW(), INTERVAL 3 MONTH)
-            AND u.college_id IS NOT NULL
-            ${registrationFilter}`,
-        params
-      ).then(r => r[0]),
-      pool.query(
-        `SELECT COUNT(*) AS total FROM events e
-          WHERE e.event_type = 'tournament_registration'
-            AND e.created_at >= DATE_SUB(NOW(), INTERVAL 3 MONTH)
-            ${registrationFilter}`,
-        params
-      ).then(r => r[0]),
     ]);
 
     const qoqChange = lastQuarter > 0 ? Number((((thisQuarter - lastQuarter) / lastQuarter) * 100).toFixed(1)) : null;
@@ -865,7 +844,6 @@ export const getSponsorInsights = async (req, res, next) => {
           lastQuarter: Number(lastQuarter),
           qoqChangePercent: qoqChange,
         },
-        collegePlayerShare: total > 0 ? Number((Number(collegeTagged) / Number(total)).toFixed(3)) : 0,
       },
     });
   } catch (err) { next(err); }

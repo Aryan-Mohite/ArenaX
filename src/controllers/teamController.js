@@ -1,5 +1,6 @@
 import pool from "../config/db.js";
 import { logEvent, EVENT_TYPES } from "../services/eventService.js";
+import { syncOneTimeCoinsSafe } from "../services/coinService.js";
 
 // ─── GET MY TEAMS ─────────────────────────────────────────────────────────────
 // FIX (info): was running 1 query per team to fetch members (N+1 problem).
@@ -102,6 +103,7 @@ export const createTeam = async (req, res, next) => {
 
     // §6: fire-and-forget — after the response, doesn't block team creation
     logEvent(userId, EVENT_TYPES.TEAM_CREATED, { team_id: teamId });
+    syncOneTimeCoinsSafe(userId); // §11: team-join coins (vest after a week)
   } catch (err) {
     await conn.rollback();
     // FIX: also handle DB-level duplicate key (ER_DUP_ENTRY = 1062) as a safety net

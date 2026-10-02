@@ -13,7 +13,6 @@ import ReportModal from "../components/ReportModal";
 import { useTheme } from "../context/ThemeContext";
 import { themeStyles } from "../utils/themeStyles";
 import SEO from "../components/SEO";
-import { getCollegeStandings } from "../services/collegeService";
 import { acceptOrganizerTerms } from "../services/organizerService";
 import FeaturedTournaments from "../components/FeaturedTournaments";
 import { OrganizerTierSection } from "../components/OrganizerTiers";
@@ -89,7 +88,6 @@ const EMPTY_FORM = {
   organizer_name: "",
   location: "",
   join_link: "",
-  is_inter_college: false,
 };
 
 function OrganizerPostModal({ games, onClose, onCreated }) {
@@ -132,7 +130,6 @@ function OrganizerPostModal({ games, onClose, onCreated }) {
         description: form.description.trim() || undefined,
         image_url: form.image_url.trim() || undefined,
         join_link: form.join_link.trim() || undefined,
-        is_inter_college: form.is_inter_college || undefined,
       };
       const res = await createTournament(payload);
       onCreated(res.data.tournament);
@@ -445,14 +442,6 @@ function OrganizerPostModal({ games, onClose, onCreated }) {
                   onChange={(e) => set("description", e.target.value)}
                 />
               </div>
-              <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={!!form.is_inter_college}
-                  onChange={(e) => set("is_inter_college", e.target.checked)}
-                />
-                🎓 Inter-college tournament (show college vs. college standings)
-              </label>
             </div>
           )}
 
@@ -852,7 +841,6 @@ function TournamentDetail({ id }) {
   const [tournament, setTournament] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [collegeStandings, setCollegeStandings] = useState([]);
   const [showReport, setShowReport] = useState(false);
   const [reportToast, setReportToast] = useState("");
 
@@ -860,12 +848,6 @@ function TournamentDetail({ id }) {
     getTournamentById(id)
       .then((res) => {
         setTournament(res.data.tournament);
-        // §3: inter-college tournaments get a college-vs-college table
-        if (res.data.tournament?.is_inter_college) {
-          getCollegeStandings(id)
-            .then((r) => setCollegeStandings(r.data.standings || []))
-            .catch(() => {});
-        }
       })
       .catch(() => setError("Tournament not found"))
       .finally(() => setLoading(false));
@@ -1137,31 +1119,6 @@ function TournamentDetail({ id }) {
               </span>
             ))}
           </div>
-        </div>
-      )}
-
-      {/* Inter-college standings (§3) */}
-      {t.is_inter_college && (
-        <div className="card mb-6">
-          <h2 className="font-display font-bold text-lg text-white mb-4">🎓 College Standings</h2>
-          {collegeStandings.length === 0 ? (
-            <p className="text-sm text-gray-500">No college teams have entered yet.</p>
-          ) : (
-            <div className="space-y-2">
-              {collegeStandings.map((c, i) => (
-                <Link
-                  key={c.college_id}
-                  to={`/colleges/${c.slug}`}
-                  className="flex items-center gap-3 p-3 rounded-lg border border-surface-border hover:border-red/30 transition-colors"
-                >
-                  <span className="w-6 text-gray-500 text-sm">{i + 1}</span>
-                  <span className="flex-1 text-white font-semibold truncate">{c.name}</span>
-                  <span className="text-xs text-gray-500">{Number(c.teams_entered)} teams</span>
-                  <span className="text-sm text-white font-semibold">{Number(c.wins)} wins</span>
-                </Link>
-              ))}
-            </div>
-          )}
         </div>
       )}
 

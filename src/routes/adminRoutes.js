@@ -9,10 +9,6 @@ import {
   getOrganizerVerifications,
   approveOrganizerVerification,
   rejectOrganizerVerification,
-  getCollegeClaims,
-  approveCollegeClaim,
-  rejectCollegeClaim,
-  setCollegeLicense,
   getReports,
   resolveReport,
   getDisputes,
@@ -35,6 +31,18 @@ import {
   deleteGear,
   getGearClicks,
 } from "../controllers/adminController.js";
+import {
+  getCoinSettings,
+  updateCoinSettings,
+  getCoinStats,
+  getRedemptionQueue,
+  approveRedemption,
+  fulfilRedemption,
+  rejectRedemptionHandler,
+  getAdminCatalog,
+  createReward,
+  updateReward,
+} from "../controllers/adminCoinController.js";
 import { body } from "express-validator";
 import authMiddleware from "../middleware/authMiddleware.js";
 import requireAdmin   from "../middleware/requireAdmin.js";
@@ -59,11 +67,17 @@ router.get("/organizer-verifications", getOrganizerVerifications);
 router.post("/organizer-verifications/:id/approve", approveOrganizerVerification);
 router.post("/organizer-verifications/:id/reject", rejectOrganizerVerification);
 
-// ─── College claim queue + licensing (§3) ──────────────────────────────────
-router.get("/colleges", getCollegeClaims);
-router.post("/colleges/:id/approve", validateIdParam, validate, approveCollegeClaim);
-router.post("/colleges/:id/reject", validateIdParam, validate, rejectCollegeClaim);
-router.post("/colleges/:id/license", validateIdParam, validate, setCollegeLicense);
+// ─── Special Coins: economy settings, redemption queue, reward catalog (§11) ─
+router.get("/coins/settings", getCoinSettings);
+router.put("/coins/settings", updateCoinSettings);
+router.get("/coins/stats", getCoinStats);
+router.get("/coins/redemptions", getRedemptionQueue);
+router.post("/coins/redemptions/:id/approve", validateIdParam, validate, approveRedemption);
+router.post("/coins/redemptions/:id/fulfil", validateIdParam, validate, fulfilRedemption);
+router.post("/coins/redemptions/:id/reject", validateIdParam, validate, rejectRedemptionHandler);
+router.get("/coins/catalog", getAdminCatalog);
+router.post("/coins/catalog", createReward);
+router.patch("/coins/catalog/:id", validateIdParam, validate, updateReward);
 
 // ─── Reports queue + payment disputes (§9) ─────────────────────────────────
 router.get("/reports", getReports);

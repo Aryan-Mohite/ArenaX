@@ -44,20 +44,20 @@ export default function Sponsor() {
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10 animate-fade-in">
       <SEO
-        title="Sponsor ArenaX — Reach College Esports Players"
-        description="Put your brand in front of India's college esports players. Sponsor tournaments on ArenaX."
+        title="Sponsor ArenaX — Reach Competitive Esports Players"
+        description="Put your brand in front of India's competitive esports players. Sponsor tournaments on ArenaX."
         path="/sponsor"
       />
       <h1 className="font-display font-bold text-3xl text-white mb-2">Sponsor on ArenaX</h1>
       <p className="text-gray-400 mb-6">
-        Present tournaments to an engaged, college-age competitive gaming audience. Placements
+        Present tournaments to an engaged competitive gaming audience. Placements
         are assigned by our team — apply below and we'll work out what fits your goals.
       </p>
 
       <div className="grid sm:grid-cols-3 gap-3 mb-8">
         {[
           ["🏆", "Presented-by placement", "Your name and logo on featured tournaments"],
-          ["🎓", "College reach", "Players tied to real campuses"],
+          ["🎮", "Esports-native audience", "Players actively joining tournaments and teams"],
           ["📊", "Participation data", "Aggregate, anonymised trends — no ad-impression guesswork"],
         ].map(([i, t, d]) => (
           <div key={t} className="card">

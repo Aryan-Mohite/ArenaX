@@ -14,7 +14,6 @@ const PRIMARY_LINKS = [
 ];
 
 const MORE_LINKS = [
-  { to: "/colleges", label: "Colleges" },
   { to: "/gear", label: "Gear" },
   { to: "/sponsor", label: "Sponsor" },
   { to: "/communities", label: "The Nexus" },
@@ -490,6 +489,21 @@ export default function Navbar() {
                       <span className="text-base">🎁</span>
                       Invite &amp; Earn
                     </Link>
+
+                  <Link
+                    to="/rewards"
+                    onClick={() => setDropdownOpen(false)}
+                    className={dropdownItemBase}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "rgba(255,70,85,0.06)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "transparent";
+                    }}
+                  >
+                    <span className="text-base">🪙</span>
+                    Arena Coins
+                  </Link>
 
                     <Link
                       to="/organizer"

@@ -1,5 +1,6 @@
 import pool from "../config/db.js";
 import { awardTeamJoinAchievement } from "../services/achievementService.js";
+import { syncOneTimeCoinsSafe } from "../services/coinService.js";
 
 // ─── GET POSTS ────────────────────────────────────────────────────────────────
 export const getPosts = async (req, res, next) => {
@@ -272,6 +273,7 @@ export const finalAcceptApplication = async (req, res, next) => {
       awardTeamJoinAchievement(app[0].user_id).catch((err) =>
         console.error("[achievements] awardTeamJoinAchievement failed:", err.message)
       );
+      syncOneTimeCoinsSafe(app[0].user_id);
     }
 
     res.json({ success: true, team_id, application: app[0] });
