@@ -117,32 +117,6 @@ export const validateCreateTournament = [
     .optional({ nullable: true, checkFalsy: true })
     .trim()
     .isLength({ max: 200 }),
-  // §3: inter-college bracket type — college vs. college, aggregating team
-  // results. Anyone can flip this on; it only changes what tab the
-  // tournament page shows, not who can register.
-  body("is_inter_college")
-    .optional()
-    .isBoolean().withMessage("is_inter_college must be true or false"),
-];
-
-// ─── COLLEGES (§3) ──────────────────────────────────────────────────────────────
-export const validateClaimCollege = [
-  body("name")
-    .trim()
-    .notEmpty().withMessage("College name is required")
-    .isLength({ min: 3, max: 150 }).withMessage("Name must be 3–150 characters"),
-  body("city")
-    .optional({ nullable: true, checkFalsy: true })
-    .trim()
-    .isLength({ max: 100 }),
-  body("state")
-    .optional({ nullable: true, checkFalsy: true })
-    .trim()
-    .isLength({ max: 100 }),
-  body("logo_url")
-    .optional({ nullable: true, checkFalsy: true })
-    .isURL({ protocols: ["http", "https"], require_protocol: true })
-    .withMessage("logo_url must be a valid http/https URL"),
 ];
 
 // ─── TEAM FINDER ───────────────────────────────────────────────────────────────

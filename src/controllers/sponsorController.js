@@ -4,7 +4,7 @@ import pool from "../config/db.js";
 // POST /api/sponsors/apply  { company_name, website?, contact_email?, logo_url? }
 // Any authenticated user can apply; nothing changes until an admin approves
 // it (see adminController.approveSponsorApplication) — same shape as the
-// college-claim and organizer-verification flows.
+// organizer-verification flow.
 export const applyForSponsor = async (req, res, next) => {
   try {
     const userId = req.user.id;

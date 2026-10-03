@@ -1,6 +1,7 @@
 import pool from "../config/db.js";
 import {
-  getSettings, validateSetting, SETTING_SPECS, rewardCoinCost, rejectRedemption,
+  getSettings, validateSetting, SETTING_SPECS, rewardCoinCost, rejectRedemption, notifyRedemptionOutcome,
+  getBalance, adminAdjustCoins,
 } from "../services/coinService.js";
 
 // A single edit may not move the exchange rate by more than 2x either way.
@@ -179,6 +180,7 @@ export const fulfilRedemption = async (req, res, next) => {
     if (r.affectedRows === 0) {
       return res.status(404).json({ success: false, message: "No open redemption with that id" });
     }
+    notifyRedemptionOutcome(Number(req.params.id));
     res.json({ success: true });
   } catch (err) { next(err); }
 };
@@ -187,6 +189,7 @@ export const fulfilRedemption = async (req, res, next) => {
 export const rejectRedemptionHandler = async (req, res, next) => {
   try {
     await rejectRedemption(Number(req.params.id), req.user.id, req.body?.note ? String(req.body.note).slice(0, 255) : null);
+    notifyRedemptionOutcome(Number(req.params.id));
     res.json({ success: true });
   } catch (err) {
     if (err.status) return res.status(err.status).json({ success: false, message: err.message });
@@ -276,4 +279,73 @@ export const updateReward = async (req, res, next) => {
     if (r.affectedRows === 0) return res.status(404).json({ success: false, message: "Reward not found" });
     res.json({ success: true });
   } catch (err) { next(err); }
+};
+
+// ── PER-USER LEDGER ──────────────────────────────────────────────────────────
+// GET /api/admin/coins/users/:id?limit=&offset=
+// Everything an admin needs to judge one account before approving a payout:
+// balance, lifetime earned/spent, a 14-day earn pattern, the full ledger, and
+// recent redemptions.
+export const getUserCoinLedger = async (req, res, next) => {
+  try {
+    const userId = Number(req.params.id);
+    const limit = Math.min(Number(req.query.limit) || 50, 100);
+    const offset = Math.max(Number(req.query.offset) || 0, 0);
+
+    const [[user]] = await pool.query(
+      "SELECT user_id, username, email, email_verified, status, created_at, last_login FROM users WHERE user_id = ?",
+      [userId]
+    );
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+    const [[totals]] = await pool.query(
+      `SELECT COALESCE(SUM(CASE WHEN delta > 0 AND status <> 'reversed' THEN delta END), 0) AS earned,
+              COALESCE(-SUM(CASE WHEN reason = 'redemption' AND status <> 'reversed' THEN delta END), 0) AS spent
+         FROM coin_ledger WHERE user_id = ?`,
+      [userId]
+    );
+    const [daily] = await pool.query(
+      `SELECT DATE_FORMAT(created_at, '%Y-%m-%d') AS day, SUM(delta) AS coins, COUNT(*) AS entries
+         FROM coin_ledger
+        WHERE user_id = ? AND delta > 0 AND status <> 'reversed'
+          AND created_at >= (UTC_TIMESTAMP() - INTERVAL 14 DAY)
+        GROUP BY day ORDER BY day DESC`,
+      [userId]
+    );
+    const [entries] = await pool.query(
+      `SELECT entry_id, delta, reason, ref_key, status, available_at, note, created_at
+         FROM coin_ledger WHERE user_id = ?
+        ORDER BY entry_id DESC LIMIT ? OFFSET ?`,
+      [userId, limit, offset]
+    );
+    const [[count]] = await pool.query("SELECT COUNT(*) AS n FROM coin_ledger WHERE user_id = ?", [userId]);
+    const [redemptions] = await pool.query(
+      `SELECT r.redemption_id, r.coins_spent, r.inr_value, r.status, r.admin_note, r.created_at, c.name AS reward_name
+         FROM redemptions r JOIN reward_catalog c ON c.reward_id = r.reward_id
+        WHERE r.user_id = ? ORDER BY r.redemption_id DESC LIMIT 20`,
+      [userId]
+    );
+
+    res.json({
+      success: true,
+      user,
+      balance: await getBalance(userId),
+      totals: { earned: Number(totals.earned), spent: Number(totals.spent) },
+      daily,
+      entries,
+      total_entries: Number(count.n),
+      redemptions,
+    });
+  } catch (err) { next(err); }
+};
+
+// POST /api/admin/coins/users/:id/adjust  { amount, note }
+export const adjustUserCoins = async (req, res, next) => {
+  try {
+    const result = await adminAdjustCoins(Number(req.params.id), req.user.id, req.body?.amount, req.body?.note);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ success: false, code: err.code, message: err.message });
+    next(err);
+  }
 };

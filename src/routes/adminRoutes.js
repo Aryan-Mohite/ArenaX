@@ -42,6 +42,8 @@ import {
   getAdminCatalog,
   createReward,
   updateReward,
+  getUserCoinLedger,
+  adjustUserCoins,
 } from "../controllers/adminCoinController.js";
 import { body } from "express-validator";
 import authMiddleware from "../middleware/authMiddleware.js";
@@ -78,6 +80,8 @@ router.post("/coins/redemptions/:id/reject", validateIdParam, validate, rejectRe
 router.get("/coins/catalog", getAdminCatalog);
 router.post("/coins/catalog", createReward);
 router.patch("/coins/catalog/:id", validateIdParam, validate, updateReward);
+router.get("/coins/users/:id", validateIdParam, validate, getUserCoinLedger);
+router.post("/coins/users/:id/adjust", validateIdParam, validate, adjustUserCoins);
 
 // ─── Reports queue + payment disputes (§9) ─────────────────────────────────
 router.get("/reports", getReports);

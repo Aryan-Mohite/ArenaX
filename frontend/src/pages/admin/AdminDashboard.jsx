@@ -1517,6 +1517,8 @@ function FunnelChart({ funnel }) {
 function CoinsTab({ showToast }) {
   const [view, setView] = useState("settings");
   const [stats, setStats] = useState(null);
+  const [ledgerUserId, setLedgerUserId] = useState(null);
+  const openLedger = (userId) => { setLedgerUserId(userId); setView("ledger"); };
 
   const loadStats = useCallback(() => {
     apiFetch("/admin/coins/stats").then((d) => setStats(d.stats)).catch(() => {});
@@ -1531,7 +1533,7 @@ function CoinsTab({ showToast }) {
           <p className="section-subtitle">Tune the economy, review redemptions, manage rewards</p>
         </div>
         <div className="flex gap-1 bg-navy rounded-lg p-1">
-          {[["settings", "Settings"], ["queue", "Redemptions"], ["catalog", "Catalog"]].map(([id, label]) => (
+          {[["settings", "Settings"], ["queue", "Redemptions"], ["ledger", "User ledger"], ["catalog", "Catalog"]].map(([id, label]) => (
             <button key={id} onClick={() => setView(id)}
               className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${view === id ? "bg-red text-white" : "text-gray-400 hover:text-white"}`}>
               {label}
@@ -1561,7 +1563,8 @@ function CoinsTab({ showToast }) {
       )}
 
       {view === "settings" && <CoinSettingsPanel showToast={showToast} onSaved={loadStats} />}
-      {view === "queue" && <CoinQueuePanel showToast={showToast} onChanged={loadStats} />}
+      {view === "queue" && <CoinQueuePanel showToast={showToast} onChanged={loadStats} onOpenUser={openLedger} />}
+      {view === "ledger" && <CoinLedgerPanel showToast={showToast} userId={ledgerUserId} setUserId={setLedgerUserId} onChanged={loadStats} />}
       {view === "catalog" && <CoinCatalogPanel showToast={showToast} />}
     </div>
   );
@@ -1670,7 +1673,7 @@ function CoinSettingsPanel({ showToast, onSaved }) {
   );
 }
 
-function CoinQueuePanel({ showToast, onChanged }) {
+function CoinQueuePanel({ showToast, onChanged, onOpenUser }) {
   const [status, setStatus] = useState("requested");
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1719,7 +1722,7 @@ function CoinQueuePanel({ showToast, onChanged }) {
               <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
                 <div>
                   <p className="font-semibold text-white">{r.reward_name}{r.inr_value != null && <span className="text-gray-500"> · ₹{Number(r.inr_value)}</span>}</p>
-                  <p className="text-xs text-gray-400">@{r.username} · {r.email} {!r.email_verified && <span className="text-red">(unverified)</span>}</p>
+                  <p className="text-xs text-gray-400"><button className="hover:text-white underline decoration-dotted" onClick={() => onOpenUser?.(r.user_id)} title="Open coin ledger">@{r.username}</button> · {r.email} {!r.email_verified && <span className="text-red">(unverified)</span>}</p>
                 </div>
                 <p className="text-xs text-gray-500">{fmt(r.created_at)} · {Number(r.coins_spent).toLocaleString("en-IN")} coins · member since {fmt(r.user_since)}</p>
               </div>
@@ -1743,6 +1746,198 @@ function CoinQueuePanel({ showToast, onChanged }) {
             </div>
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+const COIN_REASON_LABELS = {
+  login: "Daily login", dailies: "Dailies game", profile_complete: "Profile completed",
+  first_game: "First game added", team_join: "Joined a team", streak_7: "7-day streak bonus",
+  streak_30: "30-day streak bonus", redemption: "Redeemed reward", redemption_refund: "Redemption refunded",
+  admin_adjust: "Admin adjustment", ban_reversal: "Balance removed (ban)",
+};
+
+// Per-user coin ledger: balance, earn pattern, full history, manual adjustment.
+// Opened from the user search below or by clicking a username in the
+// redemption queue.
+function CoinLedgerPanel({ showToast, userId, setUserId, onChanged }) {
+  const [q, setQ] = useState("");
+  const [results, setResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [moreLoading, setMoreLoading] = useState(false);
+  const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const search = async (e) => {
+    e?.preventDefault();
+    if (!q.trim()) return;
+    setSearching(true);
+    try {
+      const d = await apiFetch(`/admin/users?${new URLSearchParams({ q: q.trim(), limit: 8 })}`);
+      setResults(d.users || []);
+    } catch (err) { showToast(err.message, false); }
+    finally { setSearching(false); }
+  };
+
+  const load = useCallback(() => {
+    if (!userId) { setData(null); return; }
+    setLoading(true);
+    apiFetch(`/admin/coins/users/${userId}?limit=50`)
+      .then((d) => setData(d))
+      .catch((err) => { showToast(err.message, false); setData(null); })
+      .finally(() => setLoading(false));
+  }, [userId, showToast]);
+  useEffect(() => { load(); }, [load]);
+
+  const loadMore = async () => {
+    setMoreLoading(true);
+    try {
+      const d = await apiFetch(`/admin/coins/users/${userId}?limit=50&offset=${data.entries.length}`);
+      setData((prev) => ({ ...prev, entries: [...prev.entries, ...d.entries] }));
+    } catch (err) { showToast(err.message, false); }
+    finally { setMoreLoading(false); }
+  };
+
+  const submitAdjust = async (e) => {
+    e.preventDefault();
+    const n = Number(amount);
+    if (!Number.isInteger(n) || n === 0) { showToast("Enter a whole number (use - to deduct)", false); return; }
+    if (!window.confirm(`${n > 0 ? "Grant" : "Deduct"} ${Math.abs(n).toLocaleString("en-IN")} coins ${n > 0 ? "to" : "from"} @${data.user.username}?`)) return;
+    setSaving(true);
+    try {
+      await apiFetch(`/admin/coins/users/${userId}/adjust`, { method: "POST", body: JSON.stringify({ amount: n, note }) });
+      showToast("Adjustment recorded");
+      setAmount(""); setNote("");
+      load();
+      onChanged?.();
+    } catch (err) { showToast(err.message, false); }
+    finally { setSaving(false); }
+  };
+
+  const n = (v) => Number(v).toLocaleString("en-IN");
+
+  return (
+    <div className="space-y-4">
+      <form onSubmit={search} className="flex gap-2">
+        <input className="input flex-1 text-sm" placeholder="Search by username or email" value={q} onChange={(e) => setQ(e.target.value)} />
+        <button className="btn-secondary text-sm" disabled={searching || !q.trim()}>{searching ? "Searching…" : "Search"}</button>
+      </form>
+
+      {results.length > 0 && (
+        <div className="card p-2 divide-y divide-white/5">
+          {results.map((u) => (
+            <button key={u.user_id} onClick={() => { setUserId(u.user_id); setResults([]); setQ(""); }}
+              className="w-full flex items-center justify-between gap-3 px-2 py-2 text-left hover:bg-white/5 rounded">
+              <span className="text-sm text-white">@{u.username} <span className="text-gray-500">· {u.email}</span></span>
+              <span className="text-xs text-gray-500">{u.status}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {!userId && !results.length && (
+        <div className="card text-center py-12 text-gray-600 text-sm">Search for a user, or click a username in the Redemptions queue.</div>
+      )}
+
+      {userId && loading && !data && <LoadingRows />}
+
+      {data && (
+        <>
+          <div className="card">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <p className="font-display font-bold text-white text-lg">@{data.user.username}</p>
+                <p className="text-xs text-gray-400">
+                  {data.user.email} {!data.user.email_verified && <span className="text-red">(unverified)</span>}
+                </p>
+              </div>
+              <div className="text-xs text-gray-500 text-right">
+                <p>Status: <span className={data.user.status === "active" ? "text-green-400" : "text-red"}>{data.user.status}</span></p>
+                <p>Member since {fmt(data.user.created_at)}</p>
+                <p>Last login {data.user.last_login ? fmt(data.user.last_login) : "—"}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[["Available", n(data.balance.available)], ["Pending", n(data.balance.pending)],
+              ["Earned (lifetime)", n(data.totals.earned)], ["Spent on rewards", n(data.totals.spent)]].map(([label, value]) => (
+              <div key={label} className="card py-3">
+                <p className="text-[11px] text-gray-500 uppercase tracking-wider">{label}</p>
+                <p className="font-display font-bold text-white mt-1">{value}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="card">
+            <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Earned per day (last 14 days)</p>
+            {data.daily.length === 0 ? <p className="text-sm text-gray-600">No earnings in this period</p> : (
+              <div className="flex flex-wrap gap-2">
+                {data.daily.map((d) => (
+                  <span key={String(d.day)} className="text-xs bg-navy rounded px-2 py-1 text-gray-300">
+                    {d.day}: <span className="text-white font-semibold">{n(d.coins)}</span> <span className="text-gray-600">({d.entries})</span>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <form onSubmit={submitAdjust} className="card">
+            <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Manual adjustment</p>
+            <div className="flex flex-wrap gap-2">
+              <input className="input w-32 text-sm" type="number" step="1" placeholder="e.g. 100 or -100" value={amount} onChange={(e) => setAmount(e.target.value)} />
+              <input className="input flex-1 min-w-[200px] text-sm" maxLength={200} placeholder="Reason (required, shown in the audit trail)" value={note} onChange={(e) => setNote(e.target.value)} />
+              <button className="btn-primary text-sm" disabled={saving || !amount || note.trim().length < 3}>{saving ? "Saving…" : "Apply"}</button>
+            </div>
+            <p className="text-[11px] text-gray-600 mt-2">Adds a new ledger entry; history is never edited. Fix a mistake with an opposite adjustment. A deduction can't take the balance below 0.</p>
+          </form>
+
+          <div className="card p-0 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-[11px] text-gray-500 uppercase tracking-wider border-b border-white/5">
+                  <th className="px-3 py-2">When</th><th className="px-3 py-2">Reason</th>
+                  <th className="px-3 py-2 text-right">Coins</th><th className="px-3 py-2">Status</th><th className="px-3 py-2">Note</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {data.entries.map((e) => (
+                  <tr key={e.entry_id} className={e.status === "reversed" ? "opacity-50" : ""}>
+                    <td className="px-3 py-2 text-gray-400 whitespace-nowrap">{fmt(e.created_at)}</td>
+                    <td className="px-3 py-2 text-white">{COIN_REASON_LABELS[e.reason] || e.reason}</td>
+                    <td className={`px-3 py-2 text-right font-semibold ${e.delta > 0 ? "text-green-400" : "text-red"}`}>{e.delta > 0 ? "+" : ""}{n(e.delta)}</td>
+                    <td className="px-3 py-2 text-gray-400">{e.status}</td>
+                    <td className="px-3 py-2 text-gray-500 text-xs">{e.note || ""}</td>
+                  </tr>
+                ))}
+                {data.entries.length === 0 && <tr><td colSpan={5} className="px-3 py-8 text-center text-gray-600">No ledger entries</td></tr>}
+              </tbody>
+            </table>
+            {data.entries.length < data.total_entries && (
+              <div className="p-3 text-center">
+                <button className="btn-ghost text-sm" onClick={loadMore} disabled={moreLoading}>{moreLoading ? "Loading…" : `Load more (${data.total_entries - data.entries.length} left)`}</button>
+              </div>
+            )}
+          </div>
+
+          <div className="card">
+            <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Recent redemptions</p>
+            {data.redemptions.length === 0 ? <p className="text-sm text-gray-600">None</p> : (
+              <div className="space-y-1">
+                {data.redemptions.map((r) => (
+                  <p key={r.redemption_id} className="text-sm text-gray-300">
+                    {fmt(r.created_at)} · {r.reward_name} · {n(r.coins_spent)} coins · <span className="text-white">{r.status}</span>
+                    {r.admin_note && <span className="text-gray-500"> — {r.admin_note}</span>}
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
       )}
     </div>
   );

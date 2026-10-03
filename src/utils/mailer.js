@@ -104,3 +104,45 @@ export const sendPasswordResetEmail = async (to, otp) => {
     `,
   });
 };
+
+// ─── REDEMPTION OUTCOME EMAIL ─────────────────────────────────────────────────
+// Sent when an admin fulfils or rejects an Arena Coins redemption. The gift
+// card code itself is never emailed — the user reads it on /rewards while
+// logged in, so a compromised inbox can't leak it.
+const escapeHtml = (v) =>
+  String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+export const sendRedemptionEmail = async (to, { outcome, rewardName, note }) => {
+  const fulfilled = outcome === "fulfilled";
+  const subject = fulfilled ? "Your ArenaX reward is ready" : "Update on your ArenaX reward request";
+  const siteUrl = (process.env.CLIENT_URL || "https://arenax.io").replace(/\/$/, "");
+  const name = escapeHtml(rewardName);
+  const noteHtml = note
+    ? `<p style="margin:0 0 16px;color:#94a3b8;font-size:14px">Note from the team: <em style="color:#e2e8f0">${escapeHtml(note)}</em></p>`
+    : "";
+  const body = fulfilled
+    ? `Your <strong style="color:#fff">${name}</strong> has been delivered. Log in and open Rewards to see it.`
+    : `We couldn't process your <strong style="color:#fff">${name}</strong> request, so your coins have been refunded to your balance.`;
+
+  await transporter().sendMail({
+    from: FROM("ArenaX — Rewards"),
+    to,
+    subject,
+    text: fulfilled
+      ? `Your ${rewardName} has been delivered. Log in at ${siteUrl}/rewards to see it.`
+      : `We couldn't process your ${rewardName} request, so your coins have been refunded.${note ? `\n\nNote: ${note}` : ""}\n\nYou can try again at ${siteUrl}/rewards.`,
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:auto;background:#0f172a;color:#e2e8f0;border-radius:12px;overflow:hidden">
+        <div style="background:#ff4655;padding:24px 32px">
+          <h1 style="margin:0;font-size:22px;color:#fff;letter-spacing:1px">ArenaX</h1>
+        </div>
+        <div style="padding:32px">
+          <h2 style="margin:0 0 8px;font-size:18px;color:#fff">${fulfilled ? "Your reward is ready" : "Reward request update"}</h2>
+          <p style="margin:0 0 16px;color:#94a3b8;font-size:14px">${body}</p>
+          ${noteHtml}
+          <a href="${siteUrl}/rewards" style="display:inline-block;background:#ff4655;color:#fff;text-decoration:none;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:600">Open Rewards</a>
+        </div>
+      </div>
+    `,
+  });
+};

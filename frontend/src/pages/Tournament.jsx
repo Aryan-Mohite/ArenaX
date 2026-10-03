@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, Link, useSearchParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import {
   getTournaments,
   getTournamentById,
@@ -1185,10 +1185,6 @@ function TournamentList() {
   const [tournaments, setTournaments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ status: "" });
-  // §3: /tournament?college_id=… (linked from a college page) scopes the list
-  const [searchParams, setSearchParams] = useSearchParams();
-  const collegeId = searchParams.get("college_id");
-  const clearCollege = () => setSearchParams({});
   const [gameScope, setGameScope] = useState("all"); // "all" | "mine"
   const [myGameIds, setMyGameIds] = useState(null); // null = not loaded yet
   const [showForm, setShowForm] = useState(false);
@@ -1202,11 +1198,11 @@ function TournamentList() {
 
   useEffect(() => {
     setLoading(true);
-    getTournaments(collegeId ? { ...filters, college_id: collegeId } : filters)
+    getTournaments(filters)
       .then((res) => setTournaments(res.data.tournaments || []))
       .catch(() => setTournaments([]))
       .finally(() => setLoading(false));
-  }, [filters, collegeId]);
+  }, [filters]);
 
   // Fetch the games the user has added to their profile, to power the
   // "My Games" filter option below.
@@ -1272,12 +1268,6 @@ function TournamentList() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 animate-fade-in">
       <FeaturedTournaments className="mb-8" />
-      {collegeId && (
-        <div className="mb-4 inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full border border-red/30 bg-red/10 text-red">
-          🎓 Filtered by college
-          <button onClick={clearCollege} className="hover:text-white" aria-label="Clear college filter">✕</button>
-        </div>
-      )}
       <SEO
         title="Esports Tournaments — Valorant, CS2 & FPS Tournaments"
         description="Join free esports tournaments on ArenaX — Valorant, CS2, League of Legends, Fortnite, Dota 2, and Apex Legends. Compete in online tournaments worldwide, win prizes, and track your rank."

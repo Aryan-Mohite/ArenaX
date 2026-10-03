@@ -1,5 +1,6 @@
 import pool from "../config/db.js";
 import { hasFeature } from "./featureService.js";
+import { sendRedemptionEmail } from "../utils/mailer.js";
 
 // ── SETTINGS ─────────────────────────────────────────────────────────────────
 // Every tunable number lives in `coin_settings` so the economy can be retuned
@@ -409,6 +410,131 @@ export async function rejectRedemption(redemptionId, adminId, note) {
     );
     await conn.query("UPDATE reward_catalog SET stock = stock + 1 WHERE reward_id = ? AND stock IS NOT NULL", [r.reward_id]);
     await conn.commit();
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+}
+
+// Emails the user the outcome of a fulfilled / rejected redemption. Fire-and-
+// forget: a missing SMTP config or a bounce must never fail the admin action.
+// The gift card code is deliberately not in the email (see mailer.js).
+export function notifyRedemptionOutcome(redemptionId) {
+  (async () => {
+    const [[row]] = await pool.query(
+      `SELECT r.status, r.admin_note, u.email, c.name AS reward_name
+         FROM redemptions r
+         JOIN users u          ON u.user_id   = r.user_id
+         JOIN reward_catalog c ON c.reward_id = r.reward_id
+        WHERE r.redemption_id = ?`,
+      [redemptionId]
+    );
+    if (!row || !row.email || !["fulfilled", "rejected"].includes(row.status)) return;
+    await sendRedemptionEmail(row.email, {
+      outcome: row.status,
+      rewardName: row.reward_name,
+      note: row.admin_note,
+    });
+  })().catch((err) => console.error("[coins] redemption email failed:", err.message));
+}
+
+// ── BAN HANDLING ─────────────────────────────────────────────────────────────
+// Called when an admin bans a user. In one transaction:
+//   1. open (requested/approved) redemptions are rejected, coins refunded and
+//      stock returned  same as rejectRedemption, so nothing cash-backed is sent;
+//   2. pending coins are marked reversed;
+//   3. whatever is still available is zeroed with a single `ban_reversal` row.
+// History is never edited or deleted. Already-fulfilled redemptions are left
+// alone (the reward was delivered). Unbanning does not restore coins.
+export async function freezeUserCoins(userId, adminId) {
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    const [open] = await conn.query(
+      "SELECT * FROM redemptions WHERE user_id = ? AND status IN ('requested','approved') FOR UPDATE",
+      [userId]
+    );
+    for (const r of open) {
+      await conn.query(
+        "UPDATE redemptions SET status = 'rejected', admin_note = 'Account banned', reviewed_by = ? WHERE redemption_id = ?",
+        [adminId || null, r.redemption_id]
+      );
+      await conn.query(
+        `INSERT IGNORE INTO coin_ledger (user_id, delta, reason, ref_key, status, note)
+         VALUES (?, ?, 'redemption_refund', ?, 'available', 'Redemption rejected')`,
+        [userId, r.coins_spent, `refund:${r.redemption_id}`]
+      );
+      await conn.query(
+        "UPDATE reward_catalog SET stock = stock + 1 WHERE reward_id = ? AND stock IS NOT NULL",
+        [r.reward_id]
+      );
+    }
+
+    await conn.query(
+      "UPDATE coin_ledger SET status = 'reversed' WHERE user_id = ? AND status = 'pending'",
+      [userId]
+    );
+
+    const balance = await getBalance(userId, conn);
+    if (balance.available > 0) {
+      await conn.query(
+        `INSERT INTO coin_ledger (user_id, delta, reason, ref_key, status, note)
+         VALUES (?, ?, 'ban_reversal', ?, 'available', 'Account banned')`,
+        [userId, -balance.available, `ban_reversal:${Date.now()}`]
+      );
+    }
+
+    await conn.commit();
+    return { rejected_redemptions: open.length, coins_removed: balance.available };
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+}
+
+// ── ADMIN MANUAL ADJUSTMENT ──────────────────────────────────────────────────
+// Adds one `admin_adjust` ledger row (positive = grant, negative = deduct).
+// Append-only like everything else: a mistake is corrected with an opposite
+// adjustment, never by editing history. The user row is locked (same lock
+// redeemReward takes) so a deduction can't race a redemption into a negative
+// balance. A note is mandatory and is stamped with the admin id for the audit
+// trail.
+export const MAX_ADMIN_ADJUST = 50000;
+
+export async function adminAdjustCoins(userId, adminId, amount, note) {
+  const delta = Number(amount);
+  if (!Number.isInteger(delta) || delta === 0 || Math.abs(delta) > MAX_ADMIN_ADJUST) {
+    throw fail(`Amount must be a non-zero whole number up to ${MAX_ADMIN_ADJUST.toLocaleString("en-IN")}.`, "BAD_AMOUNT", 400);
+  }
+  const text = String(note || "").trim();
+  if (text.length < 3) throw fail("A short reason is required.", "NOTE_REQUIRED", 400);
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [[user]] = await conn.query("SELECT user_id FROM users WHERE user_id = ? FOR UPDATE", [userId]);
+    if (!user) throw fail("User not found.", "USER_NOT_FOUND", 404);
+
+    if (delta < 0) {
+      const { available } = await getBalance(userId, conn);
+      if (available + delta < 0) {
+        throw fail(`User only has ${available.toLocaleString("en-IN")} available coins.`, "INSUFFICIENT_BALANCE", 409);
+      }
+    }
+
+    const stamped = `[admin #${adminId}] ${text}`.slice(0, 255);
+    await conn.query(
+      `INSERT INTO coin_ledger (user_id, delta, reason, ref_key, status, note)
+       VALUES (?, ?, 'admin_adjust', ?, 'available', ?)`,
+      [userId, delta, `admin_adjust:${adminId}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`, stamped]
+    );
+    await conn.commit();
+    return { delta, balance: await getBalance(userId) };
   } catch (err) {
     await conn.rollback();
     throw err;

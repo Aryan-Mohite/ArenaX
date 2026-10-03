@@ -1,0 +1,6 @@
+Delete these from the repo (git rm):
+src/controllers/collegeController.js
+src/routes/collegeRoutes.js
+frontend/src/pages/College.jsx
+frontend/src/pages/Colleges.jsx
+frontend/src/services/collegeService.js

@@ -55,7 +55,7 @@ setInterval(() => {
   for (const [uid, entry] of authCache) {
     if (now > entry.expiresAt) authCache.delete(uid);
   }
-}, 5 * 60_000);
+}, 5 * 60_000).unref();   // unref: don't keep short-lived processes (tests, scripts) alive
 
 // ─── CONNECTION WITH RETRY ────────────────────────────────────────────────────
 const connectWithRetry = async (retries = 3, delayMs = 2000) => {

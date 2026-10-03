@@ -41,7 +41,7 @@ const SEED_TOURNAMENTS = [
     organizer_name: "ArenaX",
   },
   {
-    name: "Campus Clash — CS Community Cup",
+    name: "ArenaX Community Cup — Counter-Strike",
     game_name: "Counter-Strike",
     prize_pool: 3000,
     entry_fee: 0,

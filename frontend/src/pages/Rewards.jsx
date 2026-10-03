@@ -17,6 +17,7 @@ const REASON_LABELS = {
   redemption: "Redeemed reward",
   redemption_refund: "Redemption refunded",
   admin_adjust: "Adjustment",
+  ban_reversal: "Balance removed",
 };
 
 const STATUS_STYLE = {

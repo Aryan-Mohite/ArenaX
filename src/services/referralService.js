@@ -8,8 +8,7 @@ export const XP_PER_ACTIVATION = 100;
 // ─── generateReferralCode ───────────────────────────────────────────────────
 // Deterministic-ish + collision-checked: derived from the username so it
 // reads as "yours" when shared, with a random suffix so two similar
-// usernames don't collide. Mirrors the college-slug uniqueness-retry
-// pattern from §3.
+// usernames don't collide.
 export async function generateReferralCode(conn, username) {
   const base = (username || "player").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10) || "PLAYER";
   while (true) {
@@ -33,7 +32,7 @@ export async function resolveReferrer(code) {
 // ─── checkActivation ─────────────────────────────────────────────────────────
 // Activation = profile complete + game selected + joined a tournament/community.
 // Computed live (no stored "activated" flag) — same "minimal surface area"
-// convention used for §3's college leaderboard/standings. Cheap enough to
+// convention used elsewhere (e.g. coin balances). Cheap enough to
 // run per-referral on dashboard load; there's no volume here that would
 // justify a background job yet.
 export async function checkActivation(userId) {

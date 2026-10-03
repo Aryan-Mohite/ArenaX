@@ -7,7 +7,7 @@ import {
 
 // ─── GET PLANS ──────────────────────────────────────────────────────────────
 // GET /api/payments/plans[?category=organizer] — public, powers every
-// upgrade screen (organizer tiers, gamer pro, and later college licenses —
+// upgrade screen (organizer tiers, gamer pro —
 // all read from the same `plans` table, distinguished by a `<category>_...`
 // plan_key prefix).
 //

@@ -1,6 +1,6 @@
 // Loads Razorpay's checkout script once and caches the promise so repeated
 // upgrade clicks (from any checkout screen — organizer tiers, gamer ArenaX
-// Pro, future college licenses) don't re-inject the <script> tag.
+// Pro) don't re-inject the <script> tag.
 // Extracted from OrganizerDashboard.jsx so every checkout entry point shares
 // one loader instead of each re-declaring the same module-level promise.
 let razorpayScriptPromise = null;
