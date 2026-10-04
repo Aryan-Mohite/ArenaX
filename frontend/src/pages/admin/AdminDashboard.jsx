@@ -1404,19 +1404,23 @@ function AnalyticsTab({ showToast }) {
           </table>
         </div>
       </div>
+
+      <CoinAnalytics showToast={showToast} />
+      <ReferralAnalytics showToast={showToast} />
     </div>
   );
 }
 
-// Lightweight dependency-free SVG line chart for signups vs. logins over time
-function TrendChart({ trend }) {
+// Lightweight dependency-free SVG line chart for signups vs. logins over time.
+// Pass `series` / `xKey` to reuse it for other daily data (e.g. coin issue vs spend).
+function TrendChart({ trend, series: seriesProp, xKey = "rollup_date" }) {
   const width = 800;
   const height = 220;
   const padding = { top: 10, right: 10, bottom: 24, left: 32 };
   const innerW = width - padding.left - padding.right;
   const innerH = height - padding.top - padding.bottom;
 
-  const series = [
+  const series = seriesProp || [
     { key: "signups", label: "Signups", color: "#ff4655" },
     { key: "logins", label: "Logins", color: "#3b82f6" },
     { key: "tournament_registrations", label: "Tournament Regs", color: "#f97316" },
@@ -1455,7 +1459,7 @@ function TrendChart({ trend }) {
         {trend.map((d, i) =>
           i % labelStep === 0 ? (
             <text key={i} x={xFor(i)} y={height - 4} fontSize="9" fill="#6b7280" textAnchor="middle">
-              {String(d.rollup_date).slice(5, 10)}
+              {String(d[xKey]).slice(5, 10)}
             </text>
           ) : null
         )}
@@ -1533,7 +1537,7 @@ function CoinsTab({ showToast }) {
           <p className="section-subtitle">Tune the economy, review redemptions, manage rewards</p>
         </div>
         <div className="flex gap-1 bg-navy rounded-lg p-1">
-          {[["settings", "Settings"], ["queue", "Redemptions"], ["ledger", "User ledger"], ["catalog", "Catalog"]].map(([id, label]) => (
+          {[["settings", "Settings"], ["queue", "Redemptions"], ["disputes", "Disputes"], ["ledger", "User ledger"], ["catalog", "Catalog"]].map(([id, label]) => (
             <button key={id} onClick={() => setView(id)}
               className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${view === id ? "bg-red text-white" : "text-gray-400 hover:text-white"}`}>
               {label}
@@ -1541,6 +1545,29 @@ function CoinsTab({ showToast }) {
           ))}
         </div>
       </div>
+
+      {stats && stats.budget_status === "reached" && (
+        <div className="card mb-4 border border-red/40 bg-red/10 text-sm text-red">
+          Monthly cash budget reached: ₹{Number(stats.cash_committed_this_month_inr).toLocaleString("en-IN")} of ₹{Number(stats.monthly_cash_budget_inr).toLocaleString("en-IN")} committed.
+          New gift card and top-up requests are refused until next month.
+        </div>
+      )}
+      {stats && stats.budget_status === "warning" && (
+        <div className="card mb-4 border border-yellow-500/40 bg-yellow-500/10 text-sm text-yellow-500">
+          Over 80% of this month's cash budget is committed: ₹{Number(stats.cash_committed_this_month_inr).toLocaleString("en-IN")} of ₹{Number(stats.monthly_cash_budget_inr).toLocaleString("en-IN")}.
+        </div>
+      )}
+      {stats && stats.liability_exceeds_budget && (
+        <div className="card mb-4 text-sm text-yellow-500">
+          Max liability (₹{Number(stats.max_liability_inr).toLocaleString("en-IN")}) is above your monthly budget. The budget cap still limits what is actually paid out each month.
+        </div>
+      )}
+      {stats && stats.anomalies > 0 && (
+        <div className="card mb-4 border border-red/40 bg-red/10 text-sm text-red">
+          {stats.anomalies} ledger anomal{stats.anomalies === 1 ? "y" : "ies"} found (a negative balance, a missing debit or refund, or stuck pending coins).
+          Run <span className="font-mono">node scripts/reconcileCoins.js</span> on the server for details.
+        </div>
+      )}
 
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
@@ -1553,6 +1580,7 @@ function CoinsTab({ showToast }) {
             ["Coins spent", Number(stats.spent).toLocaleString("en-IN")],
             ["Earners (30 days)", stats.earners_30d],
             ["Cash rewards sent this month", `₹${Number(stats.cash_rewards_fulfilled_this_month_inr).toLocaleString("en-IN")}`],
+            ["Cash committed this month", stats.monthly_cash_budget_inr > 0 ? `₹${Number(stats.cash_committed_this_month_inr).toLocaleString("en-IN")} / ₹${Number(stats.monthly_cash_budget_inr).toLocaleString("en-IN")}` : `₹${Number(stats.cash_committed_this_month_inr).toLocaleString("en-IN")} (no budget set)`],
           ].map(([label, value]) => (
             <div key={label} className="card py-3">
               <p className="text-[11px] text-gray-500 uppercase tracking-wider">{label}</p>
@@ -1564,6 +1592,7 @@ function CoinsTab({ showToast }) {
 
       {view === "settings" && <CoinSettingsPanel showToast={showToast} onSaved={loadStats} />}
       {view === "queue" && <CoinQueuePanel showToast={showToast} onChanged={loadStats} onOpenUser={openLedger} />}
+      {view === "disputes" && <CoinDisputesPanel showToast={showToast} onChanged={loadStats} />}
       {view === "ledger" && <CoinLedgerPanel showToast={showToast} userId={ledgerUserId} setUserId={setLedgerUserId} onChanged={loadStats} />}
       {view === "catalog" && <CoinCatalogPanel showToast={showToast} />}
     </div>
@@ -1673,8 +1702,44 @@ function CoinSettingsPanel({ showToast, onSaved }) {
   );
 }
 
+const RISK_FLAG_LABELS = {
+  new_account: "New account",
+  high_earn_rate: "Earning unusually fast",
+  referral_heavy: "Many referral rewards",
+  repeat_redeemer: "Repeat redeemer",
+  admin_grants: "Received admin grants",
+};
+
 function CoinQueuePanel({ showToast, onChanged, onOpenUser }) {
   const [status, setStatus] = useState("requested");
+  const [exp, setExp] = useState({ status: "", from: "", to: "" });
+  const [exporting, setExporting] = useState(false);
+
+  // CSV for accounting. Fetched with the auth header, then saved as a file.
+  // Gift card codes are never included (the server leaves them out).
+  const exportCsv = async () => {
+    setExporting(true);
+    try {
+      const qs = new URLSearchParams(Object.fromEntries(Object.entries(exp).filter(([, v]) => v)));
+      const res = await fetch(`${API_BASE}/admin/coins/redemptions/export?${qs}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+      if (!res.ok) throw new Error(`Export failed (HTTP ${res.status})`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `arenax-redemptions-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      showToast(e.message, false);
+    } finally {
+      setExporting(false);
+    }
+  };
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [codes, setCodes] = useState({});
@@ -1706,12 +1771,25 @@ function CoinQueuePanel({ showToast, onChanged, onOpenUser }) {
   return (
     <div>
       <div className="flex gap-1 bg-navy rounded-lg p-1 w-fit mb-4">
-        {["requested", "approved", "fulfilled", "rejected"].map((s) => (
+        {["requested", "approved", "fulfilled", "rejected", "refunded"].map((s) => (
           <button key={s} onClick={() => setStatus(s)}
             className={`px-3 py-1 rounded-md text-xs font-semibold capitalize transition-colors ${status === s ? "bg-red text-white" : "text-gray-400 hover:text-white"}`}>
             {s}
           </button>
         ))}
+      </div>
+      <div className="card mb-4 flex flex-wrap items-end gap-3">
+        <div>
+          <p className="text-[11px] text-gray-500 uppercase tracking-wider mb-1">Accounting export</p>
+          <select className="input text-sm" value={exp.status} onChange={(e) => setExp((x) => ({ ...x, status: e.target.value }))}>
+            <option value="">All statuses</option>
+            {["requested", "approved", "fulfilled", "rejected", "refunded"].map((st) => <option key={st} value={st}>{st}</option>)}
+          </select>
+        </div>
+        <input className="input text-sm" type="date" aria-label="From date" value={exp.from} onChange={(e) => setExp((x) => ({ ...x, from: e.target.value }))} />
+        <input className="input text-sm" type="date" aria-label="To date" value={exp.to} onChange={(e) => setExp((x) => ({ ...x, to: e.target.value }))} />
+        <button className="btn-secondary text-sm" onClick={exportCsv} disabled={exporting}>{exporting ? "Exporting..." : "Export CSV"}</button>
+        <p className="text-[11px] text-gray-600 basis-full">Opens in Excel / Sheets. Gift card codes are never included.</p>
       </div>
       {loading ? <LoadingRows /> : rows.length === 0 ? (
         <div className="card text-center py-12 text-gray-600 text-sm">No {status} redemptions</div>
@@ -1726,6 +1804,17 @@ function CoinQueuePanel({ showToast, onChanged, onOpenUser }) {
                 </div>
                 <p className="text-xs text-gray-500">{fmt(r.created_at)} · {Number(r.coins_spent).toLocaleString("en-IN")} coins · member since {fmt(r.user_since)}</p>
               </div>
+              {r.flags && r.flags.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                  {r.flags.map((f) => (
+                    <span key={f} className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                      style={{ background: "rgba(234,179,8,0.15)", color: "#eab308" }}>
+                      {RISK_FLAG_LABELS[f] || f}
+                    </span>
+                  ))}
+                  <span className="text-[11px] text-gray-500">{Number(r.earned_7d).toLocaleString("en-IN")} coins earned in 7 days</span>
+                </div>
+              )}
               {(status === "requested" || status === "approved") ? (
                 <div className="flex flex-wrap gap-2">
                   <input className="input flex-1 min-w-[200px] text-sm" placeholder="Gift card code / top-up reference"
@@ -1938,6 +2027,99 @@ function CoinLedgerPanel({ showToast, userId, setUserId, onChanged }) {
             )}
           </div>
         </>
+      )}
+    </div>
+  );
+}
+
+// Redemption disputes: a user reported a missing or invalid gift card code.
+function CoinDisputesPanel({ showToast, onChanged }) {
+  const [status, setStatus] = useState("open");
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState({});       // per dispute: { action, note, code }
+  const [busyId, setBusyId] = useState(null);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    apiFetch(`/admin/coins/disputes?status=${status}`)
+      .then((d) => setRows(d.disputes || []))
+      .catch((e) => showToast(`Failed to load: ${e.message}`, false))
+      .finally(() => setLoading(false));
+  }, [status, showToast]);
+  useEffect(() => { load(); }, [load]);
+
+  const f = (id) => form[id] || { action: "replace", note: "", code: "" };
+  const set = (id, patch) => setForm((x) => ({ ...x, [id]: { ...f(id), ...patch } }));
+
+  const resolve = async (d) => {
+    const v = f(d.dispute_id);
+    if (v.action === "refund" && !window.confirm(`Return ${Number(d.coins_spent).toLocaleString("en-IN")} coins to @${d.username}?`)) return;
+    setBusyId(d.dispute_id);
+    try {
+      await apiFetch(`/admin/coins/disputes/${d.dispute_id}/resolve`, {
+        method: "POST",
+        body: JSON.stringify({ action: v.action, note: v.note, ...(v.action === "replace" ? { fulfillment: v.code } : {}) }),
+      });
+      showToast("Report resolved");
+      load();
+      onChanged?.();
+    } catch (e) {
+      showToast(e.message, false);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex gap-1 bg-navy rounded-lg p-1 w-fit mb-4">
+        {["open", "replaced", "refunded", "denied"].map((s) => (
+          <button key={s} onClick={() => setStatus(s)}
+            className={`px-3 py-1 rounded-md text-xs font-semibold capitalize transition-colors ${status === s ? "bg-red text-white" : "text-gray-400 hover:text-white"}`}>
+            {s}
+          </button>
+        ))}
+      </div>
+      {loading ? <LoadingRows /> : rows.length === 0 ? (
+        <div className="card text-center py-12 text-gray-600 text-sm">No {status} reports</div>
+      ) : (
+        <div className="space-y-3">
+          {rows.map((d) => {
+            const v = f(d.dispute_id);
+            return (
+              <div key={d.dispute_id} className="card">
+                <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+                  <div>
+                    <p className="font-semibold text-white">{d.reward_name}{d.inr_value != null && <span className="text-gray-500"> {"\u00B7"} ₹{Number(d.inr_value)}</span>}</p>
+                    <p className="text-xs text-gray-400">@{d.username} {"\u00B7"} {d.email}</p>
+                  </div>
+                  <p className="text-xs text-gray-500">{fmt(d.created_at)} {"\u00B7"} {Number(d.coins_spent).toLocaleString("en-IN")} coins {"\u00B7"} request is {d.redemption_status}</p>
+                </div>
+                <p className="text-sm text-gray-300 bg-navy rounded-lg p-3 mb-3 whitespace-pre-wrap">{d.reason}</p>
+                {d.fulfillment && <p className="text-xs text-gray-500 font-mono break-all mb-3">Code sent: {d.fulfillment}</p>}
+                {d.status === "open" ? (
+                  <div className="flex flex-wrap gap-2">
+                    <select className="input text-sm" value={v.action} onChange={(e) => set(d.dispute_id, { action: e.target.value })}>
+                      <option value="replace">Send a new code</option>
+                      <option value="refund">Refund the coins</option>
+                      <option value="deny">No problem found</option>
+                    </select>
+                    {v.action === "replace" && (
+                      <input className="input flex-1 min-w-[180px] text-sm" placeholder="New code / reference" value={v.code} onChange={(e) => set(d.dispute_id, { code: e.target.value })} />
+                    )}
+                    <input className="input flex-1 min-w-[200px] text-sm" maxLength={200} placeholder="Note to the user (required)" value={v.note} onChange={(e) => set(d.dispute_id, { note: e.target.value })} />
+                    <button className="btn-primary text-sm"
+                      disabled={busyId === d.dispute_id || v.note.trim().length < 3 || (v.action === "replace" && !v.code.trim())}
+                      onClick={() => resolve(d)}>Resolve</button>
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-500">Resolved: {d.admin_note}</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );
@@ -2471,6 +2653,230 @@ function SponsorsTab({ showToast }) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ── Arena Coins metrics (Analytics tab) ─────────────────────────────────────
+// Fetches on its own so a failure here never blanks the rest of the Analytics tab.
+// Definitions live in adminCoinController.getCoinAnalytics.
+const coinN = (v) => Number(v).toLocaleString("en-IN");
+const coinPct = (v) => (v === null || v === undefined ? "—" : `${Math.round(v * 1000) / 10}%`);
+const coinInr = (v) => (v === null || v === undefined ? "—" : `₹${Number(v).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`);
+
+function CoinAnalytics({ showToast }) {
+  const [days, setDays] = useState(30);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setFailed(false);
+    apiFetch(`/admin/analytics/coins?days=${days}`)
+      .then((d) => { if (!cancelled) setData(d); })
+      .catch((e) => { if (!cancelled) { setFailed(true); showToast(`Failed to load coin metrics: ${e.message}`, false); } })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [days, showToast]);
+
+  const s = data?.summary;
+  const cards = s ? [
+    { label: "Coins issued", value: coinN(s.issued), sub: s.issued_per_active_user !== null ? `${coinN(s.issued_per_active_user)} per active user` : "no active users yet", watch: "Much higher than you modelled" },
+    { label: "Coins spent on rewards", value: coinN(s.spent), sub: `${coinN(s.redeemers)} redeemer${s.redeemers === 1 ? "" : "s"}`, watch: null },
+    { label: "Redemption rate", value: coinPct(s.redemption_rate), sub: `${coinN(s.redeemers)} of ${coinN(s.earners)} earners`, watch: "Far above expectations" },
+    { label: "Cash cost (delivered)", value: coinInr(s.cash_cost_inr), sub: `${coinInr(s.cash_cost_per_active_user_inr)} per active user`, watch: "Above your monthly budget" },
+    { label: "Max cash liability", value: coinInr(s.max_liability_inr), sub: `${coinN(s.outstanding)} coins outstanding (all time)`, watch: "Above your monthly budget" },
+    { label: "Rejected requests", value: coinPct(s.rejection_rate), sub: `${coinN(s.redemptions_rejected)} of ${coinN(s.redemptions_total)} requests`, watch: "Rising trend = fraud or support load" },
+    { label: "Earners / active", value: `${coinN(s.earners)} / ${coinN(s.active_users)}`, sub: s.issued_per_earner !== null ? `${coinN(s.issued_per_earner)} coins per earner` : "—", watch: null },
+    { label: "Paid Pro among earners", value: coinPct(data.pro.paid_pro_share), sub: `${coinN(data.pro.earners_with_paid_pro)} of ${coinN(data.pro.earners)} earners`, watch: "Flat = multiplier isn't selling Pro" },
+  ] : [];
+
+  const retRow = (label, r) => {
+    if (!r) return null;
+    const cell = (g) => (g.size === 0 ? <span className="text-gray-600">no users yet</span> : (
+      <span><span className="text-white font-semibold">{coinPct(g.rate)}</span> <span className="text-gray-500 text-xs">({coinN(g.retained)} of {coinN(g.size)})</span></span>
+    ));
+    return (
+      <tr key={label} className="border-b border-surface-border/50">
+        <td className="px-4 py-3 text-white">{label}</td>
+        <td className="px-4 py-3">{cell(r.engaged)}</td>
+        <td className="px-4 py-3">{cell(r.other)}</td>
+      </tr>
+    );
+  };
+
+  return (
+    <div className="mt-10">
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <div>
+          <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Arena Coins</h3>
+          <p className="text-xs text-gray-600 mt-0.5">Is the coin economy affordable, and is it doing anything for retention?</p>
+        </div>
+        <div className="flex gap-1 bg-navy rounded-lg p-1">
+          {[7, 30, 90].map((d) => (
+            <button
+              key={d}
+              onClick={() => setDays(d)}
+              className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${days === d ? "bg-red text-white" : "text-gray-400 hover:text-white"}`}
+            >
+              {d}d
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading && !data ? <LoadingGrid /> : failed && !data ? (
+        <div className="card text-center py-10 text-gray-600 text-sm">Couldn't load coin metrics.</div>
+      ) : data && (
+        <div className={loading ? "opacity-60 transition-opacity" : "transition-opacity"}>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            {cards.map((c) => (
+              <div key={c.label} className="card">
+                <div className="text-xs text-gray-500">{c.label}</div>
+                <div className="text-2xl font-display font-bold text-white mt-1">{c.value}</div>
+                <div className="text-xs text-gray-500 mt-1">{c.sub}</div>
+                {c.watch && <div className="text-[11px] text-gray-600 mt-2">Watch for: {c.watch}</div>}
+              </div>
+            ))}
+          </div>
+
+          {s.manual_net !== 0 && (
+            <p className="text-xs text-gray-500 mb-4">
+              Manual admin adjustments in this period: <span className="text-gray-300">{s.manual_net > 0 ? "+" : ""}{coinN(s.manual_net)}</span> coins (not included in "issued").
+            </p>
+          )}
+
+          <div className="card mb-6">
+            <div className="text-xs text-gray-500 mb-2">Coins issued vs spent per day</div>
+            <TrendChart
+              trend={data.trend}
+              xKey="day"
+              series={[
+                { key: "issued", label: "Issued", color: "#22c55e" },
+                { key: "spent", label: "Spent on rewards", color: "#ff4655" },
+              ]}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div>
+              <div className="text-xs text-gray-500 mb-2">Retention: coin-engaged vs other new users</div>
+              <div className="card p-0 overflow-hidden">
+                {data.retention.d7 ? (
+                  <table className="w-full text-sm">
+                    <thead className="bg-navy border-b border-surface-border">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Day</th>
+                        <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Earned non-login coins in first 3 days</th>
+                        <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Others</th>
+                      </tr>
+                    </thead>
+                    <tbody>{retRow("D7", data.retention.d7)}{retRow("D30", data.retention.d30)}</tbody>
+                  </table>
+                ) : (
+                  <p className="text-gray-600 text-sm py-8 text-center">No coin activity yet</p>
+                )}
+              </div>
+              <p className="text-[11px] text-gray-600 mt-2">
+                Only users who signed up after coins launched{data.retention.since ? ` (${fmt(data.retention.since)})` : ""}. Retained = logged in on exactly that day, as in the cohort table above.
+                This shows correlation: engaged users were always likelier to come back, so a gap alone doesn't prove coins cause it.
+              </p>
+            </div>
+
+            <div>
+              <div className="text-xs text-gray-500 mb-2">ArenaX Pro: coin trial to paid</div>
+              <div className="card">
+                <div className="flex items-baseline gap-3 mb-2">
+                  <span className="text-3xl font-display font-bold text-white">{coinPct(data.pro.trial_conversion_rate)}</span>
+                  <span className="text-xs text-gray-500">of users who redeemed Pro days later bought paid Pro</span>
+                </div>
+                <p className="text-xs text-gray-500">
+                  {coinN(data.pro.trial_converted)} of {coinN(data.pro.trialists)} users (all time).
+                </p>
+                <p className="text-[11px] text-gray-600 mt-3">
+                  Redemption, cash-cost and rejection figures cover the selected period; liability is the current total. Cash cost counts delivered gift cards and top-ups only. Pro days cost no cash.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// -- Referrals (Analytics tab) ------------------------------------------------
+// Is the invite loop bringing in real users, and is anyone farming it?
+// Fetches on its own so a failure never blanks the rest of the Analytics tab.
+function ReferralAnalytics({ showToast }) {
+  const [data, setData] = useState(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    apiFetch("/admin/analytics/referrals")
+      .then((d) => { if (!cancelled) setData(d); })
+      .catch((e) => { if (!cancelled) { setFailed(true); showToast(`Failed to load referral metrics: ${e.message}`, false); } });
+    return () => { cancelled = true; };
+  }, [showToast]);
+
+  const s = data?.summary;
+  return (
+    <div className="mt-10">
+      <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Referrals</h3>
+      <p className="text-xs text-gray-600 mt-0.5 mb-3">Is the invite loop bringing in real, active users?</p>
+      {failed && !data ? (
+        <div className="card text-center py-10 text-gray-600 text-sm">Couldn't load referral metrics.</div>
+      ) : !data ? <LoadingGrid /> : (
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            {[
+              { label: "Invited", value: coinN(s.invited), sub: `${coinN(s.invited_30d)} in the last 30 days` },
+              { label: "Activated", value: coinN(s.activated), sub: `${coinPct(s.activation_rate)} of invited \u00B7 ${coinN(s.activated_30d)} in 30 days` },
+              { label: "Share of signups via referral", value: coinPct(s.share_of_signups), sub: `${coinN(s.referrers)} referrer${s.referrers === 1 ? "" : "s"}` },
+              { label: "Referral coins paid", value: coinN(s.coins_paid), sub: `${coinN(s.coins_on_hold)} on hold \u00B7 ${coinN(Math.abs(s.coins_reversed))} reversed` },
+            ].map((c) => (
+              <div key={c.label} className="card">
+                <div className="text-xs text-gray-500">{c.label}</div>
+                <div className="text-2xl font-display font-bold text-white mt-1">{c.value}</div>
+                <div className="text-xs text-gray-500 mt-1">{c.sub}</div>
+              </div>
+            ))}
+          </div>
+          <div className="text-xs text-gray-500 mb-2">Top referrers</div>
+          <div className="card p-0 overflow-hidden">
+            {data.top.length === 0 ? (
+              <p className="text-gray-600 text-sm py-8 text-center">No referrals yet</p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead className="bg-navy border-b border-surface-border">
+                  <tr>
+                    {["User", "Invited", "Activated", "Rate", "Coins"].map((h) => (
+                      <th key={h} className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.top.map((t) => (
+                    <tr key={t.user_id} className="border-b border-surface-border/50">
+                      <td className="px-4 py-3 text-white">@{t.username}{t.status !== "active" && <span className="text-red text-xs"> ({t.status})</span>}</td>
+                      <td className="px-4 py-3 text-gray-300">{coinN(t.invited)}</td>
+                      <td className="px-4 py-3 text-gray-300">{coinN(t.activated)}</td>
+                      <td className="px-4 py-3 text-gray-300">{coinPct(t.activation_rate)}</td>
+                      <td className="px-4 py-3 text-gray-300">{coinN(t.coins)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+          <p className="text-[11px] text-gray-600 mt-2">
+            Watch for one referrer whose friends all activate almost instantly: referral coins are held and reversed if the friend is banned, but review those accounts before approving a large redemption.
+          </p>
+        </>
+      )}
     </div>
   );
 }

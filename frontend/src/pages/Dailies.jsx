@@ -31,6 +31,7 @@ export default function Dailies() {
   const [question, setQuestion] = useState(null);
   const [results, setResults] = useState(null);
   const [streak, setStreak] = useState(null);
+  const [coinsAwarded, setCoinsAwarded] = useState(0);
 
   const [starting, setStarting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -144,6 +145,7 @@ export default function Dailies() {
     if (data.status === "completed") {
       setResults(data.results);
       setStreak(data.streak);
+      setCoinsAwarded(data.coins_awarded || 0);
       setView("results");
       refreshSidebar();
     } else {
@@ -233,6 +235,7 @@ export default function Dailies() {
                 sessionId={sessionId}
                 results={results}
                 streak={streak}
+                coinsAwarded={coinsAwarded}
                 onPlayAnotherGame={handlePlayAnotherGame}
               />
             )}

@@ -1,9 +1,8 @@
 import pool from "../config/db.js";
+import { getSettings, awardCoins } from "./coinService.js";
 
-// XP credited to the referrer once a referred user activates. A flat amount
-// keeps this simple; if tiered rewards are ever wanted, this is the one
-// place to change.
-export const XP_PER_ACTIVATION = 100;
+// Rewards are Arena Coins (admin-editable: earn_referral, referral_hold_days,
+// referral_monthly_cap). They used to be XP, but nothing ever spent XP.
 
 // ─── generateReferralCode ───────────────────────────────────────────────────
 // Deterministic-ish + collision-checked: derived from the username so it
@@ -66,39 +65,71 @@ export async function checkActivation(userId) {
   };
 }
 
-// ─── creditActivatedReferrals ────────────────────────────────────────────────
-// Lazily evaluates every still-pending referral for this referrer and
-// credits XP for any referred user who has since activated. Called from the
-// ambassador dashboard read path (GET /api/referrals/mine) — no cron, no
-// scheduler, consistent with how this codebase already prefers
-// on-read/fire-and-forget checks over background jobs for low-volume work.
+// -- creditActivatedReferrals -------------------------------------------------
+// Lazily evaluates every still-pending referral for this referrer and pays
+// Arena Coins for any referred user who has since activated. No cron: it runs
+// when the referrer opens the dashboard or the Rewards page, and on login.
+//
+// Coins can become gift cards, so referrals are protected like the other
+// cash-adjacent earns:
+//  * a referrer who isn't in good standing earns nothing;
+//  * the friend must also be a normal (non-banned) account;
+//  * a monthly cap per referrer (rows over the cap simply stay pending and are
+//    paid next month);
+//  * the coins are held as 'pending' for referral_hold_days and only vest if the
+//    friend is still a normal account (see settlePending in coinService).
+// Idempotent: the ledger row is keyed referral:<friendId>, so concurrent or
+// repeated runs can never pay the same friend twice.
 export async function creditActivatedReferrals(referrerId) {
+  const [[referrer]] = await pool.query("SELECT status FROM users WHERE user_id = ?", [referrerId]);
+  if (!referrer || referrer.status !== "active") return;
+
   const [pending] = await pool.query(
-    "SELECT reward_id, referred_user_id FROM referral_rewards WHERE referrer_id = ? AND status = 'pending'",
+    "SELECT reward_id, referred_user_id FROM referral_rewards WHERE referrer_id = ? AND status = 'pending' ORDER BY reward_id",
     [referrerId]
   );
   if (pending.length === 0) return;
 
+  const settings = await getSettings();
+  const coins = Number(settings.earn_referral) || 0;
+  if (coins <= 0) return; // program paused by an admin
+
+  const [[used]] = await pool.query(
+    `SELECT COUNT(*) AS n FROM referral_rewards
+      WHERE referrer_id = ? AND status = 'credited' AND coins_amount > 0
+        AND credited_at >= DATE_FORMAT(UTC_TIMESTAMP(), '%Y-%m-01')`,
+    [referrerId]
+  );
+  let remaining = Number(settings.referral_monthly_cap) - Number(used.n);
+
   for (const row of pending) {
+    if (remaining <= 0) break;
+
     const { activated } = await checkActivation(row.referred_user_id);
     if (!activated) continue;
 
-    const conn = await pool.getConnection();
-    try {
-      await conn.beginTransaction();
-      const [updateResult] = await conn.query(
-        "UPDATE referral_rewards SET status = 'credited', xp_amount = ?, credited_at = NOW() WHERE reward_id = ? AND status = 'pending'",
-        [XP_PER_ACTIVATION, row.reward_id]
-      );
-      if (updateResult.affectedRows > 0) {
-        await conn.query("UPDATE users SET xp_balance = xp_balance + ? WHERE user_id = ?", [XP_PER_ACTIVATION, referrerId]);
-      }
-      await conn.commit();
-    } catch (err) {
-      await conn.rollback();
-      throw err;
-    } finally {
-      conn.release();
-    }
+    const [[friend]] = await pool.query("SELECT status FROM users WHERE user_id = ?", [row.referred_user_id]);
+    if (!friend || friend.status !== "active") continue;
+
+    const hold = Number(settings.referral_hold_days) || 0;
+    // Pay first, then flip the status. If the flip fails, the next run finds the
+    // ledger row already there (no double pay) and just completes the flip.
+    await awardCoins(referrerId, "referral", `referral:${row.referred_user_id}`, {
+      settings,
+      pending: hold > 0,
+      availableAt: hold > 0 ? new Date(Date.now() + hold * 86400000) : null,
+    });
+    const [flip] = await pool.query(
+      "UPDATE referral_rewards SET status = 'credited', coins_amount = ?, credited_at = NOW() WHERE reward_id = ? AND status = 'pending'",
+      [coins, row.reward_id]
+    );
+    if (flip.affectedRows > 0) remaining -= 1;
   }
+}
+
+// Fire-and-forget wrapper for hooks (login, Rewards page). Never throws.
+export function creditActivatedReferralsSafe(referrerId) {
+  creditActivatedReferrals(referrerId).catch((err) =>
+    console.error("[referrals] creditActivatedReferrals failed:", err.message)
+  );
 }

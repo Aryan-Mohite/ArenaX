@@ -52,6 +52,7 @@ const Blog              = lazy(() => import("./pages/Blog"));
 const BlogPost          = lazy(() => import("./pages/BlogPost"));
 const TermsAndConditions = lazy(() => import("./pages/TermsAndConditions"));
 const PrivacyPolicy     = lazy(() => import("./pages/PrivacyPolicy"));
+const RewardsTerms       = lazy(() => import("./pages/RewardsTerms"));
 
 // ── Admin pages (heaviest — lazy keeps them out of every user's initial load)
 const AdminDashboard        = lazy(() => import("./pages/admin/AdminDashboard"));
@@ -115,6 +116,7 @@ export default function App() {
           <Route path="/blog/:slug"    element={<Layout><BlogPost /></Layout>} />
           <Route path="/terms"         element={<Layout><TermsAndConditions /></Layout>} />
           <Route path="/privacy"       element={<Layout><PrivacyPolicy /></Layout>} />
+          <Route path="/rewards-terms" element={<Layout><RewardsTerms /></Layout>} />
 
           {/* ── Auth pages ── */}
           <Route path="/login"           element={<Layout><Login /></Layout>} />

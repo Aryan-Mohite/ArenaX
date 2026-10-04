@@ -4,6 +4,8 @@ import {
   listCatalog, redeemReward, SETTING_SPECS,
 } from "../services/coinService.js";
 import { hasFeature } from "../services/featureService.js";
+import { creditActivatedReferrals } from "../services/referralService.js";
+import { openRedemptionDispute } from "../services/coinOpsService.js";
 
 // ── GET MY COINS ─────────────────────────────────────────────────────────────
 // GET /api/coins/me
@@ -15,6 +17,7 @@ export const getMyCoins = async (req, res, next) => {
   try {
     const userId = req.user.id;
     await syncOneTimeCoins(userId).catch((e) => console.error("[coins] sync failed:", e.message));
+    await creditActivatedReferrals(userId).catch((e) => console.error("[referrals] credit failed:", e.message));
     await settlePending(userId);
 
     const [settings, balance, isPro, catalog] = await Promise.all([
@@ -93,7 +96,9 @@ export const getMyRedemptions = async (req, res, next) => {
     const [rows] = await pool.query(
       `SELECT r.redemption_id, r.coins_spent, r.status, r.admin_note, r.created_at, r.updated_at,
               CASE WHEN r.status = 'fulfilled' THEN r.fulfillment ELSE NULL END AS fulfillment,
-              c.name, c.type
+              c.name, c.type,
+              (SELECT d.status FROM redemption_disputes d WHERE d.redemption_id = r.redemption_id ORDER BY d.dispute_id DESC LIMIT 1) AS dispute_status,
+              TIMESTAMPDIFF(HOUR, r.created_at, NOW()) AS age_hours
          FROM redemptions r JOIN reward_catalog c ON c.reward_id = r.reward_id
         WHERE r.user_id = ?
         ORDER BY r.redemption_id DESC LIMIT 50`,
@@ -101,4 +106,24 @@ export const getMyRedemptions = async (req, res, next) => {
     );
     res.json({ success: true, redemptions: rows });
   } catch (err) { next(err); }
+};
+
+// GET /api/coins/balance -- tiny, side-effect-free balance for the navbar pill.
+// (/coins/me also syncs one-time awards and referral payouts, so it is too
+// heavy to call on every page.)
+export const getMyBalance = async (req, res, next) => {
+  try {
+    res.json({ success: true, ...(await getBalance(req.user.id)) });
+  } catch (err) { next(err); }
+};
+
+// POST /api/coins/redemptions/:id/dispute  { reason }
+export const disputeRedemption = async (req, res, next) => {
+  try {
+    const result = await openRedemptionDispute(req.user.id, Number(req.params.id), req.body?.reason);
+    res.status(201).json({ success: true, ...result, message: "Report sent. Our team will review it." });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ success: false, code: err.code, message: err.message });
+    next(err);
+  }
 };

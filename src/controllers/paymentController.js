@@ -175,11 +175,13 @@ export const handleWebhook = async (req, res, next) => {
 export const cancelSubscription = async (req, res, next) => {
   try {
     const [result] = await pool.query(
-      "UPDATE subscriptions SET status = 'canceled', canceled_at = NOW() WHERE user_id = ? AND status = 'active'",
+      // Pro days earned with Arena Coins (gateway = 'coins') are not a paid plan
+      // and are never cancelled here -- they simply run until they end.
+      "UPDATE subscriptions SET status = 'canceled', canceled_at = NOW() WHERE user_id = ? AND status = 'active' AND COALESCE(gateway, '') <> 'coins'",
       [req.user.id]
     );
     if (result.affectedRows === 0) {
-      return res.status(404).json({ success: false, message: "No active subscription to cancel" });
+      return res.status(404).json({ success: false, message: "No paid subscription to cancel" });
     }
     res.json({ success: true, message: "Subscription canceled" });
   } catch (err) {
@@ -192,17 +194,51 @@ export const cancelSubscription = async (req, res, next) => {
 // "current plan" display and upgrade/downgrade flow.
 export const getMySubscription = async (req, res, next) => {
   try {
+    // Only subscriptions that are still in date. Nothing flips expired rows to
+    // 'expired', so without the renews_at check a lapsed plan would show as
+    // current forever and block the user from renewing.
+    const VALID = "s.status = 'active' AND (s.renews_at IS NULL OR s.renews_at >= NOW())";
+
+    // A paid plan wins over coin-granted Pro; newest first within each.
     const [rows] = await pool.query(
       `SELECT s.subscription_id, s.status, s.started_at, s.renews_at, s.gateway,
               p.plan_id, p.plan_key, p.name, p.price, p.currency, p.billing_cycle, p.feature_flags
          FROM subscriptions s
          JOIN plans p ON p.plan_id = s.plan_id
-        WHERE s.user_id = ? AND s.status = 'active'
-        ORDER BY s.started_at DESC
+        WHERE s.user_id = ? AND ${VALID}
+        ORDER BY (COALESCE(s.gateway, '') = 'coins') ASC, s.started_at DESC
         LIMIT 1`,
       [req.user.id]
     );
-    res.json({ success: true, subscription: rows[0] || null });
+
+    // Pro days earned with coins, reported separately so the UI can show them
+    // even when a paid plan (e.g. an organizer plan) is the primary subscription.
+    const [[coin]] = await pool.query(
+      `SELECT s.renews_at FROM subscriptions s JOIN plans p ON p.plan_id = s.plan_id
+        WHERE s.user_id = ? AND ${VALID} AND s.gateway = 'coins' AND p.plan_key = 'gamer_pro'
+        ORDER BY s.renews_at DESC LIMIT 1`,
+      [req.user.id]
+    );
+
+    // If nothing is current, tell the UI what just lapsed so it can say "renew".
+    let expired = null;
+    if (!rows[0]) {
+      const [lapsed] = await pool.query(
+        `SELECT p.plan_key, p.name, s.gateway, s.renews_at AS ended_at
+           FROM subscriptions s JOIN plans p ON p.plan_id = s.plan_id
+          WHERE s.user_id = ? AND s.status = 'active' AND s.renews_at < NOW()
+          ORDER BY s.renews_at DESC LIMIT 1`,
+        [req.user.id]
+      );
+      expired = lapsed[0] || null;
+    }
+
+    res.json({
+      success: true,
+      subscription: rows[0] || null,
+      coin_pro_until: coin ? coin.renews_at : null,
+      expired,
+    });
   } catch (err) {
     next(err);
   }
@@ -274,6 +310,19 @@ async function activateFromPayment(payment, gatewayPaymentId, rawWebhookBody = n
   try {
     await conn.beginTransaction();
 
+    // Idempotent: verifyPayment (browser callback) and the webhook can both
+    // arrive, and a valid verify request can be replayed. Only the first one
+    // may activate anything -- otherwise remaining time below could be
+    // carried over again and again.
+    const [[current]] = await conn.query(
+      "SELECT status FROM payments WHERE payment_id = ? FOR UPDATE",
+      [payment.payment_id]
+    );
+    if (current?.status === "success") {
+      await conn.commit();
+      return false;
+    }
+
     await conn.query(
       `UPDATE payments SET status = 'success', gateway_payment_id = ?, raw_payload = COALESCE(?, raw_payload)
        WHERE payment_id = ?`,
@@ -283,16 +332,35 @@ async function activateFromPayment(payment, gatewayPaymentId, rawWebhookBody = n
     const [planRows] = await conn.query("SELECT billing_cycle FROM plans WHERE plan_id = ?", [payment.plan_id]);
     const cycleDays = planRows[0]?.billing_cycle === "annual" ? 365 : 30;
 
-    // One active subscription per user at a time — supersede rather than stack.
-    await conn.query(
-      "UPDATE subscriptions SET status = 'canceled', canceled_at = NOW() WHERE user_id = ? AND status = 'active'",
+    // One active paid subscription per user at a time -- supersede rather than stack.
+    // Two exceptions so nobody loses time they already own:
+    //  * Pro days earned with Arena Coins (gateway = 'coins') are only replaced
+    //    when the purchase is the same plan (i.e. buying ArenaX Pro). A different
+    //    purchase (say an organizer plan) leaves them running.
+    //  * Remaining time on a superseded subscription of the SAME plan -- coin Pro
+    //    days or an early renewal -- is added to the new period.
+    const [active] = await conn.query(
+      `SELECT subscription_id, plan_id, gateway, renews_at,
+              TIMESTAMPDIFF(SECOND, NOW(), renews_at) AS secs_left
+         FROM subscriptions
+        WHERE user_id = ? AND status = 'active' FOR UPDATE`,
       [payment.user_id]
     );
+    let carrySeconds = 0;
+    for (const sub of active) {
+      const samePlan = Number(sub.plan_id) === Number(payment.plan_id);
+      if (sub.gateway === "coins" && !samePlan) continue;
+      await conn.query(
+        "UPDATE subscriptions SET status = 'canceled', canceled_at = NOW() WHERE subscription_id = ?",
+        [sub.subscription_id]
+      );
+      if (samePlan && sub.renews_at && Number(sub.secs_left) > 0) carrySeconds += Number(sub.secs_left);
+    }
 
     const [result] = await conn.query(
       `INSERT INTO subscriptions (user_id, plan_id, status, renews_at, gateway)
-       VALUES (?, ?, 'active', DATE_ADD(NOW(), INTERVAL ? DAY), 'razorpay')`,
-      [payment.user_id, payment.plan_id, cycleDays]
+       VALUES (?, ?, 'active', DATE_ADD(DATE_ADD(NOW(), INTERVAL ? DAY), INTERVAL ? SECOND), 'razorpay')`,
+      [payment.user_id, payment.plan_id, cycleDays, carrySeconds]
     );
 
     await conn.query("UPDATE payments SET subscription_id = ? WHERE payment_id = ?", [
@@ -301,6 +369,7 @@ async function activateFromPayment(payment, gatewayPaymentId, rawWebhookBody = n
     ]);
 
     await conn.commit();
+    return true;
   } catch (err) {
     await conn.rollback();
     throw err;

@@ -17,6 +17,7 @@ import {
   verifyPayment,
   cancelSubscription,
 } from "../services/paymentService";
+import { getMyCoins } from "../services/coinService";
 import { loadRazorpayScript } from "../utils/razorpay";
 import PaymentHistory from "../components/PaymentHistory";
 import { TierCard, GAMER_TIER_CONTENT } from "../components/OrganizerTiers";
@@ -161,7 +162,9 @@ export default function Profile() {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(() =>
+    new URLSearchParams(window.location.search).get("tab") === "arenaxpro" ? "arenaxpro" : "overview"
+  );
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [avatarUrlMode, setAvatarUrlMode] = useState(false);
   const avatarFileRef = useRef(null);
@@ -182,10 +185,30 @@ export default function Profile() {
 
   // ── ArenaX Pro (§4 — premium gamer membership) ──────────────────────────
   const [subscription, setSubscription] = useState(null);
+  const [coinProUntil, setCoinProUntil] = useState(null); // Pro days earned with Arena Coins
+  const [expiredSub, setExpiredSub] = useState(null);     // what just lapsed, so we can say "renew"
+  const [coinInfo, setCoinInfo] = useState(null);         // live coin earn rates for the multiplier banner
   const [gamerPlans, setGamerPlans] = useState([]);
   const [proBusy, setProBusy] = useState(false);
-  const featureFlags = subscription?.feature_flags || {};
-  const isPro = subscription?.plan_key === "gamer_pro";
+
+  const applySubscription = (data) => {
+    setSubscription(data.subscription || null);
+    setCoinProUntil(data.coin_pro_until || null);
+    setExpiredSub(data.expired || null);
+  };
+  const parseFlags = (f) => (typeof f === "string" ? JSON.parse(f || "{}") : f || {});
+  const gamerProPlan = gamerPlans.find((p) => p.plan_key === "gamer_pro");
+  const subIsGamerPro = subscription?.plan_key === "gamer_pro";
+  // Pro via a paid plan, or via Pro days redeemed with coins (even when another
+  // paid plan, such as an organizer plan, is the primary subscription).
+  const isPro = subIsGamerPro || !!coinProUntil;
+  const isPaidPro = subIsGamerPro && subscription.gateway !== "coins";
+  const featureFlags =
+    !subIsGamerPro && coinProUntil
+      ? { ...parseFlags(subscription?.feature_flags), ...parseFlags(gamerProPlan?.feature_flags) }
+      : parseFlags(subscription?.feature_flags);
+  const fmtProDate = (d) =>
+    new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 
   const showToast = (msg) => {
     setToast(msg);
@@ -223,7 +246,7 @@ export default function Profile() {
             getMySubscription(),
             getPlans("gamer"),
           ]);
-          setSubscription(subRes.data.subscription);
+          applySubscription(subRes.data);
           setGamerPlans(plansRes.data.plans || []);
         } catch {}
         try {
@@ -292,6 +315,13 @@ export default function Profile() {
     }
   };
 
+  // Live earn rates for the "Pro earns more coins" banner. Loaded when the Pro tab opens,
+  // not on every profile view, because /coins/me also syncs one-time coin awards.
+  useEffect(() => {
+    if (activeTab !== "arenaxpro" || coinInfo) return;
+    getMyCoins().then((r) => setCoinInfo(r.data)).catch(() => {});
+  }, [activeTab, coinInfo]);
+
   const handleProUpgrade = async (plan) => {
     setProBusy(true);
     try {
@@ -318,7 +348,7 @@ export default function Profile() {
             });
             showToast(`Upgraded to ${data.plan.name}!`);
             const subRes = await getMySubscription();
-            setSubscription(subRes.data.subscription);
+            applySubscription(subRes.data);
           } catch (e) {
             showToast(e.response?.data?.message || "Payment verification failed");
           }
@@ -334,12 +364,14 @@ export default function Profile() {
   };
 
   const handleProCancel = async () => {
-    if (!window.confirm("Downgrade to the free plan? You'll lose your ArenaX Pro perks immediately.")) return;
+    if (!window.confirm("Downgrade to the free plan? You'll lose your paid ArenaX Pro perks immediately.")) return;
     setProBusy(true);
     try {
       await cancelSubscription();
       showToast("Downgraded to free plan");
-      setSubscription(null);
+      // Pro days earned with coins are kept, so re-read instead of assuming "free".
+      const subRes = await getMySubscription();
+      applySubscription(subRes.data);
     } catch (e) {
       showToast(e.response?.data?.message || "Couldn't cancel subscription");
     } finally {
@@ -1018,18 +1050,28 @@ export default function Profile() {
         <div className="space-y-4 animate-fade-in">
           {/* Current status */}
           <div className="card flex flex-wrap items-center gap-4">
-            <div className="text-3xl">{isPro ? "⭐" : "🎮"}</div>
+            <div className="text-3xl">{isPro ? "\u2B50" : "\uD83C\uDFAE"}</div>
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-white">
-                {isPro ? "You're an ArenaX Pro member" : "You're on the free plan"}
+                {isPaidPro
+                  ? "You're an ArenaX Pro member"
+                  : coinProUntil
+                    ? "ArenaX Pro is active (earned with Arena Coins)"
+                    : expiredSub?.plan_key === "gamer_pro"
+                      ? "Your ArenaX Pro has ended"
+                      : "You're on the free plan"}
               </p>
               <p className="text-xs text-gray-500 mt-0.5">
-                {isPro
-                  ? "Verified badge, profile banner, advanced stats and priority Team Finder placement are active."
-                  : "Team Finder, tournaments and the Nexus stay free for everyone. Pro adds extras on top."}
+                {isPaidPro
+                  ? `Active until ${fmtProDate(subscription.renews_at)}. Verified badge, profile banner, advanced stats and priority Team Finder placement are active.`
+                  : coinProUntil
+                    ? `Active until ${fmtProDate(coinProUntil)}. Upgrade any time and your remaining Pro days are added to your paid period.`
+                    : expiredSub?.plan_key === "gamer_pro"
+                      ? `It ended on ${fmtProDate(expiredSub.ended_at)}. Renew to get your Pro perks back.`
+                      : "Team Finder, tournaments and the Nexus stay free for everyone. Pro adds extras on top."}
               </p>
             </div>
-            {isPro && (
+            {isPaidPro && (
               <button
                 className="btn-ghost text-sm"
                 disabled={proBusy}
@@ -1040,17 +1082,39 @@ export default function Profile() {
             )}
           </div>
 
+          {/* Arena Coins multiplier: the headline benefit. Numbers are live from the coins API. */}
+          {coinInfo && Number(coinInfo.pro_multiplier) > 1 && (
+            <div className="card border border-yellow-500/30 bg-yellow-500/5">
+              <p className="font-semibold text-white">
+                {isPro
+                  ? `You earn ${Number(coinInfo.pro_multiplier)}x Arena Coins`
+                  : `Earn ${Number(coinInfo.pro_multiplier)}x Arena Coins with Pro`}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                {coinInfo.earn
+                  .filter((e) => e.boosted)
+                  .map((e) => `${e.label}: ${e.amount} \u2192 ${e.pro_amount}`)
+                  .join("  \u00B7  ")}
+              </p>
+              <p className="text-xs mt-2">
+                <Link to="/rewards" className="text-yellow-500 hover:underline">
+                  {isPro ? "See what you can redeem" : "Want to try Pro first? Redeem Pro days with your coins"}
+                </Link>
+              </p>
+            </div>
+          )}
+
           {/* Plan cards */}
           {gamerPlans.length === 0 ? (
             <div className="card text-center py-10 text-gray-500 text-sm">
-              Plans aren't available right now — please try again later.
+              Plans aren't available right now -- please try again later.
             </div>
           ) : (
             <div className="grid sm:grid-cols-2 gap-4">
               {gamerPlans.map((p) => {
-                const isCurrent = subscription
-                  ? p.plan_key === subscription.plan_key
-                  : Number(p.price) === 0;
+                const isFree = Number(p.price) === 0;
+                // Coin-only Pro is not the paid plan, so those users can still upgrade.
+                const isCurrent = isFree ? !isPro : p.plan_key === "gamer_pro" && isPaidPro;
                 return (
                   <TierCard
                     key={p.plan_id}
@@ -1060,16 +1124,20 @@ export default function Profile() {
                     cta={
                       <button
                         className="btn-primary w-full text-sm"
-                        disabled={isCurrent || proBusy || Number(p.price) === 0}
+                        disabled={isCurrent || proBusy || isFree}
                         onClick={() => handleProUpgrade(p)}
                       >
                         {isCurrent
                           ? "Current Plan"
-                          : Number(p.price) === 0
+                          : isFree
                             ? "Free"
                             : proBusy
-                              ? "Please wait…"
-                              : "Upgrade"}
+                              ? "Please wait..."
+                              : coinProUntil
+                                ? "Upgrade (keeps your Pro days)"
+                                : expiredSub?.plan_key === "gamer_pro"
+                                  ? "Renew"
+                                  : "Upgrade"}
                       </button>
                     }
                   />
@@ -1082,8 +1150,9 @@ export default function Profile() {
 
           <p className="text-xs text-gray-600">
             Heads up: an account can only hold one active paid plan at a time, so
-            upgrading here replaces any other active subscription on your account
-            (for example an Organizer plan).
+            upgrading here replaces any other paid subscription on your account
+            (for example an Organizer plan). Pro days you earned with Arena Coins
+            are never lost: they are added to your paid period.
           </p>
         </div>
       )}

@@ -30,8 +30,8 @@ export async function resetDb() {
   const pool = await getPool();
   await pool.query("SET FOREIGN_KEY_CHECKS = 0");
   for (const t of [
-    "coin_ledger", "redemptions", "subscriptions", "team_members", "teams",
-    "user_game_profile", "coin_settings_audit", "coin_settings", "users",
+    "redemption_disputes", "team_finder_boosts", "team_finder_posts", "user_streaks", "coin_ledger", "referral_rewards", "community_posts", "redemptions", "subscriptions", "team_members", "teams",
+    "user_game_profile", "coin_settings_audit", "coin_settings", "events", "payment_disputes", "payments", "users",
   ]) {
     await pool.query(`DELETE FROM ${t}`);
   }

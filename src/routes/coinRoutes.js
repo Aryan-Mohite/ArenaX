@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getMyCoins, getMyLedger, redeem, getMyRedemptions } from "../controllers/coinController.js";
+import { getMyCoins, getMyLedger, redeem, getMyRedemptions, getMyBalance, disputeRedemption } from "../controllers/coinController.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 
 const router = Router();
@@ -15,5 +15,9 @@ router.get("/ledger", getMyLedger);
 router.post("/redeem", redeem);
 // GET  /api/coins/redemptions  my redemption history (incl. gift card codes once fulfilled)
 router.get("/redemptions", getMyRedemptions);
+// GET  /api/coins/balance      light balance for the navbar
+router.get("/balance", getMyBalance);
+// POST /api/coins/redemptions/:id/dispute  { reason } -- report a missing / invalid reward
+router.post("/redemptions/:id/dispute", disputeRedemption);
 
 export default router;

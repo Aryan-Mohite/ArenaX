@@ -146,3 +146,37 @@ export const sendRedemptionEmail = async (to, { outcome, rewardName, note }) => 
     `,
   });
 };
+
+// Sent when an admin resolves a redemption dispute. The replacement code itself
+// is never emailed (see sendRedemptionEmail); the user reads it on /rewards.
+export const sendDisputeResolvedEmail = async (to, { rewardName, action, note }) => {
+  const siteUrl = (process.env.CLIENT_URL || "https://arenax.io").replace(/\/$/, "");
+  const name = escapeHtml(rewardName);
+  const lines = {
+    replace: `We've replaced the code for your <strong style="color:#fff">${name}</strong>. Log in and open Rewards to see it.`,
+    refund: `We've refunded the coins for your <strong style="color:#fff">${name}</strong> to your balance.`,
+    deny: `We reviewed your report about <strong style="color:#fff">${name}</strong> and couldn't find a problem with the reward we delivered.`,
+  };
+  const plain = {
+    replace: `We've replaced the code for your ${rewardName}. Log in at ${siteUrl}/rewards to see it.`,
+    refund: `We've refunded the coins for your ${rewardName} to your balance.`,
+    deny: `We reviewed your report about ${rewardName} and couldn't find a problem with the reward we delivered.`,
+  };
+  const noteHtml = note ? `<p style="margin:0 0 16px;color:#94a3b8;font-size:14px">Note from the team: <em style="color:#e2e8f0">${escapeHtml(note)}</em></p>` : "";
+  await transporter().sendMail({
+    from: FROM("ArenaX — Rewards"),
+    to,
+    subject: "Update on your ArenaX reward report",
+    text: `${plain[action] || plain.deny}${note ? `\n\nNote: ${note}` : ""}`,
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:auto;background:#0f172a;color:#e2e8f0;border-radius:12px;overflow:hidden">
+        <div style="background:#ff4655;padding:24px 32px"><h1 style="margin:0;font-size:22px;color:#fff;letter-spacing:1px">ArenaX</h1></div>
+        <div style="padding:32px">
+          <h2 style="margin:0 0 8px;font-size:18px;color:#fff">Reward report update</h2>
+          <p style="margin:0 0 16px;color:#94a3b8;font-size:14px">${lines[action] || lines.deny}</p>
+          ${noteHtml}
+          <a href="${siteUrl}/rewards" style="display:inline-block;background:#ff4655;color:#fff;text-decoration:none;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:600">Open Rewards</a>
+        </div>
+      </div>`,
+  });
+};

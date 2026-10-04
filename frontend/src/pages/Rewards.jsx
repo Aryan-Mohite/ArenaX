@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { getMyCoins, getCoinLedger, redeemReward, getMyRedemptions } from "../services/coinService";
+import { getMyCoins, getCoinLedger, redeemReward, getMyRedemptions, disputeRedemption } from "../services/coinService";
 import { PageLoader, ErrorMessage } from "../components/UI";
 import SEO from "../components/SEO";
 
@@ -20,11 +20,26 @@ const REASON_LABELS = {
   ban_reversal: "Balance removed",
 };
 
+const DISPUTE_LABEL = {
+  open: "Report sent: under review",
+  replaced: "Report resolved: a new code was issued",
+  refunded: "Report resolved: your coins were refunded",
+  denied: "Report reviewed: no problem found",
+};
+
+// Gift cards and top-ups are the only manually delivered rewards, so only they
+// can be reported: once delivered, or when a request is still waiting after 3 days.
+const canReport = (r) =>
+  (r.type === "gift_card" || r.type === "topup") &&
+  r.dispute_status !== "open" &&
+  (r.status === "fulfilled" || ((r.status === "requested" || r.status === "approved") && Number(r.age_hours) >= 72));
+
 const STATUS_STYLE = {
   requested: { bg: "rgba(234,179,8,0.15)", fg: "#eab308", label: "Pending review" },
   approved:  { bg: "rgba(59,130,246,0.15)", fg: "#3b82f6", label: "Approved" },
   fulfilled: { bg: "rgba(34,197,94,0.15)", fg: "#22c55e", label: "Delivered" },
   rejected:  { bg: "rgba(239,68,68,0.15)", fg: "#ef4444", label: "Rejected \u2014 coins refunded" },
+  refunded:  { bg: "rgba(59,130,246,0.15)", fg: "#3b82f6", label: "Refunded" },
 };
 
 const fmtDate = (d) =>
@@ -42,7 +57,7 @@ function RewardCard({ reward, balance, canRedeem, busy, onRedeem }) {
     <div className="card flex flex-col">
       <div className="flex items-start justify-between gap-2 mb-1">
         <h3 className="font-display font-bold text-white">{reward.name}</h3>
-        {reward.type === "pro_days" && (
+        {(reward.type === "pro_days" || reward.type === "tf_boost") && (
           <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(255,70,85,0.15)", color: "#ff4655" }}>
             INSTANT
           </span>
@@ -76,6 +91,9 @@ export default function Rewards() {
   const [busyId, setBusyId] = useState(null);
   const [toast, setToast] = useState(null);
   const [tab, setTab] = useState("activity");
+  const [reportFor, setReportFor] = useState(null);
+  const [reportText, setReportText] = useState("");
+  const [reportBusy, setReportBusy] = useState(false);
 
   const showToast = (msg, ok = true) => {
     setToast({ msg, ok });
@@ -96,22 +114,39 @@ export default function Rewards() {
   useEffect(() => { load(); }, [load]);
 
   const onRedeem = async (reward) => {
+    const instant = reward.type === "pro_days" || reward.type === "tf_boost";
     const msg =
-      reward.type === "pro_days"
-        ? `Spend ${fmtCoins(reward.coin_cost)} coins on ${reward.name}?`
-        : `Spend ${fmtCoins(reward.coin_cost)} coins on ${reward.name}? An admin will review and send your code.`;
+      instant
+        ? `Spend ${fmtCoins(reward.coin_cost)} coins on ${reward.name}? By redeeming you agree to the Rewards Terms.`
+        : `Spend ${fmtCoins(reward.coin_cost)} coins on ${reward.name}? An admin will review and send your code. By redeeming you agree to the Rewards Terms.`;
     if (!window.confirm(msg)) return;
 
     setBusyId(reward.reward_id);
     try {
       const res = await redeemReward(reward.reward_id);
-      showToast(res.data.status === "fulfilled" ? "ArenaX Pro activated!" : "Request sent \u2014 we'll deliver it soon");
+      showToast(res.data.status === "fulfilled" ? (reward.type === "tf_boost" ? "Team Finder boost activated!" : "ArenaX Pro activated!") : "Request sent \u2014 we'll deliver it soon");
       await load();
       setTab("rewards");
     } catch (e) {
       showToast(e.response?.data?.message || "Couldn't redeem right now", false);
     } finally {
       setBusyId(null);
+    }
+  };
+
+  const submitReport = async (e) => {
+    e.preventDefault();
+    setReportBusy(true);
+    try {
+      const res = await disputeRedemption(reportFor, reportText);
+      showToast(res.data.message || "Report sent");
+      setReportFor(null);
+      setReportText("");
+      await load();
+    } catch (err) {
+      showToast(err.response?.data?.message || "Couldn't send your report", false);
+    } finally {
+      setReportBusy(false);
     }
   };
 
@@ -134,7 +169,8 @@ export default function Rewards() {
 
       <h1 className="font-display font-bold text-3xl text-white mb-1">Arena Coins</h1>
       <p className="text-sm text-gray-500 mb-6">
-        Earn coins for playing, then trade them for rewards. Coins can't be bought or transferred.
+        Earn coins for playing, then trade them for rewards. Coins can't be bought or transferred.{" "}
+        <Link to="/rewards-terms" className="underline hover:text-white">Rewards Terms</Link>
       </p>
 
       {/* Balance */}
@@ -153,7 +189,7 @@ export default function Rewards() {
             ArenaX Pro &middot; {data.pro_multiplier}x on daily rewards
           </span>
         ) : data.pro_multiplier > 1 ? (
-          <Link to="/profile" className="btn-secondary text-sm">
+          <Link to="/profile?tab=arenaxpro" className="btn-secondary text-sm">
             Go Pro for {data.pro_multiplier}x daily coins
           </Link>
         ) : null}
@@ -168,7 +204,10 @@ export default function Rewards() {
       <div className="grid sm:grid-cols-2 gap-3 mb-8">
         {data.earn.filter((e) => e.amount > 0).map((e) => (
           <div key={e.key} className="card flex items-center justify-between gap-3">
-            <span className="text-sm text-gray-300">{e.label}</span>
+            <span className="text-sm text-gray-300">
+              {e.label}
+              {e.key === "referral" && <> <Link to="/referrals" className="underline text-xs hover:text-white">Invite friends</Link></>}
+            </span>
             <span className="text-sm font-semibold text-white whitespace-nowrap">
               +{e.amount}
               {e.boosted && !data.is_pro && <span className="text-xs text-gray-500"> ({e.pro_amount} with Pro)</span>}
@@ -254,12 +293,44 @@ export default function Rewards() {
                   </div>
                 )}
                 {r.status === "rejected" && r.admin_note && <p className="text-xs text-gray-500 mt-2">Note: {r.admin_note}</p>}
+                {r.dispute_status && (
+                  <p className="text-xs mt-2" style={{ color: r.dispute_status === "open" ? "#eab308" : "#9ca3af" }}>
+                    {DISPUTE_LABEL[r.dispute_status]}
+                  </p>
+                )}
+                {canReport(r) && reportFor !== r.redemption_id && (
+                  <button className="btn-ghost text-xs mt-2" onClick={() => { setReportFor(r.redemption_id); setReportText(""); }}>
+                    Report a problem
+                  </button>
+                )}
+                {reportFor === r.redemption_id && (
+                  <form onSubmit={submitReport} className="mt-3 space-y-2">
+                    <textarea
+                      className="input w-full text-sm"
+                      rows={3}
+                      maxLength={1000}
+                      required
+                      placeholder="What went wrong? (for example: the code says it was already used)"
+                      value={reportText}
+                      onChange={(e) => setReportText(e.target.value)}
+                    />
+                    <div className="flex gap-2">
+                      <button className="btn-primary text-sm" disabled={reportBusy || reportText.trim().length < 10}>
+                        {reportBusy ? "Sending..." : "Send report"}
+                      </button>
+                      <button type="button" className="btn-ghost text-sm" onClick={() => setReportFor(null)}>Cancel</button>
+                    </div>
+                  </form>
+                )}
               </div>
             );
           })}
         </div>
       )}
-      <p className="text-[11px] text-gray-600 mt-6">
+      <p className="text-xs text-gray-500 mt-6">
+        Looking for a new headset or mouse? <Link to="/gear" className="underline hover:text-white">Browse Gear</Link>
+      </p>
+      <p className="text-[11px] text-gray-600 mt-2">
         Rewards are subject to availability. Prices are in coins; gift card values are in {RUPEE}.
       </p>
     </div>

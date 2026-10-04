@@ -117,7 +117,31 @@ export default function PrivacyPolicy() {
             </p>
           </Section>
 
-          <Section title="3. Cookies &amp; Local Storage">
+                    <Section title="3. Arena Coins &amp; Rewards">
+            <p>
+              If you take part in Arena Coins, we keep a record of the coins you earn and spend
+              (a ledger of dated entries with the reason for each), the rewards you redeem
+              (which reward, how many coins, the status, and the code or reference we deliver),
+              any report you send about a reward, and who you referred or who referred you.
+            </p>
+            <p>
+              We use this to run the program, to email you when a reward is delivered or a
+              report is resolved, and to prevent abuse. For that last purpose our team may look
+              at patterns in an account&apos;s activity, such as how fast coins were earned, when a
+              redemption is requested. Gift card codes are shown to you inside your account and
+              are never sent by email.
+            </p>
+            <p>
+              We keep this information for as long as we need it for accounting, fraud prevention
+              and legal reasons. See the{" "}
+              <Link to="/rewards-terms" className="font-medium" style={{ color: "#ff4655" }}>
+                Rewards Terms
+              </Link>{" "}
+              for how the program works.
+            </p>
+          </Section>
+
+<Section title="4. Cookies &amp; Local Storage">
             <p>
               ArenaX uses browser storage (localStorage and session tokens) to
               keep you logged in and remember your theme preference. We may also
@@ -130,7 +154,7 @@ export default function PrivacyPolicy() {
             </p>
           </Section>
 
-          <Section title="4. Data Sharing">
+          <Section title="5. Data Sharing">
             <p>
               We do not sell or rent your personal information. We may share
               limited data with trusted third-party service providers who assist
@@ -143,7 +167,7 @@ export default function PrivacyPolicy() {
             </p>
           </Section>
 
-          <Section title="5. Data Retention">
+          <Section title="6. Data Retention">
             <p>
               We retain your account data for as long as your account is active.
               If you delete your account, we will remove your personal data
@@ -152,7 +176,7 @@ export default function PrivacyPolicy() {
             </p>
           </Section>
 
-          <Section title="6. Security">
+          <Section title="7. Security">
             <p>
               We implement industry-standard security practices including
               password hashing (bcrypt), JWT-based authentication, and HTTPS
@@ -165,7 +189,7 @@ export default function PrivacyPolicy() {
             </p>
           </Section>
 
-          <Section title="7. Children's Privacy">
+          <Section title="8. Children's Privacy">
             <p>
               ArenaX is not intended for children under the age of 13. We do not
               knowingly collect personal information from children under 13. If
@@ -174,7 +198,7 @@ export default function PrivacyPolicy() {
             </p>
           </Section>
 
-          <Section title="8. Your Rights">
+          <Section title="9. Your Rights">
             <p>Depending on your jurisdiction, you may have the right to:</p>
             <ul className="list-disc list-inside space-y-1 pl-2">
               <li>Access the personal data we hold about you.</li>
@@ -195,7 +219,7 @@ export default function PrivacyPolicy() {
             </p>
           </Section>
 
-          <Section title="9. Third-Party Links">
+          <Section title="10. Third-Party Links">
             <p>
               ArenaX may contain links to external websites or game platforms.
               We are not responsible for the privacy practices of those sites.
@@ -204,7 +228,7 @@ export default function PrivacyPolicy() {
             </p>
           </Section>
 
-          <Section title="10. Changes to This Policy">
+          <Section title="11. Changes to This Policy">
             <p>
               We may update this Privacy Policy periodically. We will notify you
               of significant changes via email or an in-app banner. Your
@@ -213,7 +237,7 @@ export default function PrivacyPolicy() {
             </p>
           </Section>
 
-          <Section title="11. Contact Us">
+          <Section title="12. Contact Us">
             <p>
               If you have questions or concerns about this Privacy Policy,
               contact us at{" "}

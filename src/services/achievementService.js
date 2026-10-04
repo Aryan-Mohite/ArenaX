@@ -1,5 +1,7 @@
 import pool from "../config/db.js";
-import { awardLoginCoins } from "./coinService.js";
+import { awardLoginCoins, getSettings } from "./coinService.js";
+import { hasFeature } from "./featureService.js";
+import { creditActivatedReferralsSafe } from "./referralService.js";
 
 // ─── CHECK + AWARD ────────────────────────────────────────────────────────────
 // Finds achievements in `category` the user hasn't earned yet whose threshold
@@ -36,7 +38,7 @@ export const updateLoginStreak = async (userId) => {
   const today = new Date().toISOString().slice(0, 10); // 'YYYY-MM-DD'
 
   const [rows] = await pool.query(
-    "SELECT current_streak, longest_streak, last_login_date FROM user_streaks WHERE user_id = ?",
+    "SELECT current_streak, longest_streak, last_login_date, streak_freeze_used_on FROM user_streaks WHERE user_id = ?",
     [userId]
   );
 
@@ -66,6 +68,15 @@ export const updateLoginStreak = async (userId) => {
         "UPDATE user_streaks SET current_streak = ?, longest_streak = ?, last_login_date = ? WHERE user_id = ?",
         [currentStreak, longestStreak, today, userId]
       );
+    } else if (lastDate && daysBetween(lastDate, today) === 2 && (await canUseStreakFreeze(userId, row.streak_freeze_used_on, today))) {
+      // ArenaX Pro streak freeze: one missed day is forgiven (at most once per
+      // cooldown), so the streak continues instead of resetting.
+      currentStreak = row.current_streak + 1;
+      longestStreak = Math.max(row.longest_streak, currentStreak);
+      await pool.query(
+        "UPDATE user_streaks SET current_streak = ?, longest_streak = ?, last_login_date = ?, streak_freeze_used_on = ? WHERE user_id = ?",
+        [currentStreak, longestStreak, today, today, userId]
+      );
     } else {
       // Gap of 2+ days (or no prior date) — reset
       currentStreak = 1;
@@ -87,6 +98,10 @@ export const updateLoginStreak = async (userId) => {
   } catch (coinErr) {
     console.error("[coins] awardLoginCoins failed:", coinErr.message);
   }
+
+  // Pay any friend this user invited who has since finished onboarding, so the
+  // reward doesn't wait for the referrer to open the dashboard. Fire-and-forget.
+  creditActivatedReferralsSafe(userId);
 
   return { currentStreak, longestStreak, newlyEarned, coinsAwarded };
 };
@@ -215,6 +230,17 @@ const getProgressCounts = async (userId) => {
 
 function sameDay(dateA, isoDateB) {
   return new Date(dateA).toISOString().slice(0, 10) === isoDateB;
+}
+
+function daysBetween(dateA, isoDateB) {
+  return Math.round((new Date(isoDateB) - new Date(dateA)) / (1000 * 60 * 60 * 24));
+}
+
+async function canUseStreakFreeze(userId, usedOn, today) {
+  if (!(await hasFeature(userId, "streak_freeze"))) return false;
+  if (!usedOn) return true;
+  const settings = await getSettings();
+  return daysBetween(usedOn, today) >= Number(settings.streak_freeze_cooldown_days);
 }
 
 function isYesterday(dateA, isoDateB) {

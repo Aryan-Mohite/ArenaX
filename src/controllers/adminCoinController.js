@@ -3,6 +3,9 @@ import {
   getSettings, validateSetting, SETTING_SPECS, rewardCoinCost, rejectRedemption, notifyRedemptionOutcome,
   getBalance, adminAdjustCoins,
 } from "../services/coinService.js";
+import {
+  riskFlagsFor, findCoinAnomalies, buildRedemptionsCsv, listRedemptionDisputes, resolveRedemptionDispute,
+} from "../services/coinOpsService.js";
 
 // A single edit may not move the exchange rate by more than 2x either way.
 // This is a fat-finger guard (an extra zero would silently 10x the payout
@@ -108,9 +111,27 @@ export const getCoinStats = async (req, res, next) => {
          FROM redemptions r JOIN reward_catalog c ON c.reward_id = r.reward_id`
     );
     const outstanding = Number(t.outstanding);
+
+    // Owner's monthly gift card / top-up budget (0 = off) vs what is already committed this month.
+    const budget = Number(settings.monthly_cash_budget_inr) || 0;
+    const [[cm]] = await pool.query(
+      `SELECT COALESCE(SUM(r.inr_value), 0) AS committed
+         FROM redemptions r JOIN reward_catalog c ON c.reward_id = r.reward_id
+        WHERE c.type IN ('gift_card','topup') AND r.status IN ('requested','approved','fulfilled')
+          AND r.created_at >= DATE_FORMAT(UTC_TIMESTAMP(), '%Y-%m-01')`
+    );
+    const committed = Number(cm.committed);
+    const maxLiability = Number((outstanding / settings.coins_per_inr).toFixed(2));
+    const anomalies = await findCoinAnomalies();
+
     res.json({
       success: true,
       stats: {
+        monthly_cash_budget_inr: budget,
+        cash_committed_this_month_inr: committed,
+        budget_status: budget <= 0 ? "off" : committed >= budget ? "reached" : committed >= budget * 0.8 ? "warning" : "ok",
+        liability_exceeds_budget: budget > 0 && maxLiability > budget,
+        anomalies: anomalies.total,
         coins_per_inr: settings.coins_per_inr,
         issued: Number(t.issued),
         spent: Number(t.spent) - Number(t.refunded),
@@ -130,7 +151,7 @@ export const getCoinStats = async (req, res, next) => {
 // GET /api/admin/coins/redemptions?status=requested|approved|fulfilled|rejected
 export const getRedemptionQueue = async (req, res, next) => {
   try {
-    const status = ["requested", "approved", "fulfilled", "rejected"].includes(req.query.status)
+    const status = ["requested", "approved", "fulfilled", "rejected", "refunded"].includes(req.query.status)
       ? req.query.status : "requested";
     const [rows] = await pool.query(
       `SELECT r.redemption_id, r.user_id, r.coins_spent, r.inr_value, r.status, r.fulfillment, r.admin_note,
@@ -142,7 +163,12 @@ export const getRedemptionQueue = async (req, res, next) => {
         ORDER BY r.redemption_id ASC LIMIT 200`,
       [status]
     );
-    res.json({ success: true, redemptions: rows });
+    // Risk flags help an admin decide which requests to look at before sending a gift card.
+    const risk = await riskFlagsFor(rows, await getSettings());
+    res.json({
+      success: true,
+      redemptions: rows.map((r) => ({ ...r, ...(risk.get(r.user_id) || { flags: [], earned_7d: 0 }) })),
+    });
   } catch (err) { next(err); }
 };
 
@@ -343,6 +369,206 @@ export const getUserCoinLedger = async (req, res, next) => {
 export const adjustUserCoins = async (req, res, next) => {
   try {
     const result = await adminAdjustCoins(Number(req.params.id), req.user.id, req.body?.amount, req.body?.note);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ success: false, code: err.code, message: err.message });
+    next(err);
+  }
+};
+
+// ── COIN ANALYTICS (for the admin Analytics tab) ─────────────────────────────
+// GET /api/admin/analytics/coins?days=7|30|90
+//
+// Answers "is the coin economy affordable and is it doing anything for us?".
+// Definitions (keep in sync with the labels in AdminDashboard.jsx):
+//   issued        coins earned in the window, excluding refunds, reversed rows
+//                 and manual admin adjustments (those are reported separately)
+//   earners       distinct users who were issued coins in the window
+//   active        distinct users with a login event in the window (same source
+//                 as DAU/WAU/MAU)
+//   redeemers     distinct users with a non-rejected redemption in the window
+//   cash cost     INR value of FULFILLED gift card / top-up redemptions created
+//                 in the window (Pro-days cost no cash)
+//   retention     same rule as the Retention Cohorts table: logged in on exactly
+//                 day 7 / day 30 after signup. Split by whether the user earned
+//                 a NON-login coin (Dailies, profile, first game, team) within
+//                 3 days of signup. Only users who signed up after coins went
+//                 live are included, since older users could not have earned.
+const EARN_FILTER = "l.delta > 0 AND l.status <> 'reversed' AND l.reason NOT IN ('redemption_refund', 'admin_adjust')";
+const ratio = (a, b) => (Number(b) > 0 ? Number((Number(a) / Number(b)).toFixed(4)) : null);
+
+export const getCoinAnalytics = async (req, res, next) => {
+  try {
+    const days = [7, 30, 90].includes(Number(req.query.days)) ? Number(req.query.days) : 30;
+    const settings = await getSettings();
+
+    const [[led]] = await pool.query(
+      `SELECT
+          COALESCE(SUM(CASE WHEN ${EARN_FILTER} THEN l.delta END), 0)                       AS issued,
+          COUNT(DISTINCT CASE WHEN ${EARN_FILTER} THEN l.user_id END)                       AS earners,
+          COALESCE(SUM(CASE WHEN l.reason = 'redemption' THEN -l.delta END), 0)             AS spent_gross,
+          COALESCE(SUM(CASE WHEN l.reason = 'redemption_refund' THEN l.delta END), 0)       AS refunded,
+          COALESCE(SUM(CASE WHEN l.reason = 'admin_adjust' THEN l.delta END), 0)            AS manual_net
+         FROM coin_ledger l
+        WHERE l.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)`,
+      [days]
+    );
+    const [[act]] = await pool.query(
+      "SELECT COUNT(DISTINCT user_id) AS active FROM events WHERE event_type = 'login' AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)",
+      [days]
+    );
+    const [[red]] = await pool.query(
+      `SELECT
+          COUNT(*)                                                                          AS total,
+          COUNT(DISTINCT CASE WHEN r.status NOT IN ('rejected','refunded') THEN r.user_id END)     AS redeemers,
+          COUNT(CASE WHEN r.status = 'rejected' THEN 1 END)                                 AS rejected,
+          COALESCE(SUM(CASE WHEN r.status = 'fulfilled' AND c.type IN ('gift_card','topup') THEN r.inr_value END), 0) AS cash_inr
+         FROM redemptions r JOIN reward_catalog c ON c.reward_id = r.reward_id
+        WHERE r.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)`,
+      [days]
+    );
+    const [[out]] = await pool.query("SELECT COALESCE(SUM(CASE WHEN status = 'available' THEN delta END), 0) AS outstanding FROM coin_ledger");
+
+    // ── daily trend (sparse rows from SQL, zero-filled here from the DB's own "today")
+    const [[{ today }]] = await pool.query("SELECT DATE_FORMAT(CURDATE(), '%Y-%m-%d') AS today");
+    const [trendRows] = await pool.query(
+      `SELECT DATE_FORMAT(l.created_at, '%Y-%m-%d') AS day,
+              COALESCE(SUM(CASE WHEN ${EARN_FILTER} THEN l.delta END), 0) AS issued,
+              COALESCE(SUM(CASE WHEN l.reason = 'redemption' THEN -l.delta WHEN l.reason = 'redemption_refund' THEN -l.delta END), 0) AS spent
+         FROM coin_ledger l
+        WHERE l.created_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+        GROUP BY day`,
+      [days - 1]
+    );
+    const byDay = new Map(trendRows.map((r) => [r.day, r]));
+    const trend = [];
+    const end = new Date(`${today}T00:00:00Z`);
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(end.getTime() - i * 86400000).toISOString().slice(0, 10);
+      const row = byDay.get(d);
+      trend.push({ day: d, issued: row ? Number(row.issued) : 0, spent: row ? Number(row.spent) : 0 });
+    }
+
+    // ── Pro: paid share among earners, and Pro-days trial -> paid conversion
+    const PAID_PRO = `SELECT s.user_id FROM subscriptions s JOIN plans p ON p.plan_id = s.plan_id
+                       WHERE p.plan_key = 'gamer_pro' AND COALESCE(s.gateway, '') <> 'coins'
+                         AND s.status = 'active' AND (s.renews_at IS NULL OR s.renews_at >= NOW())`;
+    const [[proEarn]] = await pool.query(
+      `SELECT COUNT(*) AS earners,
+              COUNT(CASE WHEN e.user_id IN (${PAID_PRO}) THEN 1 END) AS paid
+         FROM (SELECT DISTINCT l.user_id FROM coin_ledger l
+                WHERE ${EARN_FILTER} AND l.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)) e`,
+      [days]
+    );
+    const [[trial]] = await pool.query(
+      `SELECT COUNT(*) AS trialists,
+              COUNT(CASE WHEN EXISTS (
+                SELECT 1 FROM subscriptions s JOIN plans p ON p.plan_id = s.plan_id
+                 WHERE s.user_id = t.user_id AND p.plan_key = 'gamer_pro'
+                   AND COALESCE(s.gateway, '') <> 'coins' AND s.started_at >= t.first_at
+              ) THEN 1 END) AS converted
+         FROM (SELECT r.user_id, MIN(r.created_at) AS first_at
+                 FROM redemptions r JOIN reward_catalog c ON c.reward_id = r.reward_id
+                WHERE c.type = 'pro_days' AND r.status = 'fulfilled' GROUP BY r.user_id) t`
+    );
+
+    // ── retention: coin-engaged vs not (see header for the definition)
+    const [[{ launch }]] = await pool.query("SELECT MIN(created_at) AS launch FROM coin_ledger");
+    const retention = { since: launch || null, d7: null, d30: null };
+    if (launch) {
+      for (const n of [7, 30]) {
+        const [rows] = await pool.query(
+          `SELECT engaged, COUNT(*) AS size, COUNT(CASE WHEN retained = 1 THEN 1 END) AS retained
+             FROM (
+               SELECT u.user_id,
+                      EXISTS (SELECT 1 FROM coin_ledger l
+                               WHERE l.user_id = u.user_id
+                                 AND l.reason IN ('dailies','profile_complete','first_game','team_join')
+                                 AND l.created_at <= DATE_ADD(u.created_at, INTERVAL 3 DAY)) AS engaged,
+                      EXISTS (SELECT 1 FROM events e
+                               WHERE e.user_id = u.user_id AND e.event_type = 'login'
+                                 AND DATE(e.created_at) = DATE_ADD(DATE(u.created_at), INTERVAL ? DAY)) AS retained
+                 FROM users u
+                WHERE u.created_at >= ? AND u.created_at <= DATE_SUB(NOW(), INTERVAL ? DAY)
+             ) x GROUP BY engaged`,
+          [n, launch, n + 1]
+        );
+        const pick = (flag) => {
+          const r = rows.find((x) => Number(x.engaged) === flag);
+          const size = r ? Number(r.size) : 0;
+          const retained = r ? Number(r.retained) : 0;
+          return { size, retained, rate: ratio(retained, size) };
+        };
+        retention[`d${n}`] = { engaged: pick(1), other: pick(0) };
+      }
+    }
+
+    const issued = Number(led.issued);
+    const earners = Number(led.earners);
+    const active = Number(act.active);
+    const cashInr = Number(red.cash_inr);
+    const outstanding = Number(out.outstanding);
+
+    res.json({
+      success: true,
+      days,
+      coins_per_inr: settings.coins_per_inr,
+      summary: {
+        issued,
+        spent: Number(led.spent_gross) - Number(led.refunded),
+        manual_net: Number(led.manual_net),
+        earners,
+        active_users: active,
+        redeemers: Number(red.redeemers),
+        redemption_rate: ratio(red.redeemers, earners),
+        issued_per_earner: earners > 0 ? Math.round(issued / earners) : null,
+        issued_per_active_user: active > 0 ? Math.round(issued / active) : null,
+        redemptions_total: Number(red.total),
+        redemptions_rejected: Number(red.rejected),
+        rejection_rate: ratio(red.rejected, red.total),
+        cash_cost_inr: cashInr,
+        cash_cost_per_active_user_inr: active > 0 ? Number((cashInr / active).toFixed(2)) : null,
+        outstanding,
+        max_liability_inr: Number((outstanding / settings.coins_per_inr).toFixed(2)),
+      },
+      pro: {
+        earners: Number(proEarn.earners),
+        earners_with_paid_pro: Number(proEarn.paid),
+        paid_pro_share: ratio(proEarn.paid, proEarn.earners),
+        trialists: Number(trial.trialists),
+        trial_converted: Number(trial.converted),
+        trial_conversion_rate: ratio(trial.converted, trial.trialists),
+      },
+      retention,
+      trend,
+    });
+  } catch (err) { next(err); }
+};
+
+// ── ACCOUNTING EXPORT ────────────────────────────────────────────────────────
+// GET /api/admin/coins/redemptions/export?status=&from=YYYY-MM-DD&to=YYYY-MM-DD
+export const exportRedemptions = async (req, res, next) => {
+  try {
+    const csv = await buildRedemptionsCsv({ status: req.query.status, from: req.query.from, to: req.query.to });
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="arenax-redemptions-${new Date().toISOString().slice(0, 10)}.csv"`);
+    res.send(csv);
+  } catch (err) { next(err); }
+};
+
+// ── REDEMPTION DISPUTES ──────────────────────────────────────────────────────
+// GET /api/admin/coins/disputes?status=open|replaced|refunded|denied
+export const getRedemptionDisputes = async (req, res, next) => {
+  try {
+    res.json({ success: true, disputes: await listRedemptionDisputes(req.query.status) });
+  } catch (err) { next(err); }
+};
+
+// POST /api/admin/coins/disputes/:id/resolve  { action: replace|refund|deny, note, fulfillment? }
+export const resolveRedemptionDisputeHandler = async (req, res, next) => {
+  try {
+    const { action, note, fulfillment } = req.body || {};
+    const result = await resolveRedemptionDispute(Number(req.params.id), req.user.id, action, note, fulfillment);
     res.json({ success: true, ...result });
   } catch (err) {
     if (err.status) return res.status(err.status).json({ success: false, code: err.code, message: err.message });

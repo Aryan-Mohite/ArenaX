@@ -19,12 +19,14 @@ export const getPosts = async (req, res, next) => {
                   AND (s.renews_at IS NULL OR s.renews_at >= NOW())
                   AND JSON_EXTRACT(p.feature_flags, '$.verified_badge') = true
              ) AS poster_verified,
-             EXISTS (
+             (EXISTS (
                SELECT 1 FROM subscriptions s JOIN plans p ON p.plan_id = s.plan_id
                 WHERE s.user_id = tfp.user_id AND s.status = 'active'
                   AND (s.renews_at IS NULL OR s.renews_at >= NOW())
                   AND JSON_EXTRACT(p.feature_flags, '$.priority_placement') = true
-             ) AS is_priority
+             ) OR EXISTS (
+               SELECT 1 FROM team_finder_boosts b WHERE b.user_id = tfp.user_id AND b.ends_at >= NOW()
+             )) AS is_priority
       FROM team_finder_posts tfp
       JOIN users u ON u.user_id = tfp.user_id
       JOIN games g ON g.game_id = tfp.game_id

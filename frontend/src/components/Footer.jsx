@@ -128,6 +128,16 @@ export default function Footer() {
             |
           </span>
           <Link
+            to="/rewards-terms"
+            className="text-xs transition-colors hover:underline"
+            style={{ color: "var(--text-muted)" }}
+          >
+            Rewards Terms
+          </Link>
+          <span className="text-xs" style={{ color: "var(--border-color)" }}>
+            |
+          </span>
+          <Link
             to="/privacy"
             className="text-xs transition-colors hover:underline"
             style={{ color: "var(--text-muted)" }}

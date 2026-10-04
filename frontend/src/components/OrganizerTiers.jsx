@@ -53,6 +53,8 @@ export const GAMER_TIER_CONTENT = {
       { label: "Advanced player stats when scouting others", included: false },
       { label: "Priority placement in Team Finder", included: false },
       { label: "Profile banner customization", included: false },
+      { label: "Bonus Arena Coins on daily login & Dailies", included: false },
+      { label: "Streak freeze: one missed day won't break your login streak", included: false },
     ],
   },
   gamer_pro: {
@@ -66,6 +68,8 @@ export const GAMER_TIER_CONTENT = {
       { label: "Advanced player stats when scouting others", included: true },
       { label: "Priority placement in Team Finder search", included: true },
       { label: "Profile banner customization", included: true },
+      { label: "Bonus Arena Coins on daily login & Dailies", included: true },
+      { label: "Streak freeze: one missed day won't break your login streak", included: true },
     ],
   },
 };

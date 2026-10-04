@@ -1,6 +1,7 @@
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useDailiesTransition } from "./dailies/DailiesTransition";
 import { useState, useRef, useEffect } from "react";
+import { getMyBalance } from "../services/coinService";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 
@@ -167,6 +168,12 @@ function NavAvatar({ user }) {
 
 export default function Navbar() {
   const { isAuthenticated, user, logout } = useAuth();
+  // Light balance for the coin pill. Uses /coins/balance (no side effects), once per login.
+  const [coinBalance, setCoinBalance] = useState(null);
+  useEffect(() => {
+    if (!isAuthenticated) { setCoinBalance(null); return; }
+    getMyBalance().then((r) => setCoinBalance(r.data.available)).catch(() => {});
+  }, [isAuthenticated]);
   const { theme } = useTheme();
   const navigate = useNavigate();
   const { triggerTransition } = useDailiesTransition();
@@ -344,6 +351,18 @@ export default function Navbar() {
         <div className="flex items-center gap-3 shrink-0">
           {/* Theme Toggle */}
           <ThemeToggle />
+
+          {isAuthenticated && coinBalance !== null && (
+            <Link
+              to="/rewards"
+              title="Arena Coins"
+              className="hidden sm:flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full transition-colors"
+              style={{ background: "rgba(234,179,8,0.12)", color: "#eab308", border: "1px solid rgba(234,179,8,0.3)" }}
+            >
+              <span aria-hidden="true">{"\uD83E\uDE99"}</span>
+              {Number(coinBalance).toLocaleString("en-IN")}
+            </Link>
+          )}
 
           {!isAuthenticated ? (
             <>

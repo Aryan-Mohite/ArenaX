@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getGear, gearRedirectUrl } from "../services/gearService";
 import { PageLoader, EmptyState } from "../components/UI";
+import { Link } from "react-router-dom";
 import SEO from "../components/SEO";
 
 export default function Gear() {
@@ -34,6 +35,13 @@ export default function Gear() {
       <p className="text-sm text-gray-500 mb-6">
         Peripherals and setup picks from the ArenaX team.
       </p>
+
+      <div className="card mb-6 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-gray-300">
+          Earn Arena Coins by playing, then redeem them for gift cards and in-game top-ups.
+        </p>
+        <Link to="/rewards" className="btn-secondary text-sm">Open Rewards</Link>
+      </div>
 
       {categories.length > 2 && (
         <div className="flex flex-wrap gap-2 mb-6">

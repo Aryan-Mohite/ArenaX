@@ -17,6 +17,12 @@ export const SETTING_SPECS = Object.freeze({
   earn_team_join:                 { type: "int",   min: 0,  max: 1000,  label: "Join a team (one-time)" },
   earn_streak_7:                  { type: "int",   min: 0,  max: 5000,  label: "7-day login streak" },
   earn_streak_30:                 { type: "int",   min: 0,  max: 10000, label: "30-day login streak" },
+  earn_referral:                  { type: "int",   min: 0,  max: 5000,  label: "Invite a friend who gets active" },
+  referral_hold_days:             { type: "int",   min: 0,  max: 90,    label: "Days before referral coins vest" },
+  referral_monthly_cap:           { type: "int",   min: 0,  max: 1000,  label: "Max coin-paying referrals per user per month" },
+  monthly_cash_budget_inr:        { type: "int",   min: 0,  max: 1000000, label: "Monthly gift card / top-up budget in INR (0 = no limit)" },
+  coin_expiry_days:               { type: "int",   min: 0,  max: 3650,  label: "Coins expire after N days (0 = never; give 30 days' notice first)" },
+  streak_freeze_cooldown_days:    { type: "int",   min: 1,  max: 60,    label: "Pro streak freeze: at most one forgiven day per N days" },
   pro_multiplier:                 { type: "float", min: 1,  max: 5,     label: "ArenaX Pro multiplier" },
   pro_multiplier_reasons:         { type: "list",  allowed: ["login", "dailies", "streak_7", "streak_30", "profile_complete", "first_game", "team_join"], label: "Rewards the Pro multiplier applies to" },
   pro_bonus_monthly_cap:          { type: "int",   min: 0,  max: 100000, label: "Max extra coins per Pro user per month" },
@@ -29,6 +35,8 @@ export const SETTING_SPECS = Object.freeze({
 const DEFAULTS = Object.freeze({
   coins_per_inr: 100, earn_login: 5, earn_dailies: 10, earn_profile_complete: 25,
   earn_first_game: 25, earn_team_join: 50, earn_streak_7: 50, earn_streak_30: 250,
+  earn_referral: 200, referral_hold_days: 7, referral_monthly_cap: 10,
+  monthly_cash_budget_inr: 0, coin_expiry_days: 0, streak_freeze_cooldown_days: 7,
   pro_multiplier: 2, pro_multiplier_reasons: ["login", "dailies"], pro_bonus_monthly_cap: 600,
   team_join_vest_days: 7, redeem_min_account_age_days: 7, max_cash_redemptions_per_month: 2,
   redemptions_enabled: true,
@@ -197,7 +205,7 @@ export async function syncOneTimeCoins(userId) {
 // the user is still an active member; otherwise they're reversed.
 export async function settlePending(userId) {
   const [due] = await pool.query(
-    `SELECT entry_id, reason FROM coin_ledger
+    `SELECT entry_id, reason, ref_key FROM coin_ledger
       WHERE user_id = ? AND status = 'pending' AND available_at IS NOT NULL AND available_at <= NOW()`,
     [userId]
   );
@@ -209,6 +217,13 @@ export async function settlePending(userId) {
         [userId]
       );
       ok = Number(m.c) > 0;
+    }
+    // Referral coins only vest if the friend is still a normal account
+    // (not banned or removed): a farmed referral is reversed here.
+    if (e.reason === "referral") {
+      const friendId = Number(String(e.ref_key).split(":")[1]);
+      const [[f]] = await pool.query("SELECT status FROM users WHERE user_id = ?", [friendId]);
+      ok = !!f && f.status === "active";
     }
     await pool.query(
       "UPDATE coin_ledger SET status = ? WHERE entry_id = ? AND status = 'pending'",
@@ -261,13 +276,14 @@ export async function listCatalog() {
     type: r.type,
     inr_value: r.inr_value != null ? Number(r.inr_value) : null,
     pro_days: r.pro_days,
+    boost_hours: r.boost_hours,
     coin_cost: rewardCoinCost(r, settings),
     in_stock: r.stock === null || r.stock > 0,
   }));
 }
 
 // ── REDEMPTION ───────────────────────────────────────────────────────────────
-function fail(message, code, status = 400) {
+export function fail(message, code, status = 400) {
   const err = new Error(message);
   err.code = code;
   err.status = status;
@@ -285,6 +301,7 @@ export async function redeemReward(userId, rewardId) {
   }
 
   const conn = await pool.getConnection();
+  let budgetLocked = false;
   try {
     await conn.beginTransaction();
 
@@ -311,13 +328,60 @@ export async function redeemReward(userId, rewardId) {
     if (isCash(reward.type)) {
       const [[cnt]] = await conn.query(
         `SELECT COUNT(*) AS c FROM redemptions r JOIN reward_catalog c ON c.reward_id = r.reward_id
-          WHERE r.user_id = ? AND c.type IN ('gift_card','topup') AND r.status <> 'rejected'
+          WHERE r.user_id = ? AND c.type IN ('gift_card','topup') AND r.status NOT IN ('rejected','refunded')
             AND r.created_at >= DATE_FORMAT(UTC_TIMESTAMP(), '%Y-%m-01')`,
         [userId]
       );
       if (Number(cnt.c) >= settings.max_cash_redemptions_per_month) {
         throw fail(`You've reached this month's limit of ${settings.max_cash_redemptions_per_month} gift card / top-up redemptions.`, "MONTHLY_LIMIT", 429);
       }
+
+      // Owner's monthly cash budget (0 = off). The total is read under a named
+      // lock so two people redeeming at once can't both slip under the cap.
+      const budget = Number(settings.monthly_cash_budget_inr) || 0;
+      if (budget > 0) {
+        const [[lk]] = await conn.query("SELECT GET_LOCK('arenax_coin_budget', 5) AS got");
+        if (Number(lk.got) !== 1) throw fail("Redemptions are busy right now. Please try again in a moment.", "BUSY", 503);
+        budgetLocked = true;
+        const [[committed]] = await conn.query(
+          `SELECT COALESCE(SUM(r.inr_value), 0) AS total
+             FROM redemptions r JOIN reward_catalog c ON c.reward_id = r.reward_id
+            WHERE c.type IN ('gift_card','topup') AND r.status IN ('requested','approved','fulfilled')
+              AND r.created_at >= DATE_FORMAT(UTC_TIMESTAMP(), '%Y-%m-01')`
+        );
+        if (Number(committed.total) + Number(reward.inr_value || 0) > budget) {
+          throw fail("This month's reward budget has been used up. Redemptions reopen next month. Your coins are untouched.", "BUDGET_REACHED", 409);
+        }
+      }
+    }
+
+    // Pro days from coins would just run alongside an active paid Pro and be
+    // wasted, so refuse before any coins move. They can be redeemed once it ends.
+    if (reward.type === "pro_days") {
+      const [[paid]] = await conn.query(
+        `SELECT s.renews_at FROM subscriptions s JOIN plans p ON p.plan_id = s.plan_id
+          WHERE s.user_id = ? AND s.status = 'active' AND p.plan_key = 'gamer_pro'
+            AND COALESCE(s.gateway, '') <> 'coins' AND (s.renews_at IS NULL OR s.renews_at >= NOW())
+          ORDER BY s.renews_at DESC LIMIT 1`,
+        [userId]
+      );
+      if (paid) {
+        const until = paid.renews_at
+          ? ` until ${new Date(paid.renews_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`
+          : "";
+        throw fail(`You already have ArenaX Pro${until}. Redeem Pro days after it ends. Your coins are untouched.`, "ALREADY_PRO", 409);
+      }
+    }
+
+    // ArenaX Pro already includes priority placement, so a boost would be wasted.
+    if (reward.type === "tf_boost") {
+      const [[prio]] = await conn.query(
+        `SELECT 1 AS x FROM subscriptions s JOIN plans p ON p.plan_id = s.plan_id
+          WHERE s.user_id = ? AND s.status = 'active' AND (s.renews_at IS NULL OR s.renews_at >= NOW())
+            AND JSON_EXTRACT(p.feature_flags, '$.priority_placement') = true LIMIT 1`,
+        [userId]
+      );
+      if (prio) throw fail("ArenaX Pro already gives you priority placement in Team Finder. Your coins are untouched.", "ALREADY_PRIORITY", 409);
     }
 
     const cost = rewardCoinCost(reward, settings);
@@ -328,7 +392,7 @@ export async function redeemReward(userId, rewardId) {
       throw fail(`Not enough coins. You need ${cost - balance.available} more.`, "INSUFFICIENT_COINS", 402);
     }
 
-    const autoFulfil = reward.type === "pro_days";
+    const autoFulfil = reward.type === "pro_days" || reward.type === "tf_boost";
     const [ins] = await conn.query(
       `INSERT INTO redemptions (user_id, reward_id, coins_spent, inr_value, status)
        VALUES (?, ?, ?, ?, ?)`,
@@ -346,7 +410,8 @@ export async function redeemReward(userId, rewardId) {
       await conn.query("UPDATE reward_catalog SET stock = stock - 1 WHERE reward_id = ? AND stock > 0", [reward.reward_id]);
     }
 
-    if (autoFulfil) await grantProDays(conn, userId, reward.pro_days);
+    if (reward.type === "pro_days") await grantProDays(conn, userId, reward.pro_days);
+    if (reward.type === "tf_boost") await grantBoostHours(conn, userId, Number(reward.boost_hours) || 24);
 
     await conn.commit();
     return { redemption_id: redemptionId, status: autoFulfil ? "fulfilled" : "requested", coins_spent: cost };
@@ -354,8 +419,18 @@ export async function redeemReward(userId, rewardId) {
     await conn.rollback();
     throw err;
   } finally {
+    if (budgetLocked) await conn.query("SELECT RELEASE_LOCK('arenax_coin_budget')").catch(() => {});
     conn.release();
   }
+}
+
+// A boost extends from whichever is later: now, or the end of an existing boost.
+async function grantBoostHours(conn, userId, hours) {
+  await conn.query(
+    `INSERT INTO team_finder_boosts (user_id, ends_at) VALUES (?, DATE_ADD(NOW(), INTERVAL ? HOUR))
+     ON DUPLICATE KEY UPDATE ends_at = DATE_ADD(GREATEST(ends_at, NOW()), INTERVAL ? HOUR)`,
+    [userId, hours, hours]
+  );
 }
 
 // Coin-granted Pro rides on the existing subscriptions table (gateway = 'coins')

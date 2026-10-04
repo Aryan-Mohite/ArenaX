@@ -44,7 +44,12 @@ import {
   updateReward,
   getUserCoinLedger,
   adjustUserCoins,
+  getCoinAnalytics,
+  exportRedemptions,
+  getRedemptionDisputes,
+  resolveRedemptionDisputeHandler,
 } from "../controllers/adminCoinController.js";
+import { getReferralAnalytics } from "../controllers/referralController.js";
 import { body } from "express-validator";
 import authMiddleware from "../middleware/authMiddleware.js";
 import requireAdmin   from "../middleware/requireAdmin.js";
@@ -80,6 +85,9 @@ router.post("/coins/redemptions/:id/reject", validateIdParam, validate, rejectRe
 router.get("/coins/catalog", getAdminCatalog);
 router.post("/coins/catalog", createReward);
 router.patch("/coins/catalog/:id", validateIdParam, validate, updateReward);
+router.get("/coins/redemptions/export", exportRedemptions);
+router.get("/coins/disputes", getRedemptionDisputes);
+router.post("/coins/disputes/:id/resolve", validateIdParam, validate, resolveRedemptionDisputeHandler);
 router.get("/coins/users/:id", validateIdParam, validate, getUserCoinLedger);
 router.post("/coins/users/:id/adjust", validateIdParam, validate, adjustUserCoins);
 
@@ -95,6 +103,8 @@ router.get("/analytics/retention", getRetentionCohorts);
 router.get("/analytics/funnel", getFunnel);
 router.get("/analytics/organizer-retention", getOrganizerRetention);
 router.get("/analytics/trend", getAnalyticsTrend);
+router.get("/analytics/coins", getCoinAnalytics);
+router.get("/analytics/referrals", getReferralAnalytics);
 
 // ─── Sponsorship (§5) ────────────────────────────────────────────────────────
 router.get("/sponsors", getSponsorApplications);

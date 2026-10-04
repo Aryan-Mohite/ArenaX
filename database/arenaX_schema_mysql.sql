@@ -2636,3 +2636,89 @@ UPDATE plans
 -- are intentionally left in place so no data is lost and the removal is
 -- reversible. This only hides the unused paid plan from the plans endpoint.
 UPDATE plans SET is_active = FALSE WHERE plan_key = 'college_annual';
+
+
+-- =============================================================================
+-- Referral rewards now pay Arena Coins (safe to re-run)
+-- =============================================================================
+-- Referrals used to pay XP into users.xp_balance, but nothing in the product
+-- spends XP. Activated referrals now pay Arena Coins through the coin ledger
+-- (reason 'referral'), held for a few days and capped per month because coins
+-- can be redeemed for gift cards. Old XP rows and users.xp_balance are left
+-- untouched.
+--
+--   mysql -u DB_USER -p DB_NAME < database/migrations_referral_coins.sql
+-- =============================================================================
+
+SET @col_exists := (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'referral_rewards' AND COLUMN_NAME = 'coins_amount'
+);
+SET @sql := IF(@col_exists = 0,
+  'ALTER TABLE referral_rewards ADD COLUMN coins_amount INT NOT NULL DEFAULT 0',
+  'SELECT ''referral_rewards.coins_amount already exists''');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Admin-editable settings (Admin -> Coins -> Settings). Defaults are a starting
+-- point: 200 coins = Rs.2 at the default exchange rate.
+INSERT IGNORE INTO coin_settings (setting_key, setting_value) VALUES
+    ('earn_referral',        '200'),   -- coins to the referrer per activated friend
+    ('referral_hold_days',   '7'),     -- days the coins stay pending before they vest
+    ('referral_monthly_cap', '10');    -- max coin-paying referrals per referrer per month
+
+
+-- =============================================================================
+-- Final coins batch (safe to re-run)
+--   * redemption_disputes      users can report a missing / invalid gift card code
+--   * user_streaks.streak_freeze_used_on + gamer_pro 'streak_freeze' flag (Pro perk)
+--   * team_finder_boosts + reward_catalog.boost_hours + a free "Team Finder boost" reward
+--   * coin settings: monthly_cash_budget_inr, coin_expiry_days, streak_freeze_cooldown_days
+--
+--   mysql -u DB_USER -p DB_NAME < database/migrations_final_batch.sql
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS redemption_disputes (
+    dispute_id    INT AUTO_INCREMENT PRIMARY KEY,
+    redemption_id INT          NOT NULL,
+    user_id       INT          NOT NULL,
+    reason        TEXT         NOT NULL,
+    status        VARCHAR(12)  NOT NULL DEFAULT 'open',   -- open | replaced | refunded | denied
+    admin_note    VARCHAR(255) DEFAULT NULL,
+    resolved_by   INT          DEFAULT NULL,
+    resolved_at   DATETIME     DEFAULT NULL,
+    created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_rd_redemption  FOREIGN KEY (redemption_id) REFERENCES redemptions(redemption_id) ON DELETE CASCADE,
+    CONSTRAINT fk_rd_user        FOREIGN KEY (user_id)       REFERENCES users(user_id)             ON DELETE CASCADE,
+    CONSTRAINT fk_rd_resolved_by FOREIGN KEY (resolved_by)   REFERENCES users(user_id)             ON DELETE SET NULL,
+    INDEX idx_rd_status (status),
+    INDEX idx_rd_redemption (redemption_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Streak freeze: the date a Pro user's freeze last saved a streak (cooldown tracking).
+SET @c := (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user_streaks' AND COLUMN_NAME = 'streak_freeze_used_on');
+SET @s := IF(@c = 0, 'ALTER TABLE user_streaks ADD COLUMN streak_freeze_used_on DATE NULL', 'SELECT 1');
+PREPARE st FROM @s; EXECUTE st; DEALLOCATE PREPARE st;
+
+UPDATE plans SET feature_flags = JSON_SET(feature_flags, '$.streak_freeze', true) WHERE plan_key = 'gamer_pro';
+
+-- Team Finder boost: a free coin sink (costs no cash) that gives a post priority placement for a while.
+CREATE TABLE IF NOT EXISTS team_finder_boosts (
+    user_id    INT      NOT NULL PRIMARY KEY,
+    ends_at    DATETIME NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_tfb_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+SET @c := (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'reward_catalog' AND COLUMN_NAME = 'boost_hours');
+SET @s := IF(@c = 0, 'ALTER TABLE reward_catalog ADD COLUMN boost_hours INT NULL', 'SELECT 1');
+PREPARE st FROM @s; EXECUTE st; DEALLOCATE PREPARE st;
+
+INSERT IGNORE INTO reward_catalog (reward_key, name, description, type, coin_cost, boost_hours, sort_order)
+VALUES ('tf_boost_24h', 'Team Finder boost (24 hours)',
+        'Your Team Finder posts are shown first for 24 hours.', 'tf_boost', 300, 24, 5);
+
+-- Settings (Admin -> Coins -> Settings). All default to "off".
+INSERT IGNORE INTO coin_settings (setting_key, setting_value) VALUES
+    ('monthly_cash_budget_inr',     '0'),   -- 0 = no limit; otherwise gift card / top-up redemptions stop when this month's total reaches it
+    ('coin_expiry_days',            '0'),   -- 0 = coins never expire; see Rewards Terms (30 days' notice) before turning on
+    ('streak_freeze_cooldown_days', '7');   -- Pro: a missed day is forgiven at most once in this many days

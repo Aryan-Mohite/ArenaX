@@ -7,7 +7,7 @@ function formatTime(ms) {
   return `${(ms / 1000).toFixed(2)}s`;
 }
 
-export default function QuizResults({ game, sessionId, results, streak, onPlayAnotherGame }) {
+export default function QuizResults({ game, sessionId, results, streak, coinsAwarded = 0, onPlayAnotherGame }) {
   const [tab, setTab] = useState("daily");
   const [leaderboard, setLeaderboard] = useState([]);
   const [lbLoading, setLbLoading] = useState(true);
@@ -59,6 +59,15 @@ export default function QuizResults({ game, sessionId, results, streak, onPlayAn
             style={{ background: "rgba(255,70,85,0.12)", color: "#ff6b77", border: "1px solid rgba(255,70,85,0.3)" }}
           >
             🔥 Streak Extended: {streak.currentStreak} Day{streak.currentStreak === 1 ? "" : "s"}!
+          </div>
+        )}
+
+        {coinsAwarded > 0 && (
+          <div
+            className="rounded-md px-4 py-2.5 text-sm font-semibold mb-4"
+            style={{ background: "rgba(234,179,8,0.12)", color: "#eab308", border: "1px solid rgba(234,179,8,0.3)" }}
+          >
+            +{coinsAwarded} Arena Coins earned today
           </div>
         )}
 
