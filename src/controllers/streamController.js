@@ -1,4 +1,5 @@
 import pool from "../config/db.js";
+import { parseStreamUrl } from "../utils/streamEmbed.js";
 
 // ─── GET LIVE STREAMS ─────────────────────────────────────────────────────────
 export const getLiveStreams = async (req, res, next) => {
@@ -21,7 +22,13 @@ export const getLiveStreams = async (req, res, next) => {
     query += " ORDER BY s.viewer_count DESC LIMIT ? OFFSET ?";
 
     const [rows] = await pool.query(query, params);
-    res.json({ success: true, streams: rows });
+    // Attach a safe embed descriptor (validated id only; the frontend builds the
+    // iframe URL from a fixed host allowlist, never from the raw stream_url).
+    const streams = rows.map((r) => {
+      const parsed = r.stream_url ? parseStreamUrl(r.stream_url) : null;
+      return { ...r, embed: parsed && parsed.embeddable ? parsed : null };
+    });
+    res.json({ success: true, streams });
   } catch (err) { next(err); }
 };
 
@@ -30,6 +37,13 @@ export const goLive = async (req, res, next) => {
   try {
     const { game_id, title, platform, stream_url } = req.body;
     const userId = req.user.id;
+
+    // If the URL is a recognised platform, trust the URL over what the client
+    // claimed so the stored platform always matches the link.
+    const parsed = stream_url ? parseStreamUrl(stream_url) : null;
+    const detected = parsed && ["twitch", "youtube", "kick", "facebook"].includes(parsed.platform)
+      ? parsed.platform : null;
+    const finalPlatform = detected || platform || "platform";
 
     // End any existing live stream from this user
     await pool.query(
@@ -40,7 +54,7 @@ export const goLive = async (req, res, next) => {
     const [result] = await pool.query(
       `INSERT INTO streams (user_id, game_id, title, platform, stream_url, started_at, status)
        VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 'live')`,
-      [userId, game_id, title, platform || "platform", stream_url || null]
+      [userId, game_id, title, finalPlatform, stream_url || null]
     );
 
     const [stream] = await pool.query(
@@ -48,7 +62,12 @@ export const goLive = async (req, res, next) => {
       [result.insertId]
     );
 
-    res.status(201).json({ success: true, stream: stream[0] });
+    const created = stream[0];
+    const createdParsed = created.stream_url ? parseStreamUrl(created.stream_url) : null;
+    res.status(201).json({
+      success: true,
+      stream: { ...created, embed: createdParsed && createdParsed.embeddable ? createdParsed : null },
+    });
   } catch (err) { next(err); }
 };
 

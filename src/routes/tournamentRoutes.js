@@ -13,6 +13,7 @@ import {
   getMyTournamentsSummary,
   getFeaturedTournaments,
 } from "../controllers/tournamentController.js";
+import { setCheckInOpen, checkInTeam, getCheckIn, setTeamCheckIn, finalizeCheckIn } from "../controllers/checkInController.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 import { validateCreateTournament, validateIdParam } from "../utils/validators.js";
 import validate from "../middleware/validateMiddleware.js";
@@ -98,6 +99,18 @@ router.post(
   requireFeature("announcements"),
   announceToTournament
 );
+
+// ─── Check-in (attendance) ──────────────────────────────────────────────
+// GET   /api/tournaments/:id/check-in                     organizer: all teams; captain: own teams
+// PATCH /api/tournaments/:id/check-in        { open }     organizer opens/closes
+// POST  /api/tournaments/:id/check-in        { team_id }  captain checks team in
+// PATCH /api/tournaments/:id/check-in/teams/:teamId { checked_in }  organizer override
+// POST  /api/tournaments/:id/check-in/finalize            organizer: close + mark no-shows
+router.get("/:id/check-in", authMiddleware, validateIdParam, validate, getCheckIn);
+router.patch("/:id/check-in", authMiddleware, validateIdParam, validate, setCheckInOpen);
+router.post("/:id/check-in", authMiddleware, validateIdParam, validate, checkInTeam);
+router.post("/:id/check-in/finalize", authMiddleware, validateIdParam, validate, finalizeCheckIn);
+router.patch("/:id/check-in/teams/:teamId", authMiddleware, validateIdParam, validate, setTeamCheckIn);
 
 // FIX M1: DELETE /api/tournaments/:id removed — use DELETE /api/archive/tournaments/:id instead
 

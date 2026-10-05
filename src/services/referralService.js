@@ -1,5 +1,6 @@
 import pool from "../config/db.js";
 import { getSettings, awardCoins } from "./coinService.js";
+import { sharesDevice } from "./signalService.js";
 
 // Rewards are Arena Coins (admin-editable: earn_referral, referral_hold_days,
 // referral_monthly_cap). They used to be XP, but nothing ever spent XP.
@@ -110,6 +111,16 @@ export async function creditActivatedReferrals(referrerId) {
 
     const [[friend]] = await pool.query("SELECT status FROM users WHERE user_id = ?", [row.referred_user_id]);
     if (!friend || friend.status !== "active") continue;
+
+    // Same device as the referrer = the same person with two accounts. No coins;
+    // mark it so it is not retried and shows up as blocked in the dashboard.
+    if (await sharesDevice(referrerId, row.referred_user_id)) {
+      await pool.query(
+        "UPDATE referral_rewards SET status = 'blocked' WHERE reward_id = ? AND status = 'pending'",
+        [row.reward_id]
+      );
+      continue;
+    }
 
     const hold = Number(settings.referral_hold_days) || 0;
     // Pay first, then flip the status. If the flip fails, the next run finds the

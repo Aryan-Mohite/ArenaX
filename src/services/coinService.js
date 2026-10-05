@@ -29,6 +29,8 @@ export const SETTING_SPECS = Object.freeze({
   team_join_vest_days:            { type: "int",   min: 0,  max: 90,    label: "Days before team-join coins vest" },
   redeem_min_account_age_days:    { type: "int",   min: 0,  max: 365,   label: "Min account age to redeem (days)" },
   max_cash_redemptions_per_month: { type: "int",   min: 0,  max: 100,   label: "Gift card / top-up redemptions per user per month" },
+  cash_redemptions_per_device_per_month: { type: "int", min: 0, max: 100, label: "Gift card / top-up redemptions per DEVICE per month, across all accounts (0 = off)" },
+  signal_retention_days:          { type: "int",   min: 7,  max: 365,   label: "Days to keep device / IP abuse signals" },
   redemptions_enabled:            { type: "bool",  label: "Redemptions enabled" },
 });
 
@@ -39,6 +41,7 @@ const DEFAULTS = Object.freeze({
   monthly_cash_budget_inr: 0, coin_expiry_days: 0, streak_freeze_cooldown_days: 7,
   pro_multiplier: 2, pro_multiplier_reasons: ["login", "dailies"], pro_bonus_monthly_cap: 600,
   team_join_vest_days: 7, redeem_min_account_age_days: 7, max_cash_redemptions_per_month: 2,
+  cash_redemptions_per_device_per_month: 1, signal_retention_days: 90,
   redemptions_enabled: true,
 });
 
@@ -334,6 +337,26 @@ export async function redeemReward(userId, rewardId) {
       );
       if (Number(cnt.c) >= settings.max_cash_redemptions_per_month) {
         throw fail(`You've reached this month's limit of ${settings.max_cash_redemptions_per_month} gift card / top-up redemptions.`, "MONTHLY_LIMIT", 429);
+      }
+
+      // One cash redemption per DEVICE per month, counted across every account
+      // that has used that device. Stops one person redeeming from many accounts
+      // on the same phone/laptop. Accounts with no device signal are unaffected.
+      const perDevice = Number(settings.cash_redemptions_per_device_per_month) || 0;
+      if (perDevice > 0) {
+        const [[dev]] = await conn.query(
+          `SELECT COUNT(*) AS c FROM redemptions r JOIN reward_catalog c ON c.reward_id = r.reward_id
+            WHERE c.type IN ('gift_card','topup') AND r.status NOT IN ('rejected','refunded')
+              AND r.created_at >= DATE_FORMAT(UTC_TIMESTAMP(), '%Y-%m-01')
+              AND r.user_id IN (
+                SELECT DISTINCT s2.user_id FROM user_signals s1
+                  JOIN user_signals s2 ON s2.device_id = s1.device_id
+                 WHERE s1.user_id = ? AND s1.device_id IS NOT NULL)`,
+          [userId]
+        );
+        if (Number(dev.c) >= perDevice) {
+          throw fail("A gift card / top-up was already redeemed this month from this device. If you share a device with family or friends, contact support and we'll sort it out. Your coins are untouched.", "DEVICE_LIMIT", 409);
+        }
       }
 
       // Owner's monthly cash budget (0 = off). The total is read under a named

@@ -346,10 +346,9 @@ export const updateBranding = async (req, res, next) => {
 // ─── ORGANIZER ANALYTICS (Pro/Org tier) ────────────────────────────────────
 // GET /api/tournaments/:id/analytics — gated by requireFeature('analytics').
 //
-// "Conversion rate" and "no-show rate" are proxies over the registration
-// statuses the schema actually has (pending/confirmed/disqualified) — there's
-// no dedicated no-show flag, so 'disqualified' is used as the closest stand-in.
-// Worth a real no-show status if this becomes a heavily-used metric.
+// "Conversion rate" = confirmed / total registrations. "No-show rate" = teams
+// marked 'no_show' when the organizer finalizes check-in; "check-in rate" =
+// teams that checked in / total (see checkInController.js).
 export const getTournamentAnalytics = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -370,7 +369,9 @@ export const getTournamentAnalytics = async (req, res, next) => {
          COUNT(*) AS total,
          SUM(status = 'confirmed')   AS confirmed,
          SUM(status = 'pending')     AS pending,
-         SUM(status = 'disqualified') AS disqualified
+         SUM(status = 'disqualified') AS disqualified,
+         SUM(status = 'no_show')      AS no_show,
+         SUM(checked_in_at IS NOT NULL) AS checked_in
        FROM tournament_registrations
        WHERE tournament_id = ?`,
       [id]
@@ -378,7 +379,6 @@ export const getTournamentAnalytics = async (req, res, next) => {
 
     const total = Number(breakdown.total);
     const confirmed = Number(breakdown.confirmed);
-    const disqualified = Number(breakdown.disqualified);
 
     res.json({
       success: true,
@@ -386,7 +386,10 @@ export const getTournamentAnalytics = async (req, res, next) => {
         registrationsOverTime,
         totalRegistrations: total,
         conversionRate: total > 0 ? Number((confirmed / total).toFixed(3)) : 0,
-        noShowRate: total > 0 ? Number((disqualified / total).toFixed(3)) : 0,
+        // Real attendance data now exists: no-show = teams marked 'no_show' at
+        // check-in finalize (previously this used disqualified as a stand-in).
+        noShowRate: total > 0 ? Number((Number(breakdown.no_show || 0) / total).toFixed(3)) : 0,
+        checkInRate: total > 0 ? Number((Number(breakdown.checked_in || 0) / total).toFixed(3)) : 0,
       },
     });
   } catch (err) { next(err); }

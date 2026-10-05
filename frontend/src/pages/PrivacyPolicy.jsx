@@ -132,6 +132,13 @@ export default function PrivacyPolicy() {
               are never sent by email.
             </p>
             <p>
+              To spot people running several accounts, when you sign up or log in we also keep a
+              random device identifier (stored in your browser), a one-way scrambled form of your
+              IP address (we do not store the address itself) and a short fingerprint of your
+              browser type. These are only used to detect abuse, are visible only to our admin
+              team, and are deleted after about 90 days.
+            </p>
+            <p>
               We keep this information for as long as we need it for accounting, fraud prevention
               and legal reasons. See the{" "}
               <Link to="/rewards-terms" className="font-medium" style={{ color: "#ff4655" }}>
@@ -146,7 +153,8 @@ export default function PrivacyPolicy() {
               ArenaX uses browser storage (localStorage and session tokens) to
               keep you logged in and remember your theme preference. We may also
               use lightweight analytics cookies to understand how users navigate
-              the platform.
+              the platform. We also set one first-party cookie, <code>ax_did</code>, holding a
+              random device identifier, used only to detect abuse (see section 3).
             </p>
             <p>
               You can clear cookies at any time via your browser settings.

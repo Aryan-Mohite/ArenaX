@@ -1,3 +1,4 @@
+import { linkedAccountsFor } from "../services/signalService.js";
 import pool from "../config/db.js";
 import {
   getSettings, validateSetting, SETTING_SPECS, rewardCoinCost, rejectRedemption, notifyRedemptionOutcome,
@@ -361,6 +362,7 @@ export const getUserCoinLedger = async (req, res, next) => {
       entries,
       total_entries: Number(count.n),
       redemptions,
+      linked_accounts: await linkedAccountsFor(userId),
     });
   } catch (err) { next(err); }
 };

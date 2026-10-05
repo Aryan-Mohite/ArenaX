@@ -5,14 +5,18 @@ import { PageLoader, EmptyState, ErrorMessage } from "../components/UI";
 import { useAuth } from "../context/AuthContext";
 import API from "../api/api";
 import SEO from "../components/SEO";
+import { buildEmbedSrc, PLATFORM_LABEL } from "../utils/streamEmbed";
 
-function StreamCard({ stream }) {
+function StreamCard({ stream, onWatch }) {
+  const canEmbed = !!stream.embed;
+  const Wrapper = canEmbed ? "button" : "a";
+  const wrapperProps = canEmbed
+    ? { type: "button", onClick: () => onWatch(stream) }
+    : { href: stream.stream_url || "#", target: "_blank", rel: "noreferrer" };
   return (
-    <a
-      href={stream.stream_url || "#"}
-      target="_blank"
-      rel="noreferrer"
-      className="card-hover flex flex-col gap-3 group"
+    <Wrapper
+      {...wrapperProps}
+      className="card-hover flex flex-col gap-3 group text-left w-full"
     >
       {/* Thumbnail placeholder */}
       <div className="h-32 -mx-5 -mt-5 mb-2 bg-navy rounded-t-xl flex items-center justify-center relative overflow-hidden">
@@ -24,6 +28,9 @@ function StreamCard({ stream }) {
         </span>
         <span className="absolute bottom-2 right-2 text-xs text-gray-400 bg-black/60 px-2 py-0.5 rounded">
           {stream.viewer_count?.toLocaleString() || 0} viewers
+        </span>
+        <span className="absolute top-2 right-2 text-xs text-white bg-black/60 px-2 py-0.5 rounded">
+          {canEmbed ? "▶ Watch here" : "↗ Opens " + (PLATFORM_LABEL[stream.platform] || "externally")}
         </span>
       </div>
 
@@ -40,7 +47,65 @@ function StreamCard({ stream }) {
           </p>
         </div>
       </div>
-    </a>
+    </Wrapper>
+  );
+}
+
+function WatchModal({ stream, onClose }) {
+  const src = buildEmbedSrc(stream.embed, typeof window !== "undefined" ? window.location.hostname : "");
+  useEffect(() => {
+    const onKey = (e) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Watching ${stream.title}`}
+    >
+      <div className="w-full max-w-5xl card p-0 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="aspect-video bg-black">
+          {src ? (
+            <iframe
+              src={src}
+              title={stream.title}
+              className="w-full h-full"
+              allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+              allowFullScreen
+              referrerPolicy="strict-origin-when-cross-origin"
+              sandbox="allow-scripts allow-same-origin allow-popups allow-presentation"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm px-6 text-center">
+              This stream can't be embedded here.
+            </div>
+          )}
+        </div>
+        <div className="flex items-center justify-between gap-3 px-5 py-3">
+          <div className="min-w-0">
+            <p className="font-semibold text-white truncate">{stream.title}</p>
+            <p className="text-xs text-gray-500">{stream.username} · {stream.game_name}</p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {stream.stream_url && (
+              <a href={stream.stream_url} target="_blank" rel="noreferrer" className="btn-secondary text-sm">
+                Open on {PLATFORM_LABEL[stream.platform] || "site"} ↗
+              </a>
+            )}
+            <button type="button" onClick={onClose} className="btn-primary text-sm">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -55,6 +120,7 @@ export default function Stream() {
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState("");
   const [gameFilter, setGameFilter] = useState("");
+  const [watching, setWatching] = useState(null);
   const [form, setForm] = useState({ game_id: "", title: "", stream_url: "" });
 
   const loadStreams = async () => {
@@ -206,7 +272,7 @@ export default function Stream() {
             </div>
             <div className="sm:col-span-2">
               <label className="block text-sm text-gray-400 mb-1.5">
-                Stream URL (Twitch / YouTube)
+                Stream URL (Twitch / YouTube / Kick)
               </label>
               <input
                 className="input"
@@ -217,6 +283,10 @@ export default function Stream() {
                 }
                 type="url"
               />
+              <p className="text-xs text-gray-500 mt-1.5">
+                Twitch channels, Kick channels and YouTube live/video links play right here on ArenaX.
+                YouTube @handle links and other sites open on their own platform instead.
+              </p>
             </div>
             <div className="sm:col-span-2 flex justify-end">
               <button type="submit" className="btn-primary">
@@ -271,10 +341,11 @@ export default function Stream() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {streams.map((s) => (
-            <StreamCard key={s.stream_id} stream={s} />
+            <StreamCard key={s.stream_id} stream={s} onWatch={setWatching} />
           ))}
         </div>
       )}
+      {watching && <WatchModal stream={watching} onClose={() => setWatching(null)} />}
     </div>
   );
 }

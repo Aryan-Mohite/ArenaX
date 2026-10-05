@@ -2,6 +2,7 @@
 // coinService.js: redemption disputes, nightly maintenance (vesting sweep,
 // optional expiry, anomaly check), risk flags for the redemption queue, and the
 // accounting CSV. Kept separate so coinService stays about earning/spending.
+import { signalSummaryFor, purgeOldSignals } from "./signalService.js";
 import pool from "../config/db.js";
 import { getSettings, getBalance, settlePending, fail } from "./coinService.js";
 import { sendDisputeResolvedEmail } from "../utils/mailer.js";
@@ -253,6 +254,10 @@ export async function findCoinAnomalies() {
 
 export async function runCoinMaintenance() {
   const settled = await settleAllDuePending();
+  try {
+    const keep = Number((await getSettings()).signal_retention_days) || 90;
+    await purgeOldSignals(keep);
+  } catch (e) { console.error("[signals] purge failed:", e.message); }
   const expiry = await expireOldCoins();
   const anomalies = await findCoinAnomalies();
   if (anomalies.total > 0) console.error("[coins] ANOMALIES FOUND:", JSON.stringify(anomalies));
@@ -297,6 +302,7 @@ export async function riskFlagsFor(rows, settings) {
   const allowance = 2 * ((Number(s.earn_login) + Number(s.earn_dailies)) * 7 +
     Number(s.earn_streak_7) + Number(s.earn_profile_complete) + Number(s.earn_first_game) + Number(s.earn_team_join));
 
+  const signals = await signalSummaryFor(ids);
   const out = new Map();
   for (const r of rows) {
     const flags = [];
@@ -307,7 +313,10 @@ export async function riskFlagsFor(rows, settings) {
     if ((refBy.get(r.user_id) || 0) >= 5) flags.push("referral_heavy");
     if ((cashBy.get(r.user_id) || 0) >= 2) flags.push("repeat_redeemer");
     if ((grantBy.get(r.user_id) || 0) > 0) flags.push("admin_grants");
-    out.set(r.user_id, { flags, earned_7d: e7 });
+    const sig = signals.get(r.user_id) || { shared_device: 0, ip_signups: 0 };
+    if (sig.shared_device > 0) flags.push("shared_device");
+    if (sig.ip_signups >= 3) flags.push("shared_signup_ip");
+    out.set(r.user_id, { flags, earned_7d: e7, linked_devices: sig.shared_device, ip_signups: sig.ip_signups });
   }
   return out;
 }

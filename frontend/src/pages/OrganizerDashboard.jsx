@@ -399,9 +399,10 @@ function AnalyticsModal({ analyticsData, onClose }) {
           <h3 className="font-display font-bold text-lg text-white">Analytics — {tournament.name}</h3>
           <button className="btn-ghost text-sm" onClick={onClose}>Close</button>
         </div>
-        <div className="grid grid-cols-3 gap-3 mb-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
           <StatCard label="Registrations" value={data.totalRegistrations} />
           <StatCard label="Conversion" value={`${Math.round(data.conversionRate * 100)}%`} />
+          <StatCard label="Checked in" value={`${Math.round((data.checkInRate || 0) * 100)}%`} />
           <StatCard label="No-show" value={`${Math.round(data.noShowRate * 100)}%`} />
         </div>
         <div className="text-xs text-gray-500 uppercase tracking-wider mb-2">Registrations Over Time</div>

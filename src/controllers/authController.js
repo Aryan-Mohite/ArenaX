@@ -1,3 +1,4 @@
+import { recordSignalSafe } from "../services/signalService.js";
 import bcrypt from "bcryptjs";
 import pool from "../config/db.js";
 import { generateToken } from "../utils/jwt.js";
@@ -128,6 +129,7 @@ export const verifyRegisterOtp = async (req, res, next) => {
 
     // §6: fire-and-forget — never awaited, never lets logging break registration
     logEvent(user.user_id, EVENT_TYPES.SIGNUP);
+    recordSignalSafe(user.user_id, "signup", req); // device/IP abuse signals
 
     const token = generateToken({ id: user.user_id, username: user.username, isAdmin: false });
 
@@ -250,6 +252,7 @@ export const login = async (req, res, next) => {
 
     // §6: fire-and-forget — this is what DAU/WAU/MAU and retention cohorts read from
     logEvent(user.user_id, EVENT_TYPES.LOGIN);
+    recordSignalSafe(user.user_id, "login", req);
 
     res.json({
       success: true,

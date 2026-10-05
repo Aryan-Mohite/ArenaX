@@ -1,3 +1,4 @@
+import { recordSignal } from "../services/signalService.js";
 import pool from "../config/db.js";
 import {
   getSettings, getBalance, settlePending, syncOneTimeCoins,
@@ -79,6 +80,9 @@ export const redeem = async (req, res, next) => {
     if (!Number.isInteger(rewardId) || rewardId < 1) {
       return res.status(400).json({ success: false, message: "reward_id is required" });
     }
+    // Make sure this device is on record before the per-device rule runs, so
+    // accounts that have not logged in since the signals feature shipped are covered.
+    await recordSignal(req.user.id, "redeem", req).catch(() => {});
     const result = await redeemReward(req.user.id, rewardId);
     res.status(201).json({ success: true, ...result });
   } catch (err) {

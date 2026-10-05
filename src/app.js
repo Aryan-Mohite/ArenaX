@@ -97,7 +97,13 @@ app.use(
           "https://region1.google-analytics.com",
         ],
         mediaSrc:    ["'self'", "blob:", "https:"],
-        frameSrc:    ["'none'"],
+        // Live stream embeds (Stream page). Fixed allowlist: the iframe src is
+        // always built on the frontend from a validated id, never from a raw URL.
+        frameSrc: [
+          "https://www.youtube-nocookie.com",
+          "https://player.twitch.tv",
+          "https://player.kick.com",
+        ],
         objectSrc:   ["'none'"],
         baseUri:     ["'self'"],
         formAction:  ["'self'"],

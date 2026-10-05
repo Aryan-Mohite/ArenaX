@@ -2722,3 +2722,33 @@ INSERT IGNORE INTO coin_settings (setting_key, setting_value) VALUES
     ('monthly_cash_budget_inr',     '0'),   -- 0 = no limit; otherwise gift card / top-up redemptions stop when this month's total reaches it
     ('coin_expiry_days',            '0'),   -- 0 = coins never expire; see Rewards Terms (30 days' notice) before turning on
     ('streak_freeze_cooldown_days', '7');   -- Pro: a missed day is forgiven at most once in this many days
+
+-- Tournament check-in (safe to re-run; same ADD COLUMN IF NOT EXISTS style as the rest of the repo).
+-- tournaments.check_in_open        : organizer opens/closes the check-in window
+-- tournament_registrations.checked_in_at / checked_in_by : who checked the team in and when
+-- Registration status gains a new value 'no_show' (status is VARCHAR, no schema change needed).
+ALTER TABLE tournaments
+  ADD COLUMN IF NOT EXISTS check_in_open BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE tournament_registrations
+  ADD COLUMN IF NOT EXISTS checked_in_at DATETIME NULL,
+  ADD COLUMN IF NOT EXISTS checked_in_by INT NULL;
+
+
+-- Device / IP signals for abuse detection (safe to re-run).
+-- Raw IPs are never stored: ip_hash is an HMAC (server secret) of the IP
+-- (IPv6 reduced to its /64). device_id is a random browser-generated UUID.
+-- Rows older than signal_retention_days (default 90) are deleted nightly.
+CREATE TABLE IF NOT EXISTS user_signals (
+  signal_id  BIGINT AUTO_INCREMENT PRIMARY KEY,
+  user_id    INT          NOT NULL,
+  kind       VARCHAR(10)  NOT NULL,            -- signup | login
+  ip_hash    CHAR(64)     NULL,
+  device_id  CHAR(36)     NULL,
+  ua_hash    CHAR(16)     NULL,
+  created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_signals_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE INDEX idx_signals_user    ON user_signals(user_id, created_at);
+CREATE INDEX idx_signals_device  ON user_signals(device_id, user_id);
+CREATE INDEX idx_signals_ip      ON user_signals(ip_hash, created_at);

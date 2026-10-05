@@ -9,6 +9,7 @@ import {
 import { getMyGames } from "../services/gameService";
 import { PageLoader, ErrorMessage } from "../components/UI";
 import { useAuth } from "../context/AuthContext";
+import TournamentCheckIn from "../components/TournamentCheckIn";
 import ReportModal from "../components/ReportModal";
 import { useTheme } from "../context/ThemeContext";
 import { themeStyles } from "../utils/themeStyles";
@@ -1099,6 +1100,9 @@ function TournamentDetail({ id }) {
           )}
         </div>
       )}
+
+      {/* Check-in (organizer controls / captain button; renders nothing for others) */}
+      <TournamentCheckIn tournament={t} />
 
       {/* Registered Teams */}
       {t.registered_teams?.length > 0 && (

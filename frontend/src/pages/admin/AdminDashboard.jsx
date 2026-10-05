@@ -1708,6 +1708,8 @@ const RISK_FLAG_LABELS = {
   referral_heavy: "Many referral rewards",
   repeat_redeemer: "Repeat redeemer",
   admin_grants: "Received admin grants",
+  shared_device: "Shares a device with other accounts",
+  shared_signup_ip: "3+ accounts signed up from the same IP",
 };
 
 function CoinQueuePanel({ showToast, onChanged, onOpenUser }) {
@@ -1951,6 +1953,28 @@ function CoinLedgerPanel({ showToast, userId, setUserId, onChanged }) {
               </div>
             </div>
           </div>
+
+          {data.linked_accounts && (data.linked_accounts.same_device.length > 0 || data.linked_accounts.same_signup_ip.length > 0) && (
+            <div className="card border border-yellow-500/30">
+              <p className="text-xs text-yellow-400 uppercase tracking-wider mb-2">Linked accounts</p>
+              {data.linked_accounts.same_device.length > 0 && (
+                <p className="text-sm text-gray-300 mb-1">
+                  <span className="text-gray-500">Same device (strong): </span>
+                  {data.linked_accounts.same_device.map((a) => (
+                    <button key={a.user_id} className="mr-2 underline decoration-dotted hover:text-white" onClick={() => setUserId(a.user_id)}>@{a.username}{a.status !== "active" ? ` (${a.status})` : ""}</button>
+                  ))}
+                </p>
+              )}
+              {data.linked_accounts.same_signup_ip.length > 0 && (
+                <p className="text-sm text-gray-300">
+                  <span className="text-gray-500">Signed up from the same IP (weak, can be a shared network): </span>
+                  {data.linked_accounts.same_signup_ip.map((a) => (
+                    <button key={a.user_id} className="mr-2 underline decoration-dotted hover:text-white" onClick={() => setUserId(a.user_id)}>@{a.username}</button>
+                  ))}
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[["Available", n(data.balance.available)], ["Pending", n(data.balance.pending)],
