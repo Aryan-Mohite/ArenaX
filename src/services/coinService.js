@@ -24,7 +24,7 @@ export const SETTING_SPECS = Object.freeze({
   coin_expiry_days:               { type: "int",   min: 0,  max: 3650,  label: "Coins expire after N days (0 = never; give 30 days' notice first)" },
   streak_freeze_cooldown_days:    { type: "int",   min: 1,  max: 60,    label: "Pro streak freeze: at most one forgiven day per N days" },
   pro_multiplier:                 { type: "float", min: 1,  max: 5,     label: "ArenaX Pro multiplier" },
-  pro_multiplier_reasons:         { type: "list",  allowed: ["login", "dailies", "streak_7", "streak_30", "profile_complete", "first_game", "team_join"], label: "Rewards the Pro multiplier applies to" },
+  pro_multiplier_reasons:         { type: "list",  allowed: ["login", "dailies", "streak_7", "streak_30", "profile_complete", "first_game", "team_join", "tournament_attendance"], label: "Rewards the Pro multiplier applies to" },
   pro_bonus_monthly_cap:          { type: "int",   min: 0,  max: 100000, label: "Max extra coins per Pro user per month" },
   team_join_vest_days:            { type: "int",   min: 0,  max: 90,    label: "Days before team-join coins vest" },
   redeem_min_account_age_days:    { type: "int",   min: 0,  max: 365,   label: "Min account age to redeem (days)" },
@@ -32,6 +32,51 @@ export const SETTING_SPECS = Object.freeze({
   cash_redemptions_per_device_per_month: { type: "int", min: 0, max: 100, label: "Gift card / top-up redemptions per DEVICE per month, across all accounts (0 = off)" },
   signal_retention_days:          { type: "int",   min: 7,  max: 365,   label: "Days to keep device / IP abuse signals" },
   redemptions_enabled:            { type: "bool",  label: "Redemptions enabled" },
+  // Tournament attendance: paid when a tournament COMPLETES, only to players whose
+  // team checked in (see tournamentCoinService.js). Stops fake no-show farming.
+  earn_tournament_attendance:     { type: "int",   min: 0,  max: 2000,  label: "Play in a completed tournament (checked in)" },
+  tournament_reward_monthly_cap:  { type: "int",   min: 0,  max: 100,   label: "Max coin-paying tournaments per player per month" },
+  tournament_min_teams:           { type: "int",   min: 2,  max: 64,    label: "Min checked-in teams for a tournament to pay coins" },
+  tournament_max_players:         { type: "int",   min: 1,  max: 2000,  label: "Max players paid per tournament" },
+  tournament_min_account_age_days:{ type: "int",   min: 0,  max: 365,   label: "Min account age to earn tournament coins (days)" },
+  tournament_vest_days:           { type: "int",   min: 0,  max: 90,    label: "Days before tournament coins vest" },
+  tournament_require_verified_organizer: { type: "bool", label: "Only pay for tournaments run by a verified organizer or an admin" },
+});
+
+// Admin-panel grouping and one-line help for every setting. Display only: it
+// never affects behaviour. Settings missing from here fall into "Other".
+export const SETTING_GROUP_ORDER = ["Earning", "Tournaments", "Referrals", "ArenaX Pro", "Redemption limits", "Budget & expiry", "Anti-abuse"];
+export const SETTING_META = Object.freeze({
+  earn_login:                 { group: "Earning", help: "Paid once per day on login or homepage check-in." },
+  earn_dailies:               { group: "Earning", help: "Paid once per day, however many Dailies games are played." },
+  earn_profile_complete:      { group: "Earning", help: "Bio + profile picture. One time per account." },
+  earn_first_game:            { group: "Earning", help: "First game added to the library. One time per account." },
+  earn_team_join:             { group: "Earning", help: "One time. Held as pending, released only if the player is still on a team." },
+  team_join_vest_days:        { group: "Earning", help: "How long team-join coins stay pending." },
+  earn_streak_7:              { group: "Earning", help: "Bonus when a login streak reaches 7 days." },
+  earn_streak_30:             { group: "Earning", help: "Bonus when a login streak reaches 30 days." },
+  streak_freeze_cooldown_days:{ group: "Earning", help: "Pro perk: one missed day is forgiven at most once per this many days." },
+  earn_tournament_attendance: { group: "Tournaments", help: "Per player, when the tournament completes. Needs organizer check-in, so no-shows earn nothing. 0 turns tournament coins off." },
+  tournament_reward_monthly_cap: { group: "Tournaments", help: "Stops one player farming many small tournaments. 0 = nobody can earn." },
+  tournament_min_teams:       { group: "Tournaments", help: "Tournaments with fewer checked-in teams pay nothing (blocks fake 2-team events)." },
+  tournament_max_players:     { group: "Tournaments", help: "Hard ceiling on what one tournament can cost you." },
+  tournament_min_account_age_days: { group: "Tournaments", help: "New accounts cannot earn until they are this old." },
+  tournament_vest_days:       { group: "Tournaments", help: "Coins stay pending this long, and are reversed if the account is banned meanwhile." },
+  tournament_require_verified_organizer: { group: "Tournaments", help: "Recommended ON: free-tier organizers can create events with fake teams, so only approved organizers (or admin-run events) pay coins." },
+  earn_referral:              { group: "Referrals", help: "Paid to the inviter when the friend completes profile + game + first community post." },
+  referral_hold_days:         { group: "Referrals", help: "Referral coins stay pending this long, reversed if the friend is banned." },
+  referral_monthly_cap:       { group: "Referrals", help: "Max coin-paying referrals per inviter per month." },
+  pro_multiplier:             { group: "ArenaX Pro", help: "Pro members get base x this on the rewards ticked below." },
+  pro_multiplier_reasons:     { group: "ArenaX Pro", help: "Comma-separated reasons the multiplier applies to. Tournament coins are off by default." },
+  pro_bonus_monthly_cap:      { group: "ArenaX Pro", help: "Limits the EXTRA coins a Pro user can get from the multiplier each month." },
+  coins_per_inr:              { group: "Budget & expiry", help: "Exchange rate. Higher = coins are worth less. Changes gift-card prices immediately; coins already earned keep their count." },
+  monthly_cash_budget_inr:    { group: "Budget & expiry", help: "Gift card / top-up redemptions stop for the month once this much is committed. 0 = no limit." },
+  coin_expiry_days:           { group: "Budget & expiry", help: "Unused coins expire after this many days. 0 = never. Give users notice before turning on." },
+  redemptions_enabled:        { group: "Redemption limits", help: "Master switch. Off = users see a paused notice." },
+  redeem_min_account_age_days:{ group: "Redemption limits", help: "Account must be this old to redeem." },
+  max_cash_redemptions_per_month: { group: "Redemption limits", help: "Gift card / top-up redemptions one user can make per month." },
+  cash_redemptions_per_device_per_month: { group: "Anti-abuse", help: "Across ALL accounts using one device. 0 = off. Shared family devices may need an admin override." },
+  signal_retention_days:      { group: "Anti-abuse", help: "How long device / IP signals are kept before deletion." },
 });
 
 const DEFAULTS = Object.freeze({
@@ -43,6 +88,11 @@ const DEFAULTS = Object.freeze({
   team_join_vest_days: 7, redeem_min_account_age_days: 7, max_cash_redemptions_per_month: 2,
   cash_redemptions_per_device_per_month: 1, signal_retention_days: 90,
   redemptions_enabled: true,
+  // I picked these: 40 coins is roughly 8 daily logins, worth the effort of an
+  // actual match. 4/month caps the cost at 160 coins (about Rs.1.60 at 100 coins = Rs.1).
+  earn_tournament_attendance: 40, tournament_reward_monthly_cap: 4, tournament_min_teams: 4,
+  tournament_max_players: 100, tournament_min_account_age_days: 3, tournament_vest_days: 3,
+  tournament_require_verified_organizer: true,
 });
 
 function parseValue(key, raw) {
@@ -220,6 +270,11 @@ export async function settlePending(userId) {
         [userId]
       );
       ok = Number(m.c) > 0;
+    }
+    // Tournament coins are reversed if the account was banned while they were pending.
+    if (e.reason === "tournament_attendance") {
+      const [[u]] = await pool.query("SELECT status FROM users WHERE user_id = ?", [userId]);
+      ok = !!u && u.status === "active";
     }
     // Referral coins only vest if the friend is still a normal account
     // (not banned or removed): a farmed referral is reversed here.

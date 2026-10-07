@@ -75,8 +75,9 @@ export default function RewardsTerms() {
           <Section title="2. Earning coins">
             <p>
               You can earn coins for activities such as logging in each day, playing a Dailies
-              game, completing your profile, adding your first game, joining a team, and keeping a
-              login streak. The activities and the amount each one pays are shown on the{" "}
+              game, completing your profile, adding your first game, joining a team, keeping a
+              login streak, and playing in a completed tournament (your team must be checked in by the
+              organizer, and only tournaments run by verified organizers pay coins). The activities and the amount each one pays are shown on the{" "}
               <Link to="/rewards" className="font-medium" style={{ color: "#ff4655" }}>
                 Rewards page
               </Link>{" "}

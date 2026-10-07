@@ -10,6 +10,7 @@
 
 import cron from "node-cron";
 import pool from "../config/db.js";
+import { awardTournamentCoinsSafe } from "../services/tournamentCoinService.js";
 
 export async function autoUpdateTournamentStatuses() {
   const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
@@ -23,6 +24,11 @@ export async function autoUpdateTournamentStatuses() {
     [today]
   );
 
+  const [endingNow] = await pool.query(
+    `SELECT tournament_id FROM tournaments
+     WHERE status = 'ongoing' AND end_date IS NOT NULL AND end_date <= ?`,
+    [today]
+  );
   const [endedResult] = await pool.query(
     `UPDATE tournaments
      SET status = 'completed'
@@ -31,6 +37,8 @@ export async function autoUpdateTournamentStatuses() {
        AND end_date <= ?`,
     [today]
   );
+  // Pay attendance coins for each tournament that just completed (idempotent).
+  for (const row of endingNow) await awardTournamentCoinsSafe(row.tournament_id);
 
   const startedCount = startedResult.affectedRows || 0;
   const endedCount = endedResult.affectedRows || 0;

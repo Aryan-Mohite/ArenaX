@@ -1,9 +1,9 @@
 import { linkedAccountsFor } from "../services/signalService.js";
+import { recentTournamentPayouts } from "../services/tournamentCoinService.js";
 import pool from "../config/db.js";
 import {
   getSettings, validateSetting, SETTING_SPECS, rewardCoinCost, rejectRedemption, notifyRedemptionOutcome,
-  getBalance, adminAdjustCoins,
-} from "../services/coinService.js";
+  getBalance, adminAdjustCoins, SETTING_META, SETTING_GROUP_ORDER } from "../services/coinService.js";
 import {
   riskFlagsFor, findCoinAnomalies, buildRedemptionsCsv, listRedemptionDisputes, resolveRedemptionDispute,
 } from "../services/coinOpsService.js";
@@ -16,6 +16,12 @@ const MAX_RATE_SWING = 2;
 
 // ── SETTINGS ─────────────────────────────────────────────────────────────────
 // GET /api/admin/coins/settings
+export const getTournamentPayouts = async (req, res, next) => {
+  try {
+    res.json({ success: true, payouts: await recentTournamentPayouts(15) });
+  } catch (err) { next(err); }
+};
+
 export const getCoinSettings = async (req, res, next) => {
   try {
     const settings = await getSettings();
@@ -26,9 +32,10 @@ export const getCoinSettings = async (req, res, next) => {
     );
     const specs = Object.entries(SETTING_SPECS).map(([key, s]) => ({
       key, type: s.type, label: s.label, min: s.min, max: s.max, allowed: s.allowed,
+      group: SETTING_META[key]?.group || "Other", help: SETTING_META[key]?.help || "",
       value: Array.isArray(settings[key]) ? settings[key].join(",") : settings[key],
     }));
-    res.json({ success: true, settings: specs, audit });
+    res.json({ success: true, settings: specs, audit, group_order: [...SETTING_GROUP_ORDER, "Other"] });
   } catch (err) { next(err); }
 };
 

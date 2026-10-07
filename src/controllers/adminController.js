@@ -197,14 +197,14 @@ export const getBillingStats = async (req, res, next) => {
       [{ canceledThisMonth }],
       recentPayments,
     ] = await Promise.all([
-      pool.query("SELECT COUNT(*) AS activeSubs FROM subscriptions WHERE status = 'active'").then(r => r[0]),
+      pool.query("SELECT COUNT(*) AS activeSubs FROM subscriptions WHERE status = 'active' AND COALESCE(gateway, '') <> 'coins'").then(r => r[0]),
       pool.query(`
         SELECT COALESCE(SUM(
           CASE WHEN p.billing_cycle = 'annual' THEN p.price / 12 ELSE p.price END
         ), 0) AS mrr
         FROM subscriptions s
         JOIN plans p ON p.plan_id = s.plan_id
-        WHERE s.status = 'active'
+        WHERE s.status = 'active' AND COALESCE(s.gateway, '') <> 'coins'
       `).then(r => r[0]),
       pool.query("SELECT COUNT(*) AS failedPayments FROM payments WHERE status = 'failed' AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)").then(r => r[0]),
       pool.query("SELECT COUNT(*) AS canceledThisMonth FROM subscriptions WHERE status = 'canceled' AND canceled_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)").then(r => r[0]),

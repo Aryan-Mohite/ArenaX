@@ -22,6 +22,7 @@ import { DailiesTransitionProvider } from "./components/dailies/DailiesTransitio
 
 // ── Core public pages (highest traffic — still lazy; preload hints added below)
 const Home       = lazy(() => import("./pages/Home"));
+const InvestorTraction = lazy(() => import("./pages/InvestorTraction"));
 const Games      = lazy(() => import("./pages/Games"));
 const GamePage   = lazy(() => import("./pages/GamePage"));
 const Tournament = lazy(() => import("./pages/Tournament"));
@@ -116,6 +117,7 @@ export default function App() {
           <Route path="/blog/:slug"    element={<Layout><BlogPost /></Layout>} />
           <Route path="/terms"         element={<Layout><TermsAndConditions /></Layout>} />
           <Route path="/privacy"       element={<Layout><PrivacyPolicy /></Layout>} />
+          <Route path="/investors/:token" element={<InvestorTraction />} />
           <Route path="/rewards-terms" element={<Layout><RewardsTerms /></Layout>} />
 
           {/* ── Auth pages ── */}

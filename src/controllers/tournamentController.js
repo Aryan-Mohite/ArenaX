@@ -1,3 +1,4 @@
+import { awardTournamentCoinsSafe } from "../services/tournamentCoinService.js";
 import pool from "../config/db.js";
 import { hasFeature } from "../services/featureService.js";
 import { CURRENT_TERMS_VERSION } from "./organizerController.js";
@@ -271,6 +272,9 @@ export const updateTournamentStatus = async (req, res, next) => {
     }
 
     await pool.query("UPDATE tournaments SET status = ? WHERE tournament_id = ?", [status, id]);
+
+    // Completing a tournament pays attendance coins to checked-in players (idempotent; never blocks the response).
+    if (status === "completed" && existing[0].status !== "completed") awardTournamentCoinsSafe(id);
 
     const [updated] = await pool.query(
       "SELECT * FROM tournaments WHERE tournament_id = ?",

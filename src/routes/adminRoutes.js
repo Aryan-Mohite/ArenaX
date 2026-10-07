@@ -1,3 +1,4 @@
+import { listInvestorLinks, createInvestorLink, revokeInvestorLink, previewTraction } from "../controllers/tractionController.js";
 import { Router } from "express";
 import {
   getAllUsers,
@@ -32,7 +33,7 @@ import {
   getGearClicks,
 } from "../controllers/adminController.js";
 import {
-  getCoinSettings,
+  getCoinSettings, getTournamentPayouts,
   updateCoinSettings,
   getCoinStats,
   getRedemptionQueue,
@@ -75,7 +76,12 @@ router.post("/organizer-verifications/:id/approve", approveOrganizerVerification
 router.post("/organizer-verifications/:id/reject", rejectOrganizerVerification);
 
 // ─── Special Coins: economy settings, redemption queue, reward catalog (§11) ─
+router.get("/investor-links", listInvestorLinks);
+router.post("/investor-links", createInvestorLink);
+router.delete("/investor-links/:id", validateIdParam, validate, revokeInvestorLink);
+router.get("/traction", previewTraction);
 router.get("/coins/settings", getCoinSettings);
+router.get("/coins/tournament-payouts", getTournamentPayouts);
 router.put("/coins/settings", updateCoinSettings);
 router.get("/coins/stats", getCoinStats);
 router.get("/coins/redemptions", getRedemptionQueue);

@@ -9,6 +9,7 @@
  *  4. Archives   — link through to existing AdminArchiveDashboard
  */
 
+import TractionView from "../../components/TractionView";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
@@ -1407,6 +1408,7 @@ function AnalyticsTab({ showToast }) {
 
       <CoinAnalytics showToast={showToast} />
       <ReferralAnalytics showToast={showToast} />
+      <InvestorLinksPanel showToast={showToast} />
     </div>
   );
 }
@@ -1602,16 +1604,20 @@ function CoinsTab({ showToast }) {
 function CoinSettingsPanel({ showToast, onSaved }) {
   const [specs, setSpecs] = useState([]);
   const [audit, setAudit] = useState([]);
+  const [groupOrder, setGroupOrder] = useState([]);
+  const [payouts, setPayouts] = useState([]);
   const [draft, setDraft] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
+    apiFetch("/admin/coins/tournament-payouts").then((d) => setPayouts(d.payouts || [])).catch(() => {});
     apiFetch("/admin/coins/settings")
       .then((d) => {
         setSpecs(d.settings || []);
         setAudit(d.audit || []);
+        setGroupOrder(d.group_order || []);
         setDraft(Object.fromEntries((d.settings || []).map((s) => [s.key, String(s.value)])));
       })
       .catch((e) => showToast(`Failed to load settings: ${e.message}`, false))
@@ -1638,44 +1644,67 @@ function CoinSettingsPanel({ showToast, onSaved }) {
 
   if (loading) return <LoadingRows />;
 
-  const rate = Number(draft.coins_per_inr) || 0;
-  const perfectMonth = (Number(draft.earn_login) + Number(draft.earn_dailies)) * 30;
+  const n = (k) => Number(draft[k]) || 0;
+  const rate = n("coins_per_inr");
+  const dailyMonth = (n("earn_login") + n("earn_dailies")) * 30;
+  const tournamentMonth = n("earn_tournament_attendance") * n("tournament_reward_monthly_cap");
+  const maxMonth = dailyMonth + tournamentMonth + n("earn_streak_30");
+  const inr = (coins) => (rate > 0 ? `₹${(coins / rate).toFixed(2)}` : "-");
+  const verifiedOff = !(draft.tournament_require_verified_organizer === "1" || draft.tournament_require_verified_organizer === "true");
+
+  const renderField = (s) => (
+    <label key={s.key} className="block">
+      <span className="text-xs text-gray-400 block mb-1">
+        {s.label}
+        {s.type !== "bool" && s.type !== "list" && s.min !== undefined && <span className="text-gray-600"> ({s.min}–{s.max})</span>}
+        {String(s.value) !== String(draft[s.key]) && <span className="text-yellow-400 ml-2">edited</span>}
+      </span>
+      {s.type === "bool" ? (
+        <select className="input text-sm w-full" value={draft[s.key] === "true" || draft[s.key] === "1" ? "1" : "0"}
+          onChange={(e) => setDraft((d) => ({ ...d, [s.key]: e.target.value }))}>
+          <option value="1">On</option>
+          <option value="0">Off</option>
+        </select>
+      ) : (
+        <input className="input text-sm w-full" value={draft[s.key] ?? ""}
+          inputMode={s.type === "list" ? "text" : "decimal"}
+          onChange={(e) => setDraft((d) => ({ ...d, [s.key]: e.target.value }))} />
+      )}
+      {s.help && <span className="text-[11px] text-gray-600 block mt-1">{s.help}</span>}
+      {s.type === "list" && <span className="text-[11px] text-gray-600">Allowed: {s.allowed.join(", ")}</span>}
+    </label>
+  );
+
+  const groups = [...groupOrder, ...(groupOrder.includes("Other") ? [] : ["Other"])]
+    .map((g) => [g, specs.filter((s) => s.group === g)])
+    .filter(([, list]) => list.length > 0);
 
   return (
     <div>
-      <div className="card mb-4 text-sm text-gray-400">
+      <div className="card mb-4 text-sm text-gray-400 space-y-1">
         <p>
-          At <span className="text-white font-semibold">{rate} coins = ₹1</span>, a user who logs in and plays Dailies every day earns about{" "}
-          <span className="text-white font-semibold">{perfectMonth.toLocaleString("en-IN")} coins/month</span>
-          {rate > 0 && <> (≈ ₹{(perfectMonth / rate).toFixed(2)} of reward value) before streak bonuses</>}.
-          Changing the rate reprices gift cards and top-ups on the next page load; coins already earned are unaffected.
+          At <span className="text-white font-semibold">{rate} coins = ₹1</span>, the most one active user can earn in a month is about{" "}
+          <span className="text-white font-semibold">{maxMonth.toLocaleString("en-IN")} coins</span> ({inr(maxMonth)}):
+          {" "}{dailyMonth.toLocaleString("en-IN")} from daily login + Dailies, {tournamentMonth.toLocaleString("en-IN")} from tournaments, {n("earn_streak_30").toLocaleString("en-IN")} from a 30-day streak.
+          One-time rewards, referrals and the Pro multiplier come on top.
         </p>
+        <p className="text-gray-500">Changing the rate reprices gift cards and top-ups on the next page load; coins already earned are unaffected.</p>
+        {verifiedOff && n("earn_tournament_attendance") > 0 && (
+          <p className="text-yellow-400">
+            Warning: tournament coins are paying for events by unverified organizers. Anyone can create a free tournament with fake teams, so keep this ON unless you review events yourself.
+          </p>
+        )}
       </div>
 
-      <div className="card mb-4">
-        <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4">
-          {specs.map((s) => (
-            <label key={s.key} className="block">
-              <span className="text-xs text-gray-400 block mb-1">
-                {s.label}
-                {s.type !== "bool" && s.type !== "list" && s.min !== undefined && <span className="text-gray-600"> ({s.min}–{s.max})</span>}
-              </span>
-              {s.type === "bool" ? (
-                <select className="input text-sm w-full" value={draft[s.key] === "true" || draft[s.key] === "1" ? "1" : "0"}
-                  onChange={(e) => setDraft((d) => ({ ...d, [s.key]: e.target.value }))}>
-                  <option value="1">On</option>
-                  <option value="0">Off (paused)</option>
-                </select>
-              ) : (
-                <input className="input text-sm w-full" value={draft[s.key] ?? ""}
-                  inputMode={s.type === "list" ? "text" : "decimal"}
-                  onChange={(e) => setDraft((d) => ({ ...d, [s.key]: e.target.value }))} />
-              )}
-              {s.type === "list" && <span className="text-[11px] text-gray-600">Comma-separated: {s.allowed.join(", ")}</span>}
-            </label>
-          ))}
+      {groups.map(([group, list]) => (
+        <div key={group} className="card mb-4">
+          <h3 className="font-display font-bold text-white mb-3">{group}</h3>
+          <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4">{list.map(renderField)}</div>
         </div>
-        <div className="flex items-center justify-end gap-3 mt-5">
+      ))}
+
+      <div className="card mb-6">
+        <div className="flex items-center justify-end gap-3">
           {changed.length > 0 && <span className="text-xs text-gray-500">{changed.length} unsaved change{changed.length > 1 ? "s" : ""}</span>}
           <button className="btn-ghost text-sm" disabled={changed.length === 0 || saving}
             onClick={() => setDraft(Object.fromEntries(specs.map((s) => [s.key, String(s.value)])))}>Reset</button>
@@ -1684,6 +1713,28 @@ function CoinSettingsPanel({ showToast, onSaved }) {
           </button>
         </div>
       </div>
+
+      <h3 className="font-display font-bold text-white mb-2">Recent tournament payouts</h3>
+      {payouts.length === 0 ? (
+        <div className="card text-sm text-gray-600 text-center py-6 mb-6">No tournament has paid coins yet. Coins are paid when a tournament with organizer check-in is completed.</div>
+      ) : (
+        <div className="card mb-6 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead><tr className="text-left text-xs text-gray-500"><th className="py-1 pr-3">Tournament</th><th className="pr-3">Players paid</th><th className="pr-3">Coins</th><th className="pr-3">Reversed</th><th>Paid</th></tr></thead>
+            <tbody>
+              {payouts.map((p) => (
+                <tr key={p.tournament_id} className="border-t border-white/5">
+                  <td className="py-1.5 pr-3 text-white">{p.name || `#${p.tournament_id}`}</td>
+                  <td className="pr-3">{p.players}</td>
+                  <td className="pr-3">{Number(p.coins).toLocaleString("en-IN")} <span className="text-gray-600">({inr(Number(p.coins))})</span></td>
+                  <td className="pr-3">{Number(p.reversed) || 0}</td>
+                  <td className="text-gray-500">{fmt(p.paid_at)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <h3 className="font-display font-bold text-white mb-2">Recent changes</h3>
       {audit.length === 0 ? (
@@ -2834,6 +2885,114 @@ function CoinAnalytics({ showToast }) {
 // -- Referrals (Analytics tab) ------------------------------------------------
 // Is the invite loop bringing in real users, and is anyone farming it?
 // Fetches on its own so a failure never blanks the rest of the Analytics tab.
+// ─── INVESTOR LINKS ──────────────────────────────────────────────────────────
+// Create/revoke unlisted read-only links to the traction page, and preview exactly
+// what an investor sees. The raw link is shown ONCE (only a hash is stored).
+function InvestorLinksPanel({ showToast }) {
+  const [links, setLinks] = useState([]);
+  const [label, setLabel] = useState("");
+  const [days, setDays] = useState("30");
+  const [busy, setBusy] = useState(false);
+  const [fresh, setFresh] = useState(null);       // { url } shown once after creation
+  const [snapshot, setSnapshot] = useState(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+
+  const load = useCallback(() => {
+    apiFetch("/admin/investor-links").then((d) => setLinks(d.links || [])).catch((e) => showToast(e.message, false));
+  }, [showToast]);
+  useEffect(() => { load(); }, [load]);
+
+  const create = async () => {
+    if (!label.trim()) return showToast("Add a label so you remember who the link is for", false);
+    setBusy(true);
+    try {
+      const d = await apiFetch("/admin/investor-links", { method: "POST", body: JSON.stringify({ label, expires_in_days: Number(days) }) });
+      setFresh({ url: `${window.location.origin}${d.path}`, days: d.expires_in_days });
+      setLabel("");
+      load();
+    } catch (e) { showToast(e.message, false); } finally { setBusy(false); }
+  };
+  const revoke = async (id) => {
+    if (!window.confirm("Revoke this link? Anyone holding it loses access immediately.")) return;
+    try { await apiFetch(`/admin/investor-links/${id}`, { method: "DELETE" }); showToast("Link revoked"); load(); }
+    catch (e) { showToast(e.message, false); }
+  };
+  const copy = (text) => navigator.clipboard?.writeText(text).then(() => showToast("Copied"), () => showToast("Copy failed, select the text manually", false));
+  const preview = async () => {
+    setLoadingPreview(true);
+    try { const d = await apiFetch("/admin/traction?fresh=1"); setSnapshot(d.snapshot); }
+    catch (e) { showToast(e.message, false); } finally { setLoadingPreview(false); }
+  };
+
+  return (
+    <div className="mt-10">
+      <h2 className="font-display font-bold text-xl text-white mb-1">Investor traction page</h2>
+      <p className="text-sm text-gray-500 mb-4">
+        A read-only, anonymous, always-current dashboard you can share with investors or the IIE Cell. Each link is private to whoever you give it to and can be revoked.
+        Check the preview first: it shows exactly what they will see.
+      </p>
+
+      <div className="card mb-4">
+        <div className="grid sm:grid-cols-[1fr_auto_auto] gap-3 items-end">
+          <label className="block">
+            <span className="text-xs text-gray-400 block mb-1">Who is this link for?</span>
+            <input className="input text-sm w-full" value={label} maxLength={120} placeholder="e.g. IIE Cell review, Angel investor A" onChange={(e) => setLabel(e.target.value)} />
+          </label>
+          <label className="block">
+            <span className="text-xs text-gray-400 block mb-1">Expires after</span>
+            <select className="input text-sm" value={days} onChange={(e) => setDays(e.target.value)}>
+              {[["7", "7 days"], ["30", "30 days"], ["90", "90 days"], ["365", "1 year"]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </label>
+          <button className="btn-primary text-sm" disabled={busy} onClick={create}>{busy ? "Creating…" : "Create link"}</button>
+        </div>
+
+        {fresh && (
+          <div className="mt-4 p-3 rounded-xl border border-green-500/30 bg-green-500/5">
+            <p className="text-sm text-green-300 mb-2">Link created (valid {fresh.days} days). Copy it now: for security it will not be shown again.</p>
+            <div className="flex gap-2">
+              <input className="input text-xs w-full font-mono" readOnly value={fresh.url} onFocus={(e) => e.target.select()} />
+              <button className="btn-secondary text-sm shrink-0" onClick={() => copy(fresh.url)}>Copy</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {links.length === 0 ? (
+        <div className="card text-sm text-gray-600 text-center py-6 mb-4">No links yet</div>
+      ) : (
+        <div className="card mb-4 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead><tr className="text-left text-xs text-gray-500"><th className="py-1 pr-3">For</th><th className="pr-3">Status</th><th className="pr-3">Views</th><th className="pr-3">Last viewed</th><th className="pr-3">Expires</th><th></th></tr></thead>
+            <tbody>
+              {links.map((l) => (
+                <tr key={l.link_id} className="border-t border-white/5">
+                  <td className="py-1.5 pr-3 text-white">{l.label}</td>
+                  <td className="pr-3"><span className={l.state === "active" ? "text-green-400" : "text-gray-500"}>{l.state}</span></td>
+                  <td className="pr-3">{l.view_count}</td>
+                  <td className="pr-3 text-gray-500">{l.last_viewed_at ? fmt(l.last_viewed_at) : "never"}</td>
+                  <td className="pr-3 text-gray-500">{fmt(l.expires_at)}</td>
+                  <td>{l.state === "active" && <button className="btn-ghost text-xs" onClick={() => revoke(l.link_id)}>Revoke</button>}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <div className="flex items-center gap-3 mb-4">
+        <button className="btn-secondary text-sm" disabled={loadingPreview} onClick={preview}>{loadingPreview ? "Loading…" : snapshot ? "Refresh preview" : "Preview what investors see"}</button>
+        {snapshot && <button className="btn-ghost text-sm" onClick={() => setSnapshot(null)}>Hide preview</button>}
+      </div>
+      {snapshot && (
+        <div className="rounded-2xl border border-white/10 p-4 sm:p-6">
+          <TractionView snapshot={snapshot} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ReferralAnalytics({ showToast }) {
   const [data, setData] = useState(null);
   const [failed, setFailed] = useState(false);
