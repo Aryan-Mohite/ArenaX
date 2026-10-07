@@ -3,6 +3,7 @@ Allow: /
 Disallow: /api/
 Disallow: /auth/
 Disallow: /admin/
+Disallow: /investors/
 Allow: /*.css$
 Allow: /*.js$
 
